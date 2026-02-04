@@ -1,0 +1,21 @@
+# MapFree MX150-safe config (2GB VRAM)
+# Stricter limits for stability on modest hardware
+
+feature_extractor:
+  max_image_size: 2000
+  gpu_index: 0
+
+matcher:
+  type: spatial
+  gpu_index: 0
+
+mapper:
+  ba_global_max_iterations: 50
+  ba_global_max_refinements: 5
+
+patch_match_stereo:
+  max_image_size: 1600
+  gpu_index: 0
+
+system:
+  num_threads: 4
