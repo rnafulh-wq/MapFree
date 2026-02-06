@@ -14,3 +14,1293 @@ colmap: error while loading shared libraries: libcudart.so.11.0: cannot open sha
 [2026-02-06 22:47:46] FALLBACK: GPU failed → wiping database and retrying on CPU
 colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
 [2026-02-06 22:47:46] ERROR: Feature Extraction failed on both GPU and CPU
+[2026-02-06 23:51:49] === MapFree MX150 SAFE PIPELINE START ===
+[2026-02-06 23:51:49] === [1/6] Feature Extraction (GPU SIFT-only, per-image) ===
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120224_998_1712204515709_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120224_998_1712204515709_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120224_998_1712204515709_photo.jpg
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120226_999_1712204514084_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120226_999_1712204514084_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120226_999_1712204514084_photo.jpg
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120228_1_1712204512430_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120228_1_1712204512430_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120228_1_1712204512430_photo.jpg
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120232_2_1712204510674_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120232_2_1712204510674_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120232_2_1712204510674_photo.jpg
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120234_3_1712204508827_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120234_3_1712204508827_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120234_3_1712204508827_photo.jpg
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120236_4_1712204506814_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120236_4_1712204506814_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120236_4_1712204506814_photo.jpg
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120240_5_1712204504711_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120240_5_1712204504711_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120240_5_1712204504711_photo.jpg
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120242_6_1712204502668_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120242_6_1712204502668_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120242_6_1712204502668_photo.jpg
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120258_7_1712204500718_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120258_7_1712204500718_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120258_7_1712204500718_photo.jpg
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120300_8_1712204498727_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120300_8_1712204498727_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120300_8_1712204498727_photo.jpg
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120302_9_1712204496740_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120302_9_1712204496740_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120302_9_1712204496740_photo.jpg
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120306_10_1712204494777_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120306_10_1712204494777_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120306_10_1712204494777_photo.jpg
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120308_11_1712204492963_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120308_11_1712204492963_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120308_11_1712204492963_photo.jpg
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120310_12_1712204490975_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120310_12_1712204490975_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120310_12_1712204490975_photo.jpg
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120314_13_1712204489270_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120314_13_1712204489270_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120314_13_1712204489270_photo.jpg
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120316_14_1712204487666_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120316_14_1712204487666_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120316_14_1712204487666_photo.jpg
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120330_15_1712204486200_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120330_15_1712204486200_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120330_15_1712204486200_photo.jpg
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120334_16_1712204484577_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120334_16_1712204484577_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120334_16_1712204484577_photo.jpg
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120336_17_1712204482755_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120336_17_1712204482755_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120336_17_1712204482755_photo.jpg
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120338_18_1712204480851_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120338_18_1712204480851_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120338_18_1712204480851_photo.jpg
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120340_19_1712204478967_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120340_19_1712204478967_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120340_19_1712204478967_photo.jpg
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120344_20_1712204477026_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120344_20_1712204477026_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120344_20_1712204477026_photo.jpg
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120346_21_1712204475072_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120346_21_1712204475072_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120346_21_1712204475072_photo.jpg
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120348_22_1712204473045_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120348_22_1712204473045_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120348_22_1712204473045_photo.jpg
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120404_23_1712204471058_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120404_23_1712204471058_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120404_23_1712204471058_photo.jpg
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120406_24_1712204469039_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120406_24_1712204469039_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120406_24_1712204469039_photo.jpg
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120410_25_1712204467016_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120410_25_1712204467016_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120410_25_1712204467016_photo.jpg
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120412_26_1712204464927_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120412_26_1712204464927_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120412_26_1712204464927_photo.jpg
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120414_27_1712204462911_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120414_27_1712204462911_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120414_27_1712204462911_photo.jpg
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120416_28_1712204460914_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120416_28_1712204460914_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120416_28_1712204460914_photo.jpg
+[2026-02-06 23:51:49] SIFT GPU: dji_fly_20240404_120422_30_1712204457428_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120422_30_1712204457428_photo.jpg
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 23:51:49] ERROR: SKIP image: dji_fly_20240404_120422_30_1712204457428_photo.jpg
+[2026-02-06 23:51:49] Feature extraction done: success=0 failed=31
+[2026-02-06 23:51:49] ERROR: Too few images with features (need >=5)
+[2026-02-07 00:11:24] === MapFree MX150 SAFE PIPELINE START ===
+[2026-02-07 00:11:24] === [1/6] Feature Extraction (GPU SIFT-only, per-image) ===
+[2026-02-07 00:11:24] SIFT GPU: dji_fly_20240404_120224_998_1712204515709_photo.jpg
+E0207 00:11:24.847607 30564 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:24] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120224_998_1712204515709_photo.jpg
+E0207 00:11:24.982841 30579 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:24] ERROR: SKIP image: dji_fly_20240404_120224_998_1712204515709_photo.jpg
+[2026-02-07 00:11:25] SIFT GPU: dji_fly_20240404_120226_999_1712204514084_photo.jpg
+E0207 00:11:25.123211 30603 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:25] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120226_999_1712204514084_photo.jpg
+E0207 00:11:25.259811 30618 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:25] ERROR: SKIP image: dji_fly_20240404_120226_999_1712204514084_photo.jpg
+[2026-02-07 00:11:25] SIFT GPU: dji_fly_20240404_120228_1_1712204512430_photo.jpg
+E0207 00:11:25.402248 30640 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:25] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120228_1_1712204512430_photo.jpg
+E0207 00:11:25.538070 30655 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:25] ERROR: SKIP image: dji_fly_20240404_120228_1_1712204512430_photo.jpg
+[2026-02-07 00:11:25] SIFT GPU: dji_fly_20240404_120232_2_1712204510674_photo.jpg
+E0207 00:11:25.680197 30677 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:25] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120232_2_1712204510674_photo.jpg
+E0207 00:11:25.817302 30693 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:25] ERROR: SKIP image: dji_fly_20240404_120232_2_1712204510674_photo.jpg
+[2026-02-07 00:11:25] SIFT GPU: dji_fly_20240404_120234_3_1712204508827_photo.jpg
+E0207 00:11:25.960429 30715 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:25] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120234_3_1712204508827_photo.jpg
+E0207 00:11:26.098104 30730 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:26] ERROR: SKIP image: dji_fly_20240404_120234_3_1712204508827_photo.jpg
+[2026-02-07 00:11:26] SIFT GPU: dji_fly_20240404_120236_4_1712204506814_photo.jpg
+E0207 00:11:26.242710 30752 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:26] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120236_4_1712204506814_photo.jpg
+E0207 00:11:26.376634 30767 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:26] ERROR: SKIP image: dji_fly_20240404_120236_4_1712204506814_photo.jpg
+[2026-02-07 00:11:26] SIFT GPU: dji_fly_20240404_120240_5_1712204504711_photo.jpg
+E0207 00:11:26.520918 30789 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:26] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120240_5_1712204504711_photo.jpg
+E0207 00:11:26.655417 30804 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:26] ERROR: SKIP image: dji_fly_20240404_120240_5_1712204504711_photo.jpg
+[2026-02-07 00:11:26] SIFT GPU: dji_fly_20240404_120242_6_1712204502668_photo.jpg
+E0207 00:11:26.798280 30826 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:26] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120242_6_1712204502668_photo.jpg
+E0207 00:11:26.932962 30841 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:26] ERROR: SKIP image: dji_fly_20240404_120242_6_1712204502668_photo.jpg
+[2026-02-07 00:11:26] SIFT GPU: dji_fly_20240404_120258_7_1712204500718_photo.jpg
+E0207 00:11:27.076409 30863 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:27] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120258_7_1712204500718_photo.jpg
+E0207 00:11:27.213758 30878 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:27] ERROR: SKIP image: dji_fly_20240404_120258_7_1712204500718_photo.jpg
+[2026-02-07 00:11:27] SIFT GPU: dji_fly_20240404_120300_8_1712204498727_photo.jpg
+E0207 00:11:27.359397 30900 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:27] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120300_8_1712204498727_photo.jpg
+E0207 00:11:27.493744 30915 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:27] ERROR: SKIP image: dji_fly_20240404_120300_8_1712204498727_photo.jpg
+[2026-02-07 00:11:27] SIFT GPU: dji_fly_20240404_120302_9_1712204496740_photo.jpg
+E0207 00:11:27.634621 30937 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:27] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120302_9_1712204496740_photo.jpg
+E0207 00:11:27.771068 30952 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:27] ERROR: SKIP image: dji_fly_20240404_120302_9_1712204496740_photo.jpg
+[2026-02-07 00:11:27] SIFT GPU: dji_fly_20240404_120306_10_1712204494777_photo.jpg
+E0207 00:11:27.912845 30974 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:27] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120306_10_1712204494777_photo.jpg
+E0207 00:11:28.048869 30989 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:28] ERROR: SKIP image: dji_fly_20240404_120306_10_1712204494777_photo.jpg
+[2026-02-07 00:11:28] SIFT GPU: dji_fly_20240404_120308_11_1712204492963_photo.jpg
+E0207 00:11:28.191298 31011 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:28] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120308_11_1712204492963_photo.jpg
+E0207 00:11:28.327831 31026 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:28] ERROR: SKIP image: dji_fly_20240404_120308_11_1712204492963_photo.jpg
+[2026-02-07 00:11:28] SIFT GPU: dji_fly_20240404_120310_12_1712204490975_photo.jpg
+E0207 00:11:28.471421 31048 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:28] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120310_12_1712204490975_photo.jpg
+E0207 00:11:28.607445 31063 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:28] ERROR: SKIP image: dji_fly_20240404_120310_12_1712204490975_photo.jpg
+[2026-02-07 00:11:28] SIFT GPU: dji_fly_20240404_120314_13_1712204489270_photo.jpg
+E0207 00:11:28.749995 31085 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:28] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120314_13_1712204489270_photo.jpg
+E0207 00:11:28.885635 31100 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:28] ERROR: SKIP image: dji_fly_20240404_120314_13_1712204489270_photo.jpg
+[2026-02-07 00:11:28] SIFT GPU: dji_fly_20240404_120316_14_1712204487666_photo.jpg
+E0207 00:11:29.030568 31122 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:29] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120316_14_1712204487666_photo.jpg
+E0207 00:11:29.166370 31137 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:29] ERROR: SKIP image: dji_fly_20240404_120316_14_1712204487666_photo.jpg
+[2026-02-07 00:11:29] SIFT GPU: dji_fly_20240404_120330_15_1712204486200_photo.jpg
+E0207 00:11:29.309612 31159 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:29] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120330_15_1712204486200_photo.jpg
+E0207 00:11:29.446820 31174 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:29] ERROR: SKIP image: dji_fly_20240404_120330_15_1712204486200_photo.jpg
+[2026-02-07 00:11:29] SIFT GPU: dji_fly_20240404_120334_16_1712204484577_photo.jpg
+E0207 00:11:29.590571 31196 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:29] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120334_16_1712204484577_photo.jpg
+E0207 00:11:29.726821 31211 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:29] ERROR: SKIP image: dji_fly_20240404_120334_16_1712204484577_photo.jpg
+[2026-02-07 00:11:29] SIFT GPU: dji_fly_20240404_120336_17_1712204482755_photo.jpg
+E0207 00:11:29.872871 31233 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:29] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120336_17_1712204482755_photo.jpg
+E0207 00:11:30.008800 31248 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:30] ERROR: SKIP image: dji_fly_20240404_120336_17_1712204482755_photo.jpg
+[2026-02-07 00:11:30] SIFT GPU: dji_fly_20240404_120338_18_1712204480851_photo.jpg
+E0207 00:11:30.154605 31270 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:30] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120338_18_1712204480851_photo.jpg
+E0207 00:11:30.292026 31285 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:30] ERROR: SKIP image: dji_fly_20240404_120338_18_1712204480851_photo.jpg
+[2026-02-07 00:11:30] SIFT GPU: dji_fly_20240404_120340_19_1712204478967_photo.jpg
+E0207 00:11:30.436329 31307 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:30] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120340_19_1712204478967_photo.jpg
+E0207 00:11:30.574411 31322 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:30] ERROR: SKIP image: dji_fly_20240404_120340_19_1712204478967_photo.jpg
+[2026-02-07 00:11:30] SIFT GPU: dji_fly_20240404_120344_20_1712204477026_photo.jpg
+E0207 00:11:30.717772 31344 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:30] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120344_20_1712204477026_photo.jpg
+E0207 00:11:30.853482 31359 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:30] ERROR: SKIP image: dji_fly_20240404_120344_20_1712204477026_photo.jpg
+[2026-02-07 00:11:30] SIFT GPU: dji_fly_20240404_120346_21_1712204475072_photo.jpg
+E0207 00:11:30.995826 31381 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:31] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120346_21_1712204475072_photo.jpg
+E0207 00:11:31.133998 31397 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:31] ERROR: SKIP image: dji_fly_20240404_120346_21_1712204475072_photo.jpg
+[2026-02-07 00:11:31] SIFT GPU: dji_fly_20240404_120348_22_1712204473045_photo.jpg
+E0207 00:11:31.274196 31419 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:31] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120348_22_1712204473045_photo.jpg
+E0207 00:11:31.412361 31434 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:31] ERROR: SKIP image: dji_fly_20240404_120348_22_1712204473045_photo.jpg
+[2026-02-07 00:11:31] SIFT GPU: dji_fly_20240404_120404_23_1712204471058_photo.jpg
+E0207 00:11:31.559444 31456 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:31] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120404_23_1712204471058_photo.jpg
+E0207 00:11:31.752427 31471 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:31] ERROR: SKIP image: dji_fly_20240404_120404_23_1712204471058_photo.jpg
+[2026-02-07 00:11:31] SIFT GPU: dji_fly_20240404_120406_24_1712204469039_photo.jpg
+E0207 00:11:31.895381 31494 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:31] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120406_24_1712204469039_photo.jpg
+E0207 00:11:32.031131 31509 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:32] ERROR: SKIP image: dji_fly_20240404_120406_24_1712204469039_photo.jpg
+[2026-02-07 00:11:32] SIFT GPU: dji_fly_20240404_120410_25_1712204467016_photo.jpg
+E0207 00:11:32.172514 31531 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:32] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120410_25_1712204467016_photo.jpg
+E0207 00:11:32.311394 31546 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:32] ERROR: SKIP image: dji_fly_20240404_120410_25_1712204467016_photo.jpg
+[2026-02-07 00:11:32] SIFT GPU: dji_fly_20240404_120412_26_1712204464927_photo.jpg
+E0207 00:11:32.454573 31568 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:32] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120412_26_1712204464927_photo.jpg
+E0207 00:11:32.590967 31583 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:32] ERROR: SKIP image: dji_fly_20240404_120412_26_1712204464927_photo.jpg
+[2026-02-07 00:11:32] SIFT GPU: dji_fly_20240404_120414_27_1712204462911_photo.jpg
+E0207 00:11:32.732796 31605 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:32] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120414_27_1712204462911_photo.jpg
+E0207 00:11:32.867288 31620 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:32] ERROR: SKIP image: dji_fly_20240404_120414_27_1712204462911_photo.jpg
+[2026-02-07 00:11:32] SIFT GPU: dji_fly_20240404_120416_28_1712204460914_photo.jpg
+E0207 00:11:33.008292 31642 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:33] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120416_28_1712204460914_photo.jpg
+E0207 00:11:33.144747 31657 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:33] ERROR: SKIP image: dji_fly_20240404_120416_28_1712204460914_photo.jpg
+[2026-02-07 00:11:33] SIFT GPU: dji_fly_20240404_120422_30_1712204457428_photo.jpg
+E0207 00:11:33.289191 31679 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:33] FALLBACK: GPU failed → CPU SIFT: dji_fly_20240404_120422_30_1712204457428_photo.jpg
+E0207 00:11:33.428977 31694 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.use_gpu'.
+[2026-02-07 00:11:33] ERROR: SKIP image: dji_fly_20240404_120422_30_1712204457428_photo.jpg
+[2026-02-07 00:11:33] Feature extraction done: success=0 failed=31
+[2026-02-07 00:11:33] ERROR: Too few images with features (need >=5)
+[2026-02-07 00:18:02] === MapFree MX150 SAFE PIPELINE START ===
+[2026-02-07 00:18:02] === [1/6] Feature Extraction (bulk, CPU SIFT) ===
+[2026-02-07 00:18:02] IMAGES_DIR=/home/mangto/dev/mapfree/images DB_PATH=/home/mangto/dev/mapfree/database.db (images: 31)
+[2026-02-07 00:18:02] Running: colmap feature_extractor (CPU, bulk)...
+E0207 00:18:02.944051 32296 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftExtraction.gpu_index'.
+[2026-02-07 00:18:02] ERROR: Feature extraction failed (exit 1). See COLMAP stderr above.
+[2026-02-07 00:22:03] === MapFree MX150 SAFE PIPELINE START ===
+[2026-02-07 00:22:03] === [1/6] Feature Extraction (bulk, CPU SIFT) ===
+[2026-02-07 00:22:03] IMAGES_DIR=/home/mangto/dev/mapfree/images DB_PATH=/home/mangto/dev/mapfree/database.db (images: 31)
+[2026-02-07 00:22:03] Running: colmap feature_extractor (CPU, bulk)...
+I0207 00:22:03.942895 33294 feature_extraction.cc:440] === Feature extraction ===
+I0207 00:22:03.943435 33299 sift.cc:727] Creating SIFT CPU feature extractor
+I0207 00:22:03.943526 33300 sift.cc:727] Creating SIFT CPU feature extractor
+I0207 00:22:03.943542 33301 sift.cc:727] Creating SIFT CPU feature extractor
+I0207 00:22:03.943627 33302 sift.cc:727] Creating SIFT CPU feature extractor
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:22:18.013881 33303 feature_extraction.cc:257] Processed file [1/31]
+I0207 00:22:18.013924 33303 feature_extraction.cc:260]   Name:            dji_fly_20240404_120224_998_1712204515709_photo.jpg
+I0207 00:22:18.013932 33303 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:22:18.013938 33303 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:22:18.013945 33303 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:22:18.013958 33303 feature_extraction.cc:279]   Features:        6636 (SIFT)
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:22:18.399421 33303 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.404, ALT=59.800
+I0207 00:22:18.770352 33303 feature_extraction.cc:257] Processed file [2/31]
+I0207 00:22:18.770394 33303 feature_extraction.cc:260]   Name:            dji_fly_20240404_120226_999_1712204514084_photo.jpg
+I0207 00:22:18.770402 33303 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:22:18.770408 33303 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:22:18.770416 33303 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:22:18.770427 33303 feature_extraction.cc:279]   Features:        5925 (SIFT)
+I0207 00:22:18.770503 33303 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.404, ALT=59.700
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:22:19.592041 33303 feature_extraction.cc:257] Processed file [3/31]
+I0207 00:22:19.592092 33303 feature_extraction.cc:260]   Name:            dji_fly_20240404_120228_1_1712204512430_photo.jpg
+I0207 00:22:19.592100 33303 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:22:19.592108 33303 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:22:19.592114 33303 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:22:19.592131 33303 feature_extraction.cc:279]   Features:        6485 (SIFT)
+I0207 00:22:19.592201 33303 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.404, ALT=60.000
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:22:20.099347 33303 feature_extraction.cc:257] Processed file [4/31]
+I0207 00:22:20.099390 33303 feature_extraction.cc:260]   Name:            dji_fly_20240404_120232_2_1712204510674_photo.jpg
+I0207 00:22:20.099400 33303 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:22:20.099407 33303 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:22:20.099414 33303 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:22:20.099427 33303 feature_extraction.cc:279]   Features:        5379 (SIFT)
+I0207 00:22:20.099493 33303 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.404, ALT=60.100
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:22:31.668057 33303 feature_extraction.cc:257] Processed file [5/31]
+I0207 00:22:31.668098 33303 feature_extraction.cc:260]   Name:            dji_fly_20240404_120234_3_1712204508827_photo.jpg
+I0207 00:22:31.668107 33303 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:22:31.668114 33303 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:22:31.668123 33303 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:22:31.668135 33303 feature_extraction.cc:279]   Features:        6327 (SIFT)
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:22:32.392890 33303 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=60.000
+I0207 00:22:32.453202 33303 feature_extraction.cc:257] Processed file [6/31]
+I0207 00:22:32.453691 33303 feature_extraction.cc:260]   Name:            dji_fly_20240404_120236_4_1712204506814_photo.jpg
+I0207 00:22:32.453918 33303 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:22:32.454087 33303 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:22:32.454262 33303 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:22:32.454486 33303 feature_extraction.cc:279]   Features:        6731 (SIFT)
+I0207 00:22:32.454736 33303 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=59.900
+I0207 00:22:33.822424 33303 feature_extraction.cc:257] Processed file [7/31]
+I0207 00:22:33.822839 33303 feature_extraction.cc:260]   Name:            dji_fly_20240404_120240_5_1712204504711_photo.jpg
+I0207 00:22:33.824090 33303 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:22:33.824461 33303 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:22:33.824551 33303 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:22:33.824574 33303 feature_extraction.cc:279]   Features:        6876 (SIFT)
+I0207 00:22:33.824672 33303 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=60.000
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:22:33.937942 33303 feature_extraction.cc:257] Processed file [8/31]
+I0207 00:22:33.938004 33303 feature_extraction.cc:260]   Name:            dji_fly_20240404_120242_6_1712204502668_photo.jpg
+I0207 00:22:33.938014 33303 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:22:33.938021 33303 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:22:33.938030 33303 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:22:33.938045 33303 feature_extraction.cc:279]   Features:        6668 (SIFT)
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:22:34.787477 33303 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=59.900
+I0207 00:22:45.072120 33303 feature_extraction.cc:257] Processed file [9/31]
+I0207 00:22:45.072160 33303 feature_extraction.cc:260]   Name:            dji_fly_20240404_120258_7_1712204500718_photo.jpg
+I0207 00:22:45.072168 33303 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:22:45.072175 33303 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:22:45.072182 33303 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:22:45.072199 33303 feature_extraction.cc:279]   Features:        5123 (SIFT)
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:22:45.452270 33303 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=59.800
+I0207 00:22:45.794767 33303 feature_extraction.cc:257] Processed file [10/31]
+I0207 00:22:45.794813 33303 feature_extraction.cc:260]   Name:            dji_fly_20240404_120300_8_1712204498727_photo.jpg
+I0207 00:22:45.794824 33303 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:22:45.794831 33303 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:22:45.794839 33303 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:22:45.794854 33303 feature_extraction.cc:279]   Features:        4949 (SIFT)
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:22:46.223694 33303 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=59.800
+I0207 00:22:46.436106 33303 feature_extraction.cc:257] Processed file [11/31]
+I0207 00:22:46.436157 33303 feature_extraction.cc:260]   Name:            dji_fly_20240404_120306_10_1712204494777_photo.jpg
+I0207 00:22:46.436168 33303 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:22:46.436177 33303 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:22:46.436184 33303 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:22:46.436200 33303 feature_extraction.cc:279]   Features:        5953 (SIFT)
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:22:46.873266 33303 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=60.000
+I0207 00:22:47.311264 33303 feature_extraction.cc:257] Processed file [12/31]
+I0207 00:22:47.311303 33303 feature_extraction.cc:260]   Name:            dji_fly_20240404_120302_9_1712204496740_photo.jpg
+I0207 00:22:47.311313 33303 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:22:47.311333 33303 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:22:47.311342 33303 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:22:47.311354 33303 feature_extraction.cc:279]   Features:        6938 (SIFT)
+I0207 00:22:47.312116 33303 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=60.000
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+[2026-02-07 00:24:10] === MapFree MX150 SAFE PIPELINE START ===
+[2026-02-07 00:24:10] === [1/6] Feature Extraction (bulk, CPU SIFT) ===
+[2026-02-07 00:24:10] IMAGES_DIR=/home/mangto/dev/mapfree/images DB_PATH=/home/mangto/dev/mapfree/database.db (images: 31)
+[2026-02-07 00:24:10] Running: colmap feature_extractor (CPU, bulk)...
+I0207 00:24:11.013398 33645 feature_extraction.cc:440] === Feature extraction ===
+I0207 00:24:11.013940 33650 sift.cc:727] Creating SIFT CPU feature extractor
+I0207 00:24:11.013988 33651 sift.cc:727] Creating SIFT CPU feature extractor
+I0207 00:24:11.014081 33652 sift.cc:727] Creating SIFT CPU feature extractor
+I0207 00:24:11.014178 33653 sift.cc:727] Creating SIFT CPU feature extractor
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:24:25.949357 33654 feature_extraction.cc:257] Processed file [1/31]
+I0207 00:24:25.949564 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120226_999_1712204514084_photo.jpg
+I0207 00:24:25.950626 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:24:25.950650 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:24:25.950659 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:24:25.950668 33654 feature_extraction.cc:279]   Features:        5925 (SIFT)
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:24:26.374655 33654 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.404, ALT=59.700
+I0207 00:24:26.656972 33654 feature_extraction.cc:257] Processed file [2/31]
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:24:26.661846 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120224_998_1712204515709_photo.jpg
+I0207 00:24:26.661890 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:24:26.661899 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:24:26.661907 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:24:26.661919 33654 feature_extraction.cc:279]   Features:        6636 (SIFT)
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:24:27.600282 33654 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.404, ALT=59.800
+I0207 00:24:27.613965 33654 feature_extraction.cc:257] Processed file [3/31]
+I0207 00:24:27.616004 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120228_1_1712204512430_photo.jpg
+I0207 00:24:27.617048 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:24:27.617887 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:24:27.618700 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:24:27.620755 33654 feature_extraction.cc:279]   Features:        6485 (SIFT)
+I0207 00:24:27.621157 33654 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.404, ALT=60.000
+I0207 00:24:27.636103 33654 feature_extraction.cc:257] Processed file [4/31]
+I0207 00:24:27.637712 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120232_2_1712204510674_photo.jpg
+I0207 00:24:27.638708 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:24:27.638731 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:24:27.638741 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:24:27.638752 33654 feature_extraction.cc:279]   Features:        5379 (SIFT)
+I0207 00:24:27.638823 33654 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.404, ALT=60.100
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:24:39.362901 33654 feature_extraction.cc:257] Processed file [5/31]
+I0207 00:24:39.364655 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120236_4_1712204506814_photo.jpg
+I0207 00:24:39.366077 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:24:39.366134 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:24:39.366144 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:24:39.366163 33654 feature_extraction.cc:279]   Features:        6731 (SIFT)
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:24:39.650369 33654 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=59.900
+I0207 00:24:39.687935 33654 feature_extraction.cc:257] Processed file [6/31]
+I0207 00:24:39.687975 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120234_3_1712204508827_photo.jpg
+I0207 00:24:39.687985 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:24:39.687994 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:24:39.688001 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:24:39.688015 33654 feature_extraction.cc:279]   Features:        6327 (SIFT)
+I0207 00:24:39.688097 33654 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=60.000
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:24:40.794857 33654 feature_extraction.cc:257] Processed file [7/31]
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:24:40.795347 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120242_6_1712204502668_photo.jpg
+I0207 00:24:40.796396 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:24:40.796438 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:24:40.796447 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:24:40.796471 33654 feature_extraction.cc:279]   Features:        6668 (SIFT)
+I0207 00:24:41.278694 33654 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=59.900
+I0207 00:24:42.128400 33654 feature_extraction.cc:257] Processed file [8/31]
+I0207 00:24:42.128912 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120240_5_1712204504711_photo.jpg
+I0207 00:24:42.128954 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:24:42.128963 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:24:42.128970 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:24:42.128988 33654 feature_extraction.cc:279]   Features:        6876 (SIFT)
+I0207 00:24:42.129083 33654 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=60.000
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:24:53.236778 33654 feature_extraction.cc:257] Processed file [9/31]
+I0207 00:24:53.236838 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120258_7_1712204500718_photo.jpg
+I0207 00:24:53.236848 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:24:53.236855 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:24:53.236863 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:24:53.236883 33654 feature_extraction.cc:279]   Features:        5123 (SIFT)
+I0207 00:24:53.237027 33654 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=59.800
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:24:54.364626 33654 feature_extraction.cc:257] Processed file [10/31]
+I0207 00:24:54.365505 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120300_8_1712204498727_photo.jpg
+I0207 00:24:54.365557 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:24:54.365567 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:24:54.365574 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:24:54.365590 33654 feature_extraction.cc:279]   Features:        4949 (SIFT)
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:24:55.195649 33654 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=59.800
+I0207 00:24:55.208436 33654 feature_extraction.cc:257] Processed file [11/31]
+I0207 00:24:55.208465 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120302_9_1712204496740_photo.jpg
+I0207 00:24:55.208473 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:24:55.208479 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:24:55.208487 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:24:55.208496 33654 feature_extraction.cc:279]   Features:        6938 (SIFT)
+I0207 00:24:55.208554 33654 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=60.000
+I0207 00:24:55.561600 33654 feature_extraction.cc:257] Processed file [12/31]
+I0207 00:24:55.561643 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120306_10_1712204494777_photo.jpg
+I0207 00:24:55.561652 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:24:55.561658 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:24:55.561666 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:24:55.561678 33654 feature_extraction.cc:279]   Features:        5953 (SIFT)
+I0207 00:24:55.561749 33654 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=60.000
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:25:05.641228 33654 feature_extraction.cc:257] Processed file [13/31]
+I0207 00:25:05.641290 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120308_11_1712204492963_photo.jpg
+I0207 00:25:05.641302 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:25:05.641312 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:25:05.641331 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:25:05.641360 33654 feature_extraction.cc:279]   Features:        5340 (SIFT)
+I0207 00:25:05.641563 33654 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.404, ALT=60.000
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:25:07.327261 33654 feature_extraction.cc:257] Processed file [14/31]
+I0207 00:25:07.327399 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120310_12_1712204490975_photo.jpg
+I0207 00:25:07.327451 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:25:07.327481 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:25:07.327512 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:25:07.327548 33654 feature_extraction.cc:279]   Features:        6148 (SIFT)
+I0207 00:25:07.327652 33654 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.404, ALT=60.000
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:25:08.225353 33654 feature_extraction.cc:257] Processed file [15/31]
+I0207 00:25:08.225391 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120314_13_1712204489270_photo.jpg
+I0207 00:25:08.225400 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:25:08.225407 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:25:08.225414 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:25:08.225425 33654 feature_extraction.cc:279]   Features:        6245 (SIFT)
+I0207 00:25:08.800254 33654 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.404, ALT=59.900
+I0207 00:25:09.709000 33654 feature_extraction.cc:257] Processed file [16/31]
+I0207 00:25:09.712493 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120316_14_1712204487666_photo.jpg
+I0207 00:25:09.712833 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:25:09.713038 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:25:09.713285 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:25:09.715256 33654 feature_extraction.cc:279]   Features:        6462 (SIFT)
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:25:10.427260 33654 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.404, ALT=59.900
+I0207 00:25:19.497581 33654 feature_extraction.cc:257] Processed file [17/31]
+I0207 00:25:19.497781 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120330_15_1712204486200_photo.jpg
+I0207 00:25:19.497835 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:25:19.497865 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:25:19.497893 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:25:19.497931 33654 feature_extraction.cc:279]   Features:        8151 (SIFT)
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:25:19.889895 33654 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.404, ALT=59.800
+I0207 00:25:20.433355 33654 feature_extraction.cc:257] Processed file [18/31]
+I0207 00:25:20.433528 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120334_16_1712204484577_photo.jpg
+I0207 00:25:20.433570 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:25:20.433596 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:25:20.433622 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:25:20.433657 33654 feature_extraction.cc:279]   Features:        5000 (SIFT)
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:25:20.896486 33654 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.404, ALT=59.800
+I0207 00:25:21.619359 33654 feature_extraction.cc:257] Processed file [19/31]
+I0207 00:25:21.619403 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120336_17_1712204482755_photo.jpg
+I0207 00:25:21.619411 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:25:21.619418 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:25:21.619426 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:25:21.619437 33654 feature_extraction.cc:279]   Features:        5916 (SIFT)
+I0207 00:25:21.619508 33654 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.404, ALT=60.000
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:25:23.119067 33654 feature_extraction.cc:257] Processed file [20/31]
+I0207 00:25:23.119109 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120338_18_1712204480851_photo.jpg
+I0207 00:25:23.119123 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:25:23.119130 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:25:23.119138 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:25:23.119151 33654 feature_extraction.cc:279]   Features:        5942 (SIFT)
+I0207 00:25:23.119248 33654 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.404, ALT=60.100
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:25:32.363631 33654 feature_extraction.cc:257] Processed file [21/31]
+I0207 00:25:32.364081 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120340_19_1712204478967_photo.jpg
+I0207 00:25:32.364265 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:25:32.364575 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:25:32.364826 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:25:32.364972 33654 feature_extraction.cc:279]   Features:        6650 (SIFT)
+I0207 00:25:32.365257 33654 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=60.000
+I0207 00:25:34.594241 33654 feature_extraction.cc:257] Processed file [22/31]
+I0207 00:25:34.594288 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120344_20_1712204477026_photo.jpg
+I0207 00:25:34.594300 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:25:34.594307 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:25:34.594316 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:25:34.594345 33654 feature_extraction.cc:279]   Features:        5014 (SIFT)
+I0207 00:25:34.594451 33654 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=60.000
+I0207 00:25:35.795948 33654 feature_extraction.cc:257] Processed file [23/31]
+I0207 00:25:35.796984 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120346_21_1712204475072_photo.jpg
+I0207 00:25:35.797418 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:25:35.797698 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:25:35.797891 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:25:35.798087 33654 feature_extraction.cc:279]   Features:        5092 (SIFT)
+I0207 00:25:35.798377 33654 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=60.000
+I0207 00:25:38.336810 33654 feature_extraction.cc:257] Processed file [24/31]
+I0207 00:25:38.336859 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120348_22_1712204473045_photo.jpg
+I0207 00:25:38.336870 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:25:38.336879 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:25:38.336887 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:25:38.336905 33654 feature_extraction.cc:279]   Features:        5573 (SIFT)
+I0207 00:25:38.337052 33654 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=60.000
+I0207 00:25:45.349555 33654 feature_extraction.cc:257] Processed file [25/31]
+I0207 00:25:45.349678 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120404_23_1712204471058_photo.jpg
+I0207 00:25:45.349716 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:25:45.349746 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:25:45.349773 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:25:45.349812 33654 feature_extraction.cc:279]   Features:        5208 (SIFT)
+I0207 00:25:45.349999 33654 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=59.900
+I0207 00:25:45.577576 33654 feature_extraction.cc:257] Processed file [26/31]
+I0207 00:25:45.577620 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120410_25_1712204467016_photo.jpg
+I0207 00:25:45.577629 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:25:45.577636 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:25:45.577643 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:25:45.577659 33654 feature_extraction.cc:279]   Features:        7034 (SIFT)
+I0207 00:25:45.577744 33654 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=60.000
+I0207 00:25:46.550331 33654 feature_extraction.cc:257] Processed file [27/31]
+I0207 00:25:46.550369 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120406_24_1712204469039_photo.jpg
+I0207 00:25:46.550379 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:25:46.550385 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:25:46.550391 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:25:46.550405 33654 feature_extraction.cc:279]   Features:        5025 (SIFT)
+I0207 00:25:46.550485 33654 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=59.700
+I0207 00:25:46.895200 33654 feature_extraction.cc:257] Processed file [28/31]
+I0207 00:25:46.895310 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120412_26_1712204464927_photo.jpg
+I0207 00:25:46.895335 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:25:46.895344 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:25:46.895350 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:25:46.895362 33654 feature_extraction.cc:279]   Features:        5771 (SIFT)
+I0207 00:25:46.895433 33654 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=60.000
+I0207 00:25:53.574720 33654 feature_extraction.cc:257] Processed file [29/31]
+I0207 00:25:53.574749 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120414_27_1712204462911_photo.jpg
+I0207 00:25:53.574760 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:25:53.574769 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:25:53.574777 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:25:53.574791 33654 feature_extraction.cc:279]   Features:        5318 (SIFT)
+I0207 00:25:53.574883 33654 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=60.000
+I0207 00:25:53.816931 33654 feature_extraction.cc:257] Processed file [30/31]
+I0207 00:25:53.816965 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120416_28_1712204460914_photo.jpg
+I0207 00:25:53.816969 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:25:53.816973 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:25:53.816978 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:25:53.816987 33654 feature_extraction.cc:279]   Features:        6252 (SIFT)
+I0207 00:25:53.817068 33654 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.404, ALT=60.000
+I0207 00:25:55.425431 33654 feature_extraction.cc:257] Processed file [31/31]
+I0207 00:25:55.425457 33654 feature_extraction.cc:260]   Name:            dji_fly_20240404_120422_30_1712204457428_photo.jpg
+I0207 00:25:55.425462 33654 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:25:55.425464 33654 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:25:55.425468 33654 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:25:55.425477 33654 feature_extraction.cc:279]   Features:        6038 (SIFT)
+I0207 00:25:55.425526 33654 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.405, ALT=59.900
+I0207 00:25:55.490264 33645 timer.cc:90] Elapsed time: 1.741 [minutes]
+[2026-02-07 00:25:55] Feature extraction OK (CPU, bulk)
+[2026-02-07 00:25:55] === [2/6] Feature Matching (GPU safe) ===
+E0207 00:25:55.645627 33748 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftMatching.use_gpu'.
+[2026-02-07 00:25:55] FALLBACK: Matching GPU failed → CPU
+E0207 00:25:55.802985 33763 base_option_manager.cc:196] Failed to parse options - unrecognised option '--SiftMatching.use_gpu'.
+[2026-02-07 00:26:42] === MapFree MX150 SAFE PIPELINE START ===
+[2026-02-07 00:26:42] === [2/6] Feature Matching (CPU, COLMAP-compat) ===
+E0207 00:26:42.929173 33903 cudacc.cc:59] CUDA error at /home/mangto/tools/colmap/src/colmap/util/cuda.cc:56 - no CUDA-capable device is detected
+[2026-02-07 00:27:03] === MapFree MX150 SAFE PIPELINE START ===
+[2026-02-07 00:27:03] === [2/6] Feature Matching (CPU, COLMAP-compat) ===
+E0207 00:27:03.492677 34041 cudacc.cc:59] CUDA error at /home/mangto/tools/colmap/src/colmap/util/cuda.cc:56 - no CUDA-capable device is detected
+[2026-02-07 00:27:35] === MapFree MX150 SAFE PIPELINE START ===
+[2026-02-07 00:27:35] === [2/6] Feature Matching (CPU, COLMAP 3.14 compat) ===
+I0207 00:27:35.864490 34241 feature_matching.cc:195] === Feature matching & geometric verification ===
+I0207 00:27:35.864799 34242 sift.cc:1543] Creating SIFT CPU feature matcher
+I0207 00:27:35.864831 34243 sift.cc:1543] Creating SIFT CPU feature matcher
+I0207 00:27:35.864909 34244 sift.cc:1543] Creating SIFT CPU feature matcher
+I0207 00:27:35.865057 34245 sift.cc:1543] Creating SIFT CPU feature matcher
+I0207 00:27:35.865604 34241 pairing.cc:557] Generating spatial image pairs...
+I0207 00:27:35.865629 34241 pairing.cc:562] Indexing images...
+I0207 00:27:35.865643 34241 pairing.cc:567]  in 0.000s
+I0207 00:27:35.865664 34241 pairing.cc:569] => No images with location data.
+I0207 00:27:35.865675 34241 timer.cc:90] Elapsed time: 0.000 [minutes]
+[2026-02-07 00:27:35] === [3/6] Sparse Reconstruction ===
+I0207 00:27:36.025254 34254 incremental_pipeline.cc:264] Loading database
+I0207 00:27:36.025478 34254 database_cache.cc:72] Loading rigs...
+I0207 00:27:36.025527 34254 database_cache.cc:82]  0 in 0.000s
+I0207 00:27:36.025547 34254 database_cache.cc:90] Loading cameras...
+I0207 00:27:36.025578 34254 database_cache.cc:108]  0 in 0.000s
+I0207 00:27:36.025593 34254 database_cache.cc:116] Loading frames...
+I0207 00:27:36.025612 34254 database_cache.cc:126]  0 in 0.000s
+I0207 00:27:36.025627 34254 database_cache.cc:134] Loading matches...
+I0207 00:27:36.025650 34254 database_cache.cc:139]  0 in 0.000s
+I0207 00:27:36.025720 34254 database_cache.cc:147] Loading images...
+I0207 00:27:36.025776 34254 database_cache.cc:226]  0 in 0.000s (connected 0)
+I0207 00:27:36.025797 34254 database_cache.cc:238] Loading pose priors...
+I0207 00:27:36.025820 34254 database_cache.cc:246]  0 in 0.000s
+I0207 00:27:36.025833 34254 database_cache.cc:254] Building correspondence graph...
+I0207 00:27:36.026003 34254 database_cache.cc:283]  in 0.000s (ignored 0)
+I0207 00:27:36.026026 34254 timer.cc:90] Elapsed time: 0.000 [minutes]
+W0207 00:27:36.026041 34254 incremental_pipeline.cc:301] No images with matches
+E0207 00:27:36.026049 34254 sfm.cc:277] Failed to create any sparse model
+[2026-02-07 00:28:14] === MapFree MX150 SAFE PIPELINE START ===
+[2026-02-07 00:28:14] === [2/6] Feature Matching (exhaustive, CPU) ===
+I0207 00:28:14.519094 34613 feature_matching.cc:195] === Feature matching & geometric verification ===
+I0207 00:28:14.519399 34614 sift.cc:1543] Creating SIFT CPU feature matcher
+I0207 00:28:14.519479 34615 sift.cc:1543] Creating SIFT CPU feature matcher
+I0207 00:28:14.519605 34616 sift.cc:1543] Creating SIFT CPU feature matcher
+I0207 00:28:14.519654 34617 sift.cc:1543] Creating SIFT CPU feature matcher
+I0207 00:28:14.520067 34613 pairing.cc:180] Generating exhaustive image pairs...
+I0207 00:28:14.520087 34613 timer.cc:90] Elapsed time: 0.000 [minutes]
+[2026-02-07 00:28:14] === [3/6] Sparse Reconstruction ===
+I0207 00:28:14.679127 34626 incremental_pipeline.cc:264] Loading database
+I0207 00:28:14.679334 34626 database_cache.cc:72] Loading rigs...
+I0207 00:28:14.679369 34626 database_cache.cc:82]  0 in 0.000s
+I0207 00:28:14.679383 34626 database_cache.cc:90] Loading cameras...
+I0207 00:28:14.679401 34626 database_cache.cc:108]  0 in 0.000s
+I0207 00:28:14.679410 34626 database_cache.cc:116] Loading frames...
+I0207 00:28:14.679422 34626 database_cache.cc:126]  0 in 0.000s
+I0207 00:28:14.679430 34626 database_cache.cc:134] Loading matches...
+I0207 00:28:14.679445 34626 database_cache.cc:139]  0 in 0.000s
+I0207 00:28:14.679452 34626 database_cache.cc:147] Loading images...
+I0207 00:28:14.679486 34626 database_cache.cc:226]  0 in 0.000s (connected 0)
+I0207 00:28:14.679499 34626 database_cache.cc:238] Loading pose priors...
+I0207 00:28:14.679513 34626 database_cache.cc:246]  0 in 0.000s
+I0207 00:28:14.679522 34626 database_cache.cc:254] Building correspondence graph...
+I0207 00:28:14.679533 34626 database_cache.cc:283]  in 0.000s (ignored 0)
+I0207 00:28:14.679548 34626 timer.cc:90] Elapsed time: 0.000 [minutes]
+W0207 00:28:14.679556 34626 incremental_pipeline.cc:301] No images with matches
+E0207 00:28:14.679561 34626 sfm.cc:277] Failed to create any sparse model
+[2026-02-07 00:30:47] === MapFree MX150 SAFE PIPELINE START ===
+[2026-02-07 00:30:47] === [1/6] Feature Extraction (bulk, CPU SIFT) ===
+[2026-02-07 00:30:47] IMAGES_DIR=/home/mangto/dev/mapfree/images DB_PATH=/home/mangto/dev/mapfree/database.db (images: 31)
+[2026-02-07 00:30:47] Running: colmap feature_extractor (CPU, bulk)...
+I0207 00:30:47.196909 35110 feature_extraction.cc:440] === Feature extraction ===
+I0207 00:30:47.197501 35115 sift.cc:727] Creating SIFT CPU feature extractor
+I0207 00:30:47.197535 35116 sift.cc:727] Creating SIFT CPU feature extractor
+I0207 00:30:47.197635 35117 sift.cc:727] Creating SIFT CPU feature extractor
+I0207 00:30:47.197741 35118 sift.cc:727] Creating SIFT CPU feature extractor
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:31:06.695804 35119 feature_extraction.cc:257] Processed file [1/31]
+I0207 00:31:06.696729 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120226_999_1712204514084_photo.jpg
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:31:06.697572 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:31:06.702412 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:31:06.702442 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:31:06.702456 35119 feature_extraction.cc:279]   Features:        5925 (SIFT)
+I0207 00:31:07.249383 35119 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.404, ALT=59.700
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:31:08.015969 35119 feature_extraction.cc:257] Processed file [2/31]
+I0207 00:31:08.016000 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120224_998_1712204515709_photo.jpg
+I0207 00:31:08.016007 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:31:08.016013 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:31:08.016021 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:31:08.016034 35119 feature_extraction.cc:279]   Features:        6636 (SIFT)
+I0207 00:31:08.716787 35119 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.404, ALT=59.800
+I0207 00:31:09.012357 35119 feature_extraction.cc:257] Processed file [3/31]
+I0207 00:31:09.012398 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120228_1_1712204512430_photo.jpg
+I0207 00:31:09.012406 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:31:09.012413 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:31:09.012421 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:31:09.012434 35119 feature_extraction.cc:279]   Features:        6485 (SIFT)
+I0207 00:31:09.012506 35119 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.404, ALT=60.000
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:31:09.245074 35119 feature_extraction.cc:257] Processed file [4/31]
+I0207 00:31:09.245108 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120232_2_1712204510674_photo.jpg
+I0207 00:31:09.245116 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:31:09.245122 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:31:09.245129 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:31:09.245143 35119 feature_extraction.cc:279]   Features:        5379 (SIFT)
+I0207 00:31:09.824635 35119 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.404, ALT=60.100
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:31:22.002825 35119 feature_extraction.cc:257] Processed file [5/31]
+I0207 00:31:22.002897 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120234_3_1712204508827_photo.jpg
+I0207 00:31:22.002907 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:31:22.002914 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:31:22.002924 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:31:22.002949 35119 feature_extraction.cc:279]   Features:        6327 (SIFT)
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:31:22.427596 35119 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=60.000
+I0207 00:31:23.003178 35119 feature_extraction.cc:257] Processed file [6/31]
+I0207 00:31:23.003225 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120236_4_1712204506814_photo.jpg
+I0207 00:31:23.003234 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:31:23.003242 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:31:23.003249 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:31:23.003264 35119 feature_extraction.cc:279]   Features:        6731 (SIFT)
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:31:23.522498 35119 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=59.900
+I0207 00:31:24.901378 35119 feature_extraction.cc:257] Processed file [7/31]
+I0207 00:31:24.901489 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120240_5_1712204504711_photo.jpg
+I0207 00:31:24.901502 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:31:24.901511 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:31:24.901523 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:31:24.901551 35119 feature_extraction.cc:279]   Features:        6876 (SIFT)
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:31:25.365859 35119 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=60.000
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:31:25.379716 35119 feature_extraction.cc:257] Processed file [8/31]
+I0207 00:31:25.379752 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120242_6_1712204502668_photo.jpg
+I0207 00:31:25.379761 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:31:25.379768 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:31:25.379776 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:31:25.379788 35119 feature_extraction.cc:279]   Features:        6668 (SIFT)
+I0207 00:31:26.092911 35119 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=59.900
+I0207 00:31:35.922806 35119 feature_extraction.cc:257] Processed file [9/31]
+I0207 00:31:35.922847 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120258_7_1712204500718_photo.jpg
+I0207 00:31:35.922855 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:31:35.922863 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:31:35.922870 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:31:35.922899 35119 feature_extraction.cc:279]   Features:        5123 (SIFT)
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:31:36.366405 35119 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=59.800
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:31:38.066813 35119 feature_extraction.cc:257] Processed file [10/31]
+I0207 00:31:38.068434 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120300_8_1712204498727_photo.jpg
+I0207 00:31:38.068445 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:31:38.068451 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:31:38.068460 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:31:38.068478 35119 feature_extraction.cc:279]   Features:        4949 (SIFT)
+I0207 00:31:38.621847 35119 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=59.800
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:31:39.818359 35119 feature_extraction.cc:257] Processed file [11/31]
+I0207 00:31:39.822350 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120308_11_1712204492963_photo.jpg
+I0207 00:31:39.822376 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:31:39.822386 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:31:39.822393 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:31:39.822408 35119 feature_extraction.cc:279]   Features:        5340 (SIFT)
+I0207 00:31:40.429276 35119 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.404, ALT=60.000
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:31:41.855727 35119 feature_extraction.cc:257] Processed file [12/31]
+I0207 00:31:41.855765 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120302_9_1712204496740_photo.jpg
+I0207 00:31:41.855778 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:31:41.855787 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:31:41.855795 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:31:41.855811 35119 feature_extraction.cc:279]   Features:        6938 (SIFT)
+I0207 00:31:42.559868 35119 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=60.000
+I0207 00:31:48.409054 35119 feature_extraction.cc:257] Processed file [13/31]
+I0207 00:31:48.409087 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120306_10_1712204494777_photo.jpg
+I0207 00:31:48.409096 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:31:48.409102 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:31:48.409109 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:31:48.409122 35119 feature_extraction.cc:279]   Features:        5953 (SIFT)
+I0207 00:31:48.409194 35119 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=60.000
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:31:52.024513 35119 feature_extraction.cc:257] Processed file [14/31]
+I0207 00:31:52.024793 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120310_12_1712204490975_photo.jpg
+I0207 00:31:52.024901 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:31:52.024933 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:31:52.024962 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:31:52.025012 35119 feature_extraction.cc:279]   Features:        6148 (SIFT)
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:31:52.471809 35119 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.404, ALT=60.000
+I0207 00:31:53.623196 35119 feature_extraction.cc:257] Processed file [15/31]
+I0207 00:31:53.624156 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120314_13_1712204489270_photo.jpg
+I0207 00:31:53.624742 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:31:53.624887 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+add_exif_item_to_spec: didn't know how to process I0207 00:31:53.625013 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:31:53.625281 35119 feature_extraction.cc:279]   Features:        6245 (SIFT)
+Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:31:54.197316 35119 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.404, ALT=59.900
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:31:56.855595 35119 feature_extraction.cc:257] Processed file [16/31]
+I0207 00:31:56.855650 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120316_14_1712204487666_photo.jpg
+I0207 00:31:56.855660 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:31:56.855667 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:31:56.855676 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:31:56.855693 35119 feature_extraction.cc:279]   Features:        6462 (SIFT)
+I0207 00:31:57.343911 35119 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.404, ALT=59.900
+I0207 00:32:02.953104 35119 feature_extraction.cc:257] Processed file [17/31]
+I0207 00:32:02.957347 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120330_15_1712204486200_photo.jpg
+I0207 00:32:02.957386 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:32:02.957399 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:32:02.957409 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:32:02.957427 35119 feature_extraction.cc:279]   Features:        8151 (SIFT)
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:32:03.380255 35119 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.404, ALT=59.800
+I0207 00:32:07.005951 35119 feature_extraction.cc:257] Processed file [18/31]
+I0207 00:32:07.006283 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120334_16_1712204484577_photo.jpg
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+I0207 00:32:07.006496 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:32:07.007089 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+Found APP1 XMP! length 8188
+I0207 00:32:07.007117 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:32:07.007207 35119 feature_extraction.cc:279]   Features:        5000 (SIFT)
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:32:07.873476 35119 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.404, ALT=59.800
+I0207 00:32:07.882894 35119 feature_extraction.cc:257] Processed file [19/31]
+I0207 00:32:07.884606 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120336_17_1712204482755_photo.jpg
+I0207 00:32:07.885546 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:32:07.887569 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:32:07.888043 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:32:07.888070 35119 feature_extraction.cc:279]   Features:        5916 (SIFT)
+I0207 00:32:07.888159 35119 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.404, ALT=60.000
+I0207 00:32:08.425442 35119 feature_extraction.cc:257] Processed file [20/31]
+I0207 00:32:08.425478 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120338_18_1712204480851_photo.jpg
+I0207 00:32:08.425488 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:32:08.425495 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:32:08.425503 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:32:08.425518 35119 feature_extraction.cc:279]   Features:        5942 (SIFT)
+add_exif_item_to_spec: didn't know how to process Exif:ComponentsConfiguration, type 7 x 4
+add_exif_item_to_spec: didn't know how to process Exif:FileSource, type 7 x 1
+add_exif_item_to_spec: didn't know how to process Exif:SceneType, type 7 x 1
+Found APP1 XMP! length 8188
+I0207 00:32:09.158854 35119 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.404, ALT=60.100
+I0207 00:32:15.395416 35119 feature_extraction.cc:257] Processed file [21/31]
+I0207 00:32:15.395732 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120340_19_1712204478967_photo.jpg
+I0207 00:32:15.395992 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:32:15.396145 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:32:15.396271 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:32:15.396457 35119 feature_extraction.cc:279]   Features:        6650 (SIFT)
+I0207 00:32:15.396816 35119 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=60.000
+I0207 00:32:21.077071 35119 feature_extraction.cc:257] Processed file [22/31]
+I0207 00:32:21.077118 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120344_20_1712204477026_photo.jpg
+I0207 00:32:21.077129 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:32:21.077136 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:32:21.077144 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:32:21.077165 35119 feature_extraction.cc:279]   Features:        5014 (SIFT)
+I0207 00:32:21.077312 35119 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=60.000
+I0207 00:32:21.105902 35119 feature_extraction.cc:257] Processed file [23/31]
+I0207 00:32:21.105944 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120346_21_1712204475072_photo.jpg
+I0207 00:32:21.105958 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:32:21.105966 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:32:21.105975 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:32:21.105996 35119 feature_extraction.cc:279]   Features:        5092 (SIFT)
+I0207 00:32:21.106094 35119 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=60.000
+I0207 00:32:23.188879 35119 feature_extraction.cc:257] Processed file [24/31]
+I0207 00:32:23.188922 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120348_22_1712204473045_photo.jpg
+I0207 00:32:23.188931 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:32:23.188937 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:32:23.188944 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:32:23.188958 35119 feature_extraction.cc:279]   Features:        5573 (SIFT)
+I0207 00:32:23.189033 35119 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=60.000
+I0207 00:32:30.011777 35119 feature_extraction.cc:257] Processed file [25/31]
+I0207 00:32:30.011808 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120412_26_1712204464927_photo.jpg
+I0207 00:32:30.011816 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:32:30.011822 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:32:30.011829 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:32:30.011842 35119 feature_extraction.cc:279]   Features:        5771 (SIFT)
+I0207 00:32:30.011947 35119 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=60.000
+I0207 00:32:30.179388 35119 feature_extraction.cc:257] Processed file [26/31]
+I0207 00:32:30.179451 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120404_23_1712204471058_photo.jpg
+I0207 00:32:30.179461 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:32:30.179469 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:32:30.179479 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:32:30.179499 35119 feature_extraction.cc:279]   Features:        5208 (SIFT)
+I0207 00:32:30.179611 35119 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=59.900
+I0207 00:32:31.521054 35119 feature_extraction.cc:257] Processed file [27/31]
+I0207 00:32:31.521103 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120406_24_1712204469039_photo.jpg
+I0207 00:32:31.521116 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:32:31.521126 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:32:31.521138 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:32:31.521157 35119 feature_extraction.cc:279]   Features:        5025 (SIFT)
+I0207 00:32:31.521267 35119 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=59.700
+I0207 00:32:33.534512 35119 feature_extraction.cc:257] Processed file [28/31]
+I0207 00:32:33.534549 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120410_25_1712204467016_photo.jpg
+I0207 00:32:33.534557 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:32:33.534564 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:32:33.534569 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:32:33.534581 35119 feature_extraction.cc:279]   Features:        7034 (SIFT)
+I0207 00:32:33.534670 35119 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=60.000
+I0207 00:32:39.023947 35119 feature_extraction.cc:257] Processed file [29/31]
+I0207 00:32:39.023975 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120416_28_1712204460914_photo.jpg
+I0207 00:32:39.023983 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:32:39.023988 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:32:39.023993 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:32:39.024004 35119 feature_extraction.cc:279]   Features:        6252 (SIFT)
+I0207 00:32:39.024070 35119 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.404, ALT=60.000
+I0207 00:32:39.045920 35119 feature_extraction.cc:257] Processed file [30/31]
+I0207 00:32:39.045949 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120414_27_1712204462911_photo.jpg
+I0207 00:32:39.045956 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:32:39.045961 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:32:39.045967 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:32:39.045979 35119 feature_extraction.cc:279]   Features:        5318 (SIFT)
+I0207 00:32:39.046041 35119 feature_extraction.cc:291]   GPS:             LAT=-8.371, LON=123.404, ALT=60.000
+I0207 00:32:40.273908 35119 feature_extraction.cc:257] Processed file [31/31]
+I0207 00:32:40.273934 35119 feature_extraction.cc:260]   Name:            dji_fly_20240404_120422_30_1712204457428_photo.jpg
+I0207 00:32:40.273943 35119 feature_extraction.cc:269]   Dimensions:      4000 x 3000
+I0207 00:32:40.273950 35119 feature_extraction.cc:272]   Camera:          #1 - OPENCV
+I0207 00:32:40.273957 35119 feature_extraction.cc:275]   Focal Length:    2773.28px (Prior)
+I0207 00:32:40.273969 35119 feature_extraction.cc:279]   Features:        6038 (SIFT)
+I0207 00:32:40.274027 35119 feature_extraction.cc:291]   GPS:             LAT=-8.370, LON=123.405, ALT=59.900
+I0207 00:32:40.341307 35110 timer.cc:90] Elapsed time: 1.886 [minutes]
+[2026-02-07 00:32:40] Feature extraction OK (CPU, bulk)
+[2026-02-07 00:32:40] === [2/6] Feature Matching (exhaustive, CPU) ===
+I0207 00:32:40.506759 35471 feature_matching.cc:195] === Feature matching & geometric verification ===
+I0207 00:32:40.507150 35472 sift.cc:1543] Creating SIFT CPU feature matcher
+I0207 00:32:40.507153 35473 sift.cc:1543] Creating SIFT CPU feature matcher
+I0207 00:32:40.507153 35474 sift.cc:1543] Creating SIFT CPU feature matcher
+I0207 00:32:40.507262 35475 sift.cc:1543] Creating SIFT CPU feature matcher
+I0207 00:32:40.507805 35471 pairing.cc:180] Generating exhaustive image pairs...
+I0207 00:32:40.507826 35471 pairing.cc:213] Processing block [1/1, 1/1]
