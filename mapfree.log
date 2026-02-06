@@ -1,0 +1,16 @@
+[2026-02-06 22:42:41] === MapFree MX150 SAFE PIPELINE START ===
+[2026-02-06 22:42:41] === [1/6] Feature Extraction (GPU → CPU fallback, MX150-safe) ===
+[2026-02-06 22:42:41] RUN: Feature Extraction GPU
+[2026-02-06 22:42:41] CMD: colmap feature_extractor --database_path /home/mangto/dev/mapfree/database.db --image_path /home/mangto/dev/mapfree/images --ImageReader.camera_model OPENCV --ImageReader.single_camera 0 --SiftExtraction.use_gpu 1 --SiftExtraction.gpu_index 0 --SiftExtraction.max_image_size 2000 --SiftExtraction.max_num_features 4096 --SiftExtraction.num_threads 2
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 22:42:41] FALLBACK: GPU feature extraction failed → CPU fallback
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 22:42:41] ERROR: Feature extraction failed on both GPU and CPU
+[2026-02-06 22:47:46] === MapFree MX150 SAFE PIPELINE START ===
+[2026-02-06 22:47:46] === [1/6] Feature Extraction (GPU → CPU clean fallback) ===
+[2026-02-06 22:47:46] RUN: Feature Extraction GPU
+[2026-02-06 22:47:46] CMD: colmap feature_extractor --database_path /home/mangto/dev/mapfree/database.db --image_path /home/mangto/dev/mapfree/images --ImageReader.camera_model OPENCV --ImageReader.single_camera 0 --SiftExtraction.use_gpu 1 --SiftExtraction.gpu_index 0 --SiftExtraction.max_image_size 2000 --SiftExtraction.max_num_features 4096 --SiftExtraction.num_threads 2
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 22:47:46] FALLBACK: GPU failed → wiping database and retrying on CPU
+colmap: error while loading shared libraries: libcudart.so.11.0: cannot open shared object file: No such file or directory
+[2026-02-06 22:47:46] ERROR: Feature Extraction failed on both GPU and CPU
