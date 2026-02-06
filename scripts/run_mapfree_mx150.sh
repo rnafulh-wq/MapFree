@@ -207,8 +207,8 @@ step_dense() {
   fi
 
   log_fallback "PatchMatch GPU failed → CPU fallback (same safe params)"
-
-  if ! colmap patch_match_stereo \
+  # Hide GPU so COLMAP uses CPU path (else it still init CUDA and fail)
+  if ! CUDA_VISIBLE_DEVICES="" colmap patch_match_stereo \
     --workspace_path "$DENSE_DIR" \
     --workspace_format COLMAP \
     --PatchMatchStereo.gpu_index -1 \
