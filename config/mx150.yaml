@@ -1,20 +1,30 @@
-# MapFree MX150-safe config (2GB VRAM)
-# Stricter limits for stability on modest hardware
+# MapFree MX150-safe config (2GB VRAM, Pascal CC 6.1)
+# Stability > Speed > Quality. GPU optional; CPU fallback required.
+#
+# MX150 SAFE LIMITS (do not exceed):
+#   - Dense max_image_size <= 1200
+#   - SIFT max_image_size <= 2000
+#   - cache_size <= 16
+#   - single GPU index = 0, no multi-GPU
 
 feature_extractor:
   max_image_size: 2000
+  max_image_size_cpu_fallback: 1600
+  max_num_features: 4096
   gpu_index: 0
-
+  
 matcher:
-  type: spatial
+  type: spatial   # spatial | sequential; avoid exhaustive for large sets
+  fallback: exhaustive_cpu
   gpu_index: 0
-
-mapper:
-  ba_global_max_iterations: 50
-  ba_global_max_refinements: 5
 
 patch_match_stereo:
-  max_image_size: 1600
+  max_image_size: 1200
+  max_image_size_cpu_fallback: 1000
+  window_step: 2
+  cache_size: 16
+  num_iterations: 3
+  geom_consistency: 0
   gpu_index: 0
 
 system:
