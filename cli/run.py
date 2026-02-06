@@ -92,7 +92,7 @@ def run_pipeline(
         if step == "patch_match_stereo":
             cmd = build_patch_match_stereo_args(project_path, config)
             run_colmap(cmd, dry_run=dry_run, num_threads=num_threads)
-            cmd_fusion = build_stereo_fusion_args(project_path)
+            cmd_fusion = build_stereo_fusion_args(project_path, config)
             run_colmap(cmd_fusion, dry_run=dry_run, num_threads=num_threads)
             done_file(project_path, step).touch()
             continue
