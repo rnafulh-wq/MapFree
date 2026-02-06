@@ -82,75 +82,49 @@ step_done() { [ -f "$PROJECT_DIR/.done_$1" ]; }
 mark_done() { touch "$PROJECT_DIR/.done_$1"; }
 
 # -------------------------------------------------
-# 1. FEATURE EXTRACTION (GPU SIFT-ONLY, PER-IMAGE, DB APPEND)
+# 1. FEATURE EXTRACTION (BULK, CPU SIFT – STABLE ON MX150)
 # -------------------------------------------------
 step_feature_extraction() {
   step_done "feature_extractor" && return
 
-  log "=== [1/6] Feature Extraction (GPU SIFT-only, per-image) ==="
+  log "=== [1/6] Feature Extraction (bulk, CPU SIFT) ==="
+
+  # Verify paths
+  if [ ! -d "$IMAGES_DIR" ]; then
+    log_error "Images directory missing: $IMAGES_DIR"
+    exit 1
+  fi
+  nimg=$(find "$IMAGES_DIR" -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) | wc -l)
+  if [ "$nimg" -lt 5 ]; then
+    log_error "Too few images in $IMAGES_DIR (found $nimg, need >=5)"
+    exit 1
+  fi
+  log "IMAGES_DIR=$IMAGES_DIR DB_PATH=$DB_PATH (images: $nimg)"
 
   rm -f "$DB_PATH"
 
-  success=0
-  failed=0
-
-  while IFS= read -r img; do
-    name=$(basename "$img")
-    tmpdir=$(mktemp -d)
-
-    ln -s "$img" "$tmpdir/$name" 2>/dev/null || cp "$img" "$tmpdir/$name"
-
-    log "SIFT GPU: $name"
-
-    if colmap feature_extractor \
-      --database_path "$DB_PATH" \
-      --image_path "$tmpdir" \
-      --ImageReader.camera_model OPENCV \
-      --ImageReader.single_camera 1 \
-      --SiftExtraction.use_gpu 1 \
-      --SiftExtraction.gpu_index 0 \
-      --SiftExtraction.max_image_size 1600 \
-      --SiftExtraction.max_num_features 4096 \
-      --SiftExtraction.num_threads 1 \
-      >> "$LOG_FILE" 2>&1; then
-
-      success=$((success+1))
-      log "OK GPU: $name"
-
-    else
-      log_fallback "GPU failed → CPU SIFT: $name"
-
-      if colmap feature_extractor \
-        --database_path "$DB_PATH" \
-        --image_path "$tmpdir" \
-        --ImageReader.camera_model OPENCV \
-        --ImageReader.single_camera 1 \
-        --SiftExtraction.use_gpu 0 \
-        --SiftExtraction.max_image_size 1200 \
-        --SiftExtraction.max_num_features 4096 \
-        --SiftExtraction.num_threads 1 \
-        >> "$LOG_FILE" 2>&1; then
-
-        success=$((success+1))
-        log "OK CPU: $name"
-      else
-        failed=$((failed+1))
-        log_error "SKIP image: $name"
-      fi
-    fi
-
-    rm -rf "$tmpdir"
-
-  done < <(find "$IMAGES_DIR" -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) | sort)
-
-  log "Feature extraction done: success=$success failed=$failed"
-
-  if [ "$success" -lt 5 ]; then
-    log_error "Too few images with features (need >=5)"
-    exit 1
+  # Bulk extraction: entire folder at once. CPU via FeatureExtraction.* for stability.
+  # Output is shown (tee) so COLMAP stderr is visible when it fails.
+  log "Running: colmap feature_extractor (CPU, bulk)..."
+  colmap feature_extractor \
+    --database_path "$DB_PATH" \
+    --image_path "$IMAGES_DIR" \
+    --ImageReader.camera_model OPENCV \
+    --ImageReader.single_camera 1 \
+    --FeatureExtraction.use_gpu 0 \
+    --FeatureExtraction.gpu_index -1 \
+    --FeatureExtraction.num_threads 4 \
+    --SiftExtraction.max_image_size 2000 \
+    --SiftExtraction.max_num_features 4096 \
+    2>&1 | tee -a "$LOG_FILE"
+  exc=${PIPESTATUS[0]}
+  if [ "$exc" -eq 0 ]; then
+    log "Feature extraction OK (CPU, bulk)"
+    mark_done "feature_extractor"
+    return
   fi
-
-  mark_done "feature_extractor"
+  log_error "Feature extraction failed (exit $exc). See COLMAP stderr above."
+  exit 1
 }
 
 # -------------------------------------------------
@@ -159,23 +133,15 @@ step_feature_extraction() {
 step_feature_matching() {
   step_done "matcher" && return
 
-  log "=== [2/6] Feature Matching (GPU safe) ==="
-
-  if ! colmap spatial_matcher \
+  log "=== [2/6] Feature Matching (exhaustive, CPU) ==="
+  # Exhaustive: no GPS required (spatial_matcher gave "No images with location data")
+  # COLMAP 3.14 uses FeatureMatching.*; use_gpu=0 for CPU
+  colmap exhaustive_matcher \
     --database_path "$DB_PATH" \
-    --SiftMatching.use_gpu 1 \
-    --SiftMatching.gpu_index 0 \
-    --SiftMatching.num_threads 1 \
-    >> "$LOG_FILE" 2>&1; then
-
-    log_fallback "Matching GPU failed → CPU"
-
-    colmap spatial_matcher \
-      --database_path "$DB_PATH" \
-      --SiftMatching.use_gpu 0 \
-      --SiftMatching.num_threads 1 \
-      >> "$LOG_FILE" 2>&1 || exit 1
-  fi
+    --FeatureMatching.use_gpu 0 \
+    --FeatureMatching.gpu_index -1 \
+    --FeatureMatching.num_threads "${NUM_THREADS:-4}" \
+    >> "$LOG_FILE" 2>&1 || exit 1
 
   mark_done "matcher"
 }
@@ -220,22 +186,38 @@ step_undistort() {
 }
 
 # -------------------------------------------------
-# 5. PATCH MATCH STEREO (CPU ONLY – MX150 STABLE)
+# 5. PATCH MATCH STEREO (WebODM-style: 800px, geom_consistency=0, GPU→CPU fallback)
 # -------------------------------------------------
 step_dense() {
   step_done dense && return
 
-  log "=== [5/6] PatchMatch Stereo (CPU only) ==="
+  log "=== [5/6] PatchMatch Stereo (max_image_size=800, geom_consistency=0) ==="
+
+  if colmap patch_match_stereo \
+    --workspace_path "$DENSE_DIR" \
+    --workspace_format COLMAP \
+    --PatchMatchStereo.gpu_index 0 \
+    --PatchMatchStereo.max_image_size 800 \
+    --PatchMatchStereo.cache_size 8 \
+    --PatchMatchStereo.window_step 2 \
+    --PatchMatchStereo.geom_consistency 0 \
+    >> "$LOG_FILE" 2>&1; then
+    mark_done dense
+    return
+  fi
+
+  log_fallback "PatchMatch GPU failed → CPU fallback (same safe params)"
 
   if ! colmap patch_match_stereo \
     --workspace_path "$DENSE_DIR" \
     --workspace_format COLMAP \
     --PatchMatchStereo.gpu_index -1 \
-    --PatchMatchStereo.max_image_size 1000 \
+    --PatchMatchStereo.max_image_size 800 \
     --PatchMatchStereo.cache_size 8 \
     --PatchMatchStereo.window_step 2 \
+    --PatchMatchStereo.geom_consistency 0 \
     >> "$LOG_FILE" 2>&1; then
-    log_error "PatchMatch stereo failed"
+    log_error "PatchMatch stereo failed (GPU and CPU fallback)"
     exit 1
   fi
 
@@ -243,18 +225,19 @@ step_dense() {
 }
 
 # -------------------------------------------------
-# 6. FUSION
+# 6. FUSION (max_image_size=800 for MX150 VRAM)
 # -------------------------------------------------
 step_fusion() {
   step_done fusion && return
 
-  log "=== [6/6] Stereo Fusion ==="
+  log "=== [6/6] Stereo Fusion (max_image_size=800) ==="
 
   if ! colmap stereo_fusion \
     --workspace_path "$DENSE_DIR" \
     --workspace_format COLMAP \
     --input_type geometric \
     --output_path "$DENSE_DIR/fused.ply" \
+    --StereoFusion.max_image_size 800 \
     >> "$LOG_FILE" 2>&1; then
     log_error "Stereo fusion failed"
     exit 1
