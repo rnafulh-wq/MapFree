@@ -187,6 +187,7 @@ step_undistort() {
 
 # -------------------------------------------------
 # 5. PATCH MATCH STEREO (WebODM-style: 800px, geom_consistency=0, GPU→CPU fallback)
+# Note: Some COLMAP builds are CUDA-only for dense; without GPU this step fails.
 # -------------------------------------------------
 step_dense() {
   step_done dense && return
@@ -218,6 +219,7 @@ step_dense() {
     --PatchMatchStereo.geom_consistency 0 \
     >> "$LOG_FILE" 2>&1; then
     log_error "PatchMatch stereo failed (GPU and CPU fallback)"
+    log_error "If you see 'no CUDA-capable device': this COLMAP build may be CUDA-only for dense; run on a machine with GPU or build COLMAP with CPU stereo."
     exit 1
   fi
 
