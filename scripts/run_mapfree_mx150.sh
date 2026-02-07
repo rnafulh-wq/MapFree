@@ -6,6 +6,12 @@
 #
 set -e
 
+# ==== MX150 CUDA SAFETY ====
+export CUDA_VISIBLE_DEVICES=0
+export CUDA_LAUNCH_BLOCKING=1
+export CUDA_DEVICE_MAX_CONNECTIONS=1
+export OMP_NUM_THREADS=2
+
 GPU_ERROR_PATTERN="illegal memory access|Failed to process image|No images with matches|CUDA error|out of memory"
 
 PROJECT_DIR=
@@ -61,7 +67,6 @@ setup_project() {
   DENSE_DIR="$PROJECT_DIR/dense"
 
   mkdir -p "$SPARSE_DIR" "$DENSE_DIR"
-  export OMP_NUM_THREADS=4
 
   # When we copied from an input dir, validate count (same extensions as copy: include .jpeg/.JPEG)
   if [ -n "$1" ] && [ -n "$2" ]; then
@@ -77,108 +82,68 @@ step_done() { [ -f "$PROJECT_DIR/.done_$1" ]; }
 mark_done() { touch "$PROJECT_DIR/.done_$1"; }
 
 # -------------------------------------------------
-# 1. FEATURE EXTRACTION (PER-IMAGE, GPU → CPU FALLBACK, SKIP FAILED)
+# 1. FEATURE EXTRACTION (BULK, CPU SIFT – STABLE ON MX150)
 # -------------------------------------------------
 step_feature_extraction() {
-  step_done fe && return
+  step_done "feature_extractor" && return
 
-  log "=== [1/6] Feature Extraction (per-image, skip on failure) ==="
+  log "=== [1/6] Feature Extraction (bulk, CPU SIFT) ==="
+
+  # Verify paths
+  if [ ! -d "$IMAGES_DIR" ]; then
+    log_error "Images directory missing: $IMAGES_DIR"
+    exit 1
+  fi
+  nimg=$(find "$IMAGES_DIR" -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) | wc -l)
+  if [ "$nimg" -lt 5 ]; then
+    log_error "Too few images in $IMAGES_DIR (found $nimg, need >=5)"
+    exit 1
+  fi
+  log "IMAGES_DIR=$IMAGES_DIR DB_PATH=$DB_PATH (images: $nimg)"
 
   rm -f "$DB_PATH"
 
-  success_count=0
-  failed_count=0
-  total=0
-
-  while IFS= read -r fullpath; do
-    [ -z "$fullpath" ] && continue
-    img=$(basename "$fullpath")
-    total=$((total + 1))
-    TMPDIR=$(mktemp -d)
-    ln -s "$fullpath" "$TMPDIR/$img" 2>/dev/null || cp "$fullpath" "$TMPDIR/$img"
-
-    if run_and_check "Feature Extraction GPU [$img]" colmap feature_extractor \
-      --database_path "$DB_PATH" \
-      --image_path "$TMPDIR" \
-      --ImageReader.camera_model OPENCV \
-      --SiftExtraction.use_gpu 1 \
-      --SiftExtraction.gpu_index 0 \
-      --SiftExtraction.max_image_size 2000 \
-      --SiftExtraction.max_num_features 4096 \
-      --SiftExtraction.num_threads 2; then
-      success_count=$((success_count + 1))
-      log "SUCCESS image: $img"
-    else
-      log_fallback "GPU failed for $img → CPU fallback"
-      if colmap feature_extractor \
-        --database_path "$DB_PATH" \
-        --image_path "$TMPDIR" \
-        --ImageReader.camera_model OPENCV \
-        --SiftExtraction.use_gpu 0 \
-        --SiftExtraction.max_image_size 1600 \
-        --SiftExtraction.max_num_features 4096 \
-        --SiftExtraction.num_threads 2 \
-        >> "$LOG_FILE" 2>&1; then
-        success_count=$((success_count + 1))
-        log "SUCCESS image (CPU): $img"
-      else
-        failed_count=$((failed_count + 1))
-        log "SKIP image: $img"
-      fi
-    fi
-    rm -rf "$TMPDIR"
-  done < <(find "$IMAGES_DIR" -maxdepth 1 -type f \( -name '*.jpg' -o -name '*.JPG' -o -name '*.jpeg' -o -name '*.JPEG' -o -name '*.png' -o -name '*.PNG' \) | sort)
-
-  log "Feature extraction: success=$success_count failed=$failed_count total=$total"
-
-  if [ "$success_count" -lt 5 ]; then
-    log_error "Too few images with features (success=$success_count, need >= 5). Abort pipeline."
-    exit 1
+  # Bulk extraction: entire folder at once. CPU via FeatureExtraction.* for stability.
+  # Output is shown (tee) so COLMAP stderr is visible when it fails.
+  log "Running: colmap feature_extractor (CPU, bulk)..."
+  colmap feature_extractor \
+    --database_path "$DB_PATH" \
+    --image_path "$IMAGES_DIR" \
+    --ImageReader.camera_model OPENCV \
+    --ImageReader.single_camera 1 \
+    --FeatureExtraction.use_gpu 0 \
+    --FeatureExtraction.gpu_index -1 \
+    --FeatureExtraction.num_threads 4 \
+    --SiftExtraction.max_image_size 2000 \
+    --SiftExtraction.max_num_features 4096 \
+    2>&1 | tee -a "$LOG_FILE"
+  exc=${PIPESTATUS[0]}
+  if [ "$exc" -eq 0 ]; then
+    log "Feature extraction OK (CPU, bulk)"
+    mark_done "feature_extractor"
+    return
   fi
-
-  mark_done fe
+  log_error "Feature extraction failed (exit $exc). See COLMAP stderr above."
+  exit 1
 }
 
 # -------------------------------------------------
-# 2. FEATURE MATCHING (SPATIAL → EXHAUSTIVE FALLBACK)
+# 2. FEATURE MATCHING (GPU SAFE, FALLBACK CPU)
 # -------------------------------------------------
-step_matching() {
-  step_done match && return
+step_feature_matching() {
+  step_done "matcher" && return
 
-  log "=== [2/6] Feature Matching ==="
-
-  if ! run_and_check "Spatial Matcher GPU" colmap spatial_matcher \
+  log "=== [2/6] Feature Matching (exhaustive, CPU) ==="
+  # Exhaustive: no GPS required (spatial_matcher gave "No images with location data")
+  # COLMAP 3.14 uses FeatureMatching.*; use_gpu=0 for CPU
+  colmap exhaustive_matcher \
     --database_path "$DB_PATH" \
-    --SiftMatching.use_gpu 1 \
-    --SiftMatching.gpu_index 0; then
-    log_fallback "Spatial GPU failed → CPU"
-    if ! colmap spatial_matcher \
-      --database_path "$DB_PATH" \
-      --SiftMatching.use_gpu 0 \
-      >> "$LOG_FILE" 2>&1; then
-      log_error "Spatial matcher failed (GPU and CPU fallback)"
-      exit 1
-    fi
-  fi
+    --FeatureMatching.use_gpu 0 \
+    --FeatureMatching.gpu_index -1 \
+    --FeatureMatching.num_threads "${NUM_THREADS:-4}" \
+    >> "$LOG_FILE" 2>&1 || exit 1
 
-  MATCHED_IMAGES=$(sqlite3 "$DB_PATH" "SELECT COUNT(DISTINCT image_id) FROM inlier_matches;" 2>/dev/null || echo 0)
-  log "Matched images (inlier_matches): $MATCHED_IMAGES"
-
-  if [ "$MATCHED_IMAGES" -lt 2 ]; then
-    log_fallback "Not enough verified matches → exhaustive CPU matcher"
-    if ! colmap exhaustive_matcher \
-      --database_path "$DB_PATH" \
-      --SiftMatching.use_gpu 0 \
-      >> "$LOG_FILE" 2>&1; then
-      log_error "Exhaustive matcher failed"
-      exit 1
-    fi
-  fi
-
-  MATCHED_IMAGES=$(sqlite3 "$DB_PATH" "SELECT COUNT(DISTINCT image_id) FROM inlier_matches;" 2>/dev/null || echo 0)
-  [ "$MATCHED_IMAGES" -lt 2 ] && log_error "Not enough matched images after fallback" && exit 1
-
-  mark_done match
+  mark_done "matcher"
 }
 
 # -------------------------------------------------
@@ -221,35 +186,40 @@ step_undistort() {
 }
 
 # -------------------------------------------------
-# 5. PATCH MATCH STEREO (GPU SAFE MODE)
+# 5. PATCH MATCH STEREO (WebODM-style: 800px, geom_consistency=0, GPU→CPU fallback)
+# Note: Some COLMAP builds are CUDA-only for dense; without GPU this step fails.
 # -------------------------------------------------
 step_dense() {
   step_done dense && return
 
-  log "=== [5/6] PatchMatch Stereo ==="
+  log "=== [5/6] PatchMatch Stereo (max_image_size=800, geom_consistency=0) ==="
 
-  if run_and_check "PatchMatch GPU" colmap patch_match_stereo \
+  if colmap patch_match_stereo \
     --workspace_path "$DENSE_DIR" \
     --workspace_format COLMAP \
     --PatchMatchStereo.gpu_index 0 \
-    --PatchMatchStereo.max_image_size 1100 \
+    --PatchMatchStereo.max_image_size 800 \
+    --PatchMatchStereo.cache_size 8 \
     --PatchMatchStereo.window_step 2 \
-    --PatchMatchStereo.num_iterations 2 \
     --PatchMatchStereo.geom_consistency 0 \
-    --PatchMatchStereo.filter 1 \
-    --PatchMatchStereo.cache_size 12; then
-    mark_done dense; return
+    >> "$LOG_FILE" 2>&1; then
+    mark_done dense
+    return
   fi
 
-  log_fallback "PatchMatch GPU failed → CPU fallback"
-
-  if ! colmap patch_match_stereo \
+  log_fallback "PatchMatch GPU failed → CPU fallback (same safe params)"
+  # Hide GPU so COLMAP uses CPU path (else it still init CUDA and fail)
+  if ! CUDA_VISIBLE_DEVICES="" colmap patch_match_stereo \
     --workspace_path "$DENSE_DIR" \
     --workspace_format COLMAP \
     --PatchMatchStereo.gpu_index -1 \
-    --PatchMatchStereo.max_image_size 1000 \
+    --PatchMatchStereo.max_image_size 800 \
+    --PatchMatchStereo.cache_size 8 \
+    --PatchMatchStereo.window_step 2 \
+    --PatchMatchStereo.geom_consistency 0 \
     >> "$LOG_FILE" 2>&1; then
     log_error "PatchMatch stereo failed (GPU and CPU fallback)"
+    log_error "If you see 'no CUDA-capable device': this COLMAP build may be CUDA-only for dense; run on a machine with GPU or build COLMAP with CPU stereo."
     exit 1
   fi
 
@@ -257,18 +227,19 @@ step_dense() {
 }
 
 # -------------------------------------------------
-# 6. FUSION
+# 6. FUSION (max_image_size=800 for MX150 VRAM)
 # -------------------------------------------------
 step_fusion() {
   step_done fusion && return
 
-  log "=== [6/6] Stereo Fusion ==="
+  log "=== [6/6] Stereo Fusion (max_image_size=800) ==="
 
   if ! colmap stereo_fusion \
     --workspace_path "$DENSE_DIR" \
     --workspace_format COLMAP \
     --input_type geometric \
     --output_path "$DENSE_DIR/fused.ply" \
+    --StereoFusion.max_image_size 800 \
     >> "$LOG_FILE" 2>&1; then
     log_error "Stereo fusion failed"
     exit 1
@@ -284,7 +255,7 @@ main() {
 
   rm -f "$DB_PATH"
   step_feature_extraction
-  step_matching
+  step_feature_matching
   step_sparse
   step_undistort
   step_dense

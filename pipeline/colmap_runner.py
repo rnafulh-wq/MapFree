@@ -97,31 +97,40 @@ def build_image_undistorter_args(project_path: Path) -> list[str]:
 
 
 def build_patch_match_stereo_args(project_path: Path, config: dict) -> list[str]:
-    """Build COLMAP patch_match_stereo command args."""
+    """Build COLMAP patch_match_stereo command args (WebODM-style for 2GB VRAM)."""
     project_path = Path(project_path)
     dense = project_path / "dense"
     pm_cfg = config.get("patch_match_stereo", {})
-    max_size = pm_cfg.get("max_image_size", 1600)
+    max_size = pm_cfg.get("max_image_size", 800)
     gpu = pm_cfg.get("gpu_index", 0)
+    cache_size = pm_cfg.get("cache_size", 8)
+    window_step = pm_cfg.get("window_step", 2)
+    geom_consistency = pm_cfg.get("geom_consistency", 0)
     args = [
         "colmap", "patch_match_stereo",
         "--workspace_path", str(dense),
         "--workspace_format", "COLMAP",
-        "--PatchMatchStereo.max_image_size", str(max_size),
         "--PatchMatchStereo.gpu_index", str(gpu),
+        "--PatchMatchStereo.max_image_size", str(max_size),
+        "--PatchMatchStereo.cache_size", str(cache_size),
+        "--PatchMatchStereo.window_step", str(window_step),
+        "--PatchMatchStereo.geom_consistency", str(geom_consistency),
     ]
     return args
 
 
-def build_stereo_fusion_args(project_path: Path) -> list[str]:
-    """Build COLMAP stereo_fusion command args (merge depth maps into dense point cloud)."""
+def build_stereo_fusion_args(project_path: Path, config: dict | None = None) -> list[str]:
+    """Build COLMAP stereo_fusion command args (max_image_size for MX150 VRAM)."""
     project_path = Path(project_path)
     dense = project_path / "dense"
+    fusion_cfg = (config or {}).get("stereo_fusion", {})
+    max_size = fusion_cfg.get("max_image_size", 800)
     args = [
         "colmap", "stereo_fusion",
         "--workspace_path", str(dense),
         "--workspace_format", "COLMAP",
         "--input_type", "geometric",
         "--output_path", str(dense / "fused.ply"),
+        "--StereoFusion.max_image_size", str(max_size),
     ]
     return args
