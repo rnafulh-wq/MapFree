@@ -14,10 +14,11 @@ env/
 *.swp
 *.swo
 
-# Generated / binary / data
-projects/
-logs/
-database.db
+# Generated / binary / data (do not commit)
+*.db
+/projects/
+/logs/
+*.log
 
 # Test data
 test_images/
