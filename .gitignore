@@ -14,16 +14,13 @@ env/
 *.swp
 *.swo
 
-# Project data (keep structure)
-projects/*/
-!projects/.gitkeep
+# Generated / binary / data
+projects/
+logs/
+database.db
 
 # Test data
 test_images/
-
-# Logs (keep folder)
-logs/*.log
-!logs/.gitkeep
 
 # OS
 .DS_Store
