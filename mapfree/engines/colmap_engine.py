@@ -1,13 +1,14 @@
 """
-COLMAP engine: runs colmap via subprocess. Uses profile for parameters.
+COLMAP engine: runs colmap via subprocess wrapper.
 Pipeline never calls COLMAP directly — only through this engine.
 """
 import os
-import subprocess
-import time
 from pathlib import Path
 
-from mapfree.core.engine import BaseEngine, VramWatchdogError
+from mapfree.core.engine import BaseEngine
+from mapfree.core.wrapper import EngineExecutionError, run_command
+
+os.environ.setdefault("OMP_NUM_THREADS", "4")
 
 
 def _get_cfg():
@@ -15,55 +16,24 @@ def _get_cfg():
     return get_config()
 
 
-def _run(cmd, timeout=3600):
-    env = os.environ.copy()
-    env.setdefault("OMP_NUM_THREADS", "4")
-    r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=env)
-    if r.returncode != 0:
-        raise RuntimeError("COLMAP failed (exit %d): %s" % (r.returncode, r.stderr or r.stdout or ""))
-
-
-def _run_with_vram_watchdog(cmd, threshold=None, poll_interval=None, timeout=3600):
-    """Run cmd; if GPU VRAM usage > threshold, terminate and raise VramWatchdogError."""
-    cfg = _get_cfg()
-    vw = cfg.get("vram_watchdog") or {}
-    if threshold is None:
-        threshold = float(vw.get("threshold", 0.9))
-    if poll_interval is None:
-        poll_interval = int(vw.get("poll_interval", 5))
-    env = os.environ.copy()
-    env.setdefault("OMP_NUM_THREADS", "4")
-    try:
-        from mapfree.core import hardware
-    except ImportError:
-        hardware = None
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
-    deadline = time.monotonic() + timeout if timeout else None
-    while True:
-        if proc.poll() is not None:
-            break
-        if deadline is not None and time.monotonic() > deadline:
-            proc.terminate()
-            proc.wait(timeout=10)
-            raise RuntimeError("COLMAP timed out")
-        time.sleep(poll_interval)
-        if hardware:
-            used_mb, total_mb = hardware.get_gpu_vram_usage()
-            if total_mb > 0 and (used_mb / total_mb) > threshold:
-                proc.terminate()
-                try:
-                    proc.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    proc.kill()
-                    proc.wait()
-                raise VramWatchdogError("VRAM usage exceeded %.0f%%, process terminated" % (threshold * 100))
-    if proc.returncode != 0:
-        raise RuntimeError("COLMAP failed (exit %d): %s" % (proc.returncode, proc.stderr.read() if proc.stderr else ""))
-
-
 def _profile(ctx, key, default):
     p = getattr(ctx, "profile", None) or {}
     return p.get(key, default)
+
+
+def _run_stage(ctx, command, stage_name, timeout=3600):
+    workspace = Path(ctx.project_path)
+    try:
+        run_command(
+            command,
+            workspace=workspace,
+            stage_name=stage_name,
+            timeout=timeout,
+            retry=2,
+            cwd=workspace,
+        )
+    except EngineExecutionError as e:
+        raise RuntimeError(f"Engine failed: {e}") from e
 
 
 class ColmapEngine(BaseEngine):
@@ -84,7 +54,7 @@ class ColmapEngine(BaseEngine):
             "--SiftExtraction.max_num_features", str(max_features),
             "--SiftExtraction.use_gpu", str(1 if use_gpu else 0),
         ]
-        _run(cmd)
+        _run_stage(ctx, cmd, "feature_extraction")
 
     def matching(self, ctx):
         db = Path(ctx.database_path)
@@ -96,7 +66,7 @@ class ColmapEngine(BaseEngine):
             "--database_path", str(db),
             "--SiftMatching.use_gpu", str(1 if use_gpu else 0),
         ]
-        _run(cmd)
+        _run_stage(ctx, cmd, "matching")
 
     def sparse(self, ctx):
         cfg = _get_cfg()
@@ -115,7 +85,7 @@ class ColmapEngine(BaseEngine):
             "--Mapper.ba_global_max_num_iterations", str(ba_global),
             "--Mapper.ba_local_max_num_iterations", str(ba_local),
         ]
-        _run(cmd)
+        _run_stage(ctx, cmd, "sparse")
 
     def dense(self, ctx, vram_watchdog=False):
         sparse_dir = Path(ctx.sparse_path)
@@ -127,17 +97,16 @@ class ColmapEngine(BaseEngine):
         max_size = min(_profile(ctx, "max_image_size", 800), 1600)
         use_gpu = _profile(ctx, "use_gpu", 1)
         gpu_idx = "0" if use_gpu else "-1"
-        use_watchdog = vram_watchdog and use_gpu
-        run_dense_step = _run_with_vram_watchdog if use_watchdog else _run
 
-        _run([
+        _run_stage(ctx, [
             "colmap", "image_undistorter",
             "--image_path", str(img_path),
             "--input_path", str(sparse_dir),
             "--output_path", str(dense_dir),
             "--output_type", "COLMAP",
-        ])
-        run_dense_step([
+        ], "dense")
+
+        _run_stage(ctx, [
             "colmap", "patch_match_stereo",
             "--workspace_path", str(dense_dir),
             "--workspace_format", "COLMAP",
@@ -146,12 +115,13 @@ class ColmapEngine(BaseEngine):
             "--PatchMatchStereo.cache_size", "8",
             "--PatchMatchStereo.window_step", "2",
             "--PatchMatchStereo.geom_consistency", "0",
-        ])
-        run_dense_step([
+        ], "dense")
+
+        _run_stage(ctx, [
             "colmap", "stereo_fusion",
             "--workspace_path", str(dense_dir),
             "--workspace_format", "COLMAP",
             "--input_type", "geometric",
             "--output_path", str(dense_dir / "fused.ply"),
             "--StereoFusion.max_image_size", str(max_size),
-        ])
+        ], "dense")
