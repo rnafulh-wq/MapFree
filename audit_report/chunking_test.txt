@@ -1,0 +1,34 @@
+============================================================
+ STEP 3 — Chunking Integrity Test
+============================================================
+
+1. Small dataset (10 images, chunk_size=250)
+  [PASS] no chunking (returns original)
+  [PASS] count_images correct
+
+2. Medium dataset (30 images, chunk_size=10)
+  [PASS] 3 chunks created — got 3
+  [PASS] no missing images — got 30
+  [PASS] no duplicate images — unique=30, total=30
+  [PASS] all originals present
+
+3. Large dataset (100 images, chunk_size=30)
+  [PASS] 4 chunks created — got 4
+  [PASS] total images = 100 — got 100
+  [PASS] no duplicates
+  [PASS] no missing
+  [PASS] chunk sizes correct — got [30, 30, 30, 10]
+
+4. Empty dataset
+  [PASS] empty returns []
+  [PASS] count_images = 0
+
+5. Boundary: 10 images, chunk_size=10
+  [PASS] no chunking at exact boundary
+
+6. Non-image files ignored
+  [PASS] count_images ignores non-images
+
+============================================================
+ TOTAL: 15 PASS, 0 FAIL
+============================================================

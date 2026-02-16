@@ -1,0 +1,39 @@
+============================================================
+ STEP 2 — Resume Reliability Test
+============================================================
+
+A. Sparse interruption simulation
+  [PASS] feature_extraction=True after save
+  [PASS] matching=True after save
+  [PASS] sparse=True after save
+  [PASS] dense=False after save
+  [PASS] is_step_done(sparse)=True
+  [PASS] is_step_done(dense)=False
+  [PASS] dense marked done
+  [PASS] all COMPLETION_STEPS done
+  [PASS] state file removed
+
+B. Dense interruption simulation
+  [PASS] skip feature_extraction
+  [PASS] skip matching
+  [PASS] skip sparse
+  [PASS] run dense
+
+C. Corrupt dense folder simulation
+  [PASS] empty dense_dir invalid
+  [PASS] should rebuild dense
+  [PASS] deleted dense_dir invalid
+  [PASS] should rebuild after delete
+
+D. Corrupt state file simulation
+  [PASS] corrupt JSON returns default state
+  [PASS] corrupt JSON chunks empty
+
+E. Legacy state migration
+  [PASS] legacy migrated to chunks dict
+  [PASS] chunk_001 mapping=True
+  [PASS] chunk_sparse_done removed
+
+============================================================
+ TOTAL: 22 PASS, 0 FAIL
+============================================================

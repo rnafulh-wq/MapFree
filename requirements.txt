@@ -1,0 +1,2 @@
+# MapFree — orchestration only; no photogrammetry deps in Python
+PyYAML>=6.0

@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+
+# Build
+build/
+
+# Generated / binary / data
+*.log
+*.db
+projects/
+workspace/
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Test data / large assets (do not push to GitHub)
+test_images/
+images/
+*.zip
+*.tar.gz
+
+# OS
+.DS_Store
+Thumbs.db

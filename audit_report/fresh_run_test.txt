@@ -1,0 +1,26 @@
+============================================================
+ STEP 5 — Clean Build Reproducibility Check
+============================================================
+
+1. Fresh workspace (no prior state)
+  [PASS] no state file initially
+  [PASS] default state on fresh
+  [PASS] default state chunks empty
+
+2. Mock pipeline run
+  [PASS] pipeline did not crash
+  [PASS] engine called feature_extraction
+  [PASS] engine called matching
+  [PASS] engine called sparse
+  [PASS] engine called dense
+  [PASS] state file cleaned after complete
+  [PASS] got 'start' event
+  [PASS] got 'complete' event
+  [PASS] no 'error' event
+
+3. Idempotent re-run
+  [PASS] second run calls engine again (state was reset) — calls: ['feature_extraction', 'matching', 'sparse', 'dense']
+
+============================================================
+ TOTAL: 13 PASS, 0 FAIL
+============================================================

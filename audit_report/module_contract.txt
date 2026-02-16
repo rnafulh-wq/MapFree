@@ -1,0 +1,165 @@
+===========================================================================
+ MapFree Phase 1 Audit — STEP 1: Module Contract & Dependency Validation
+===========================================================================
+Date: 2026-02-16
+Auditor: AI (Cursor Agent)
+
+===========================================================================
+ 1. DEPENDENCY GRAPH
+===========================================================================
+
+  config.py  (step registry, env names, IMAGE_EXTENSIONS)
+      ^
+      |--- state.py      (PIPELINE_STEPS, CHUNK_STEPS)
+      |--- chunking.py   (IMAGE_EXTENSIONS)
+      |--- logger.py     (ENV_LOG_LEVEL, ENV_LOG_DIR)
+      |--- profiles.py   (ENV_CHUNK_SIZE)
+
+  profiles.py  (get_profile, resolve_chunk_size)
+      ^
+      |--- pipeline.py   (get_profile)
+      |--- chunking.py   (resolve_chunk_size)
+
+  hardware.py  (detect_gpu_vram, detect_system_ram_gb, get_gpu_vram_usage)
+      ^
+      |--- pipeline.py
+      |--- chunking.py
+      |--- colmap_engine.py (lazy import for VRAM watchdog)
+
+  state.py  (load_state, save_state, mark_step_done, ...)
+      ^
+      |--- pipeline.py
+
+  validation.py  (sparse_valid, dense_valid)
+      ^
+      |--- pipeline.py
+
+  engine.py  (BaseEngine, create_engine, VramWatchdogError)
+      ^
+      |--- pipeline.py
+      |--- colmap_engine.py
+      |--- controller.py
+
+  events.py  (Event, EventEmitter)
+      ^
+      |--- pipeline.py
+
+  context.py  (ProjectContext)
+      ^
+      |--- pipeline.py
+      |--- controller.py
+
+  logger.py  (get_logger, get_chunk_logger, set_log_file_for_project)
+      ^
+      |--- pipeline.py
+
+  mapfree/config/__init__.py  (load_config, get_config)
+      ^
+      |--- pipeline.py  (lazy import inside methods)
+      |--- profiles.py  (lazy import via _cfg())
+      |--- colmap_engine.py (lazy import via _get_cfg())
+
+===========================================================================
+ 2. CONTRACT VALIDATION
+===========================================================================
+
+  CHECK: pipeline.py must NOT access .mapfree_state.json directly
+  RESULT: PASS
+    - pipeline.py uses only state.load_state, save_state, mark_step_done, etc.
+    - No json.load/dump or STATE_FILE reference in pipeline.py
+
+  CHECK: state.py must NOT import colmap or pipeline
+  RESULT: PASS
+    - state.py imports: json, pathlib.Path, config.PIPELINE_STEPS, config.CHUNK_STEPS
+    - No circular dependencies
+
+  CHECK: hardware.py must NOT import pipeline
+  RESULT: PASS
+    - hardware.py imports: re, subprocess (stdlib only)
+    - Zero project-internal dependencies
+
+  CHECK: profiles.py must only return dict config
+  RESULT: PASS
+    - get_profile() returns dict
+    - resolve_chunk_size() returns int
+    - recommend_chunk_size() returns int
+    - No side effects, no mutations
+
+  CHECK: validation.py must NOT import state or pipeline
+  RESULT: PASS
+    - validation.py imports: pathlib.Path only
+    - Pure functions: file_valid, sparse_valid, dense_valid
+
+  CHECK: engine.py must NOT import concrete engine
+  RESULT: PASS
+    - create_engine() uses lazy import inside function body
+    - BaseEngine has no COLMAP knowledge
+
+  CHECK: colmap_engine.py must NOT import pipeline
+  RESULT: PASS
+    - imports: os, subprocess, time, pathlib, engine.BaseEngine, engine.VramWatchdogError
+    - Config via lazy _get_cfg()
+
+  CHECK: No circular imports
+  RESULT: PASS
+    - All cross-module references use either:
+      (a) direct import of leaf modules (config, state, validation, hardware)
+      (b) lazy import inside functions (_cfg(), get_config, etc.)
+
+===========================================================================
+ 3. BUGS FOUND (Critical)
+===========================================================================
+
+  BUG-001 [FATAL] events.py line 5:
+    Code:    progress = progress
+    Should:  self.progress = progress
+    Impact:  Event.progress is NEVER set. All progress tracking broken.
+             e.progress is always the __init__ default (undefined attribute).
+
+  BUG-002 [FATAL] colmap_engine.py sparse() method:
+    Code:    "--Mapper.ba_global_max_num_iterations", str(ba_global),
+             "--Mapper.ba_global_max_num_iterations", str(ba_local),
+    Should:  "--Mapper.ba_global_max_num_iterations", str(ba_global),
+             "--Mapper.ba_local_max_num_iterations", str(ba_local),
+    Impact:  ba_local is NEVER applied. COLMAP receives ba_global twice
+             (second overrides first). Local BA uses COLMAP default (25),
+             not the configured value.
+
+  BUG-003 [MEDIUM] chunking.py split_dataset() line ~71:
+    Code:    shutil.copy2(src, src.name)
+    Should:  shutil.copy2(src, chunk_path / src.name)
+    Impact:  Images copied to CWD instead of chunk folder.
+             All chunks will be EMPTY. Chunked pipeline will fail.
+             (Single non-chunked pipeline unaffected.)
+
+===========================================================================
+ 4. WARNINGS
+===========================================================================
+
+  WARN-001: profiles.py resolve_chunk_size():
+    When config has chunk_size=null but max_images_per_chunk=250,
+    it returns 250 ALWAYS, bypassing hardware-based recommendation.
+    The resolve priority is: override > config value > ENV > hardware.
+    This means YAML max_images_per_chunk=250 overrides hardware detection.
+    → Recommend: set max_images_per_chunk to null in default.yaml
+      if hardware-based recommendation is desired by default.
+
+  WARN-002: No validation that profile dict has required keys.
+    get_profile() returns dict from config which may be missing keys.
+    Pipeline accesses profile["profile"], profile.get("use_gpu") etc.
+    → Recommend: schema validation in profiles.py
+
+===========================================================================
+ 5. RECOMMENDATIONS
+===========================================================================
+
+  1. Fix BUG-001 immediately (events.py: self.progress = progress)
+  2. Fix BUG-002 immediately (colmap_engine.py: ba_local parameter name)
+  3. Fix BUG-003 immediately (chunking.py: copy destination path)
+  4. Consider profile dict schema validation
+  5. Consider setting max_images_per_chunk: null in default.yaml
+  6. Architecture is clean: all contracts respected, no circular deps
+
+===========================================================================
+ VERDICT: PASS with 3 bugs (2 fatal, 1 medium)
+===========================================================================

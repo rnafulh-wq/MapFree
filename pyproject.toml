@@ -1,0 +1,11 @@
+[project]
+name = "mapfree"
+version = "0.2.0"
+dependencies = ["PySide6", "PyYAML>=6.0"]
+
+[project.scripts]
+mapfree = "mapfree.cli.main:main"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"

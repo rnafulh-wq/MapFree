@@ -1,0 +1,59 @@
+============================================================
+ STEP 4 — Memory Profile Validation
+============================================================
+
+1. Profile selection by VRAM
+  [PASS] VRAM=0 → CPU_SAFE — got CPU_SAFE
+  [PASS] VRAM=512 → CPU_SAFE — got CPU_SAFE
+  [PASS] VRAM=1024 → LOW — got LOW
+  [PASS] VRAM=1500 → LOW — got LOW
+  [PASS] VRAM=2048 → MEDIUM — got MEDIUM
+  [PASS] VRAM=3000 → MEDIUM — got MEDIUM
+  [PASS] VRAM=4096 → HIGH — got HIGH
+  [PASS] VRAM=8192 → HIGH — got HIGH
+  [PASS] VRAM=16384 → HIGH — got HIGH
+
+2. Profile dict completeness
+  [PASS] VRAM=0 has all keys
+  [PASS] VRAM=1024 has all keys
+  [PASS] VRAM=2048 has all keys
+  [PASS] VRAM=4096 has all keys
+
+3. No negative values in profiles
+  [PASS] VRAM=0 max_image_size=1600 >= 0
+  [PASS] VRAM=0 max_features=8000 >= 0
+  [PASS] VRAM=0 use_gpu=0 >= 0
+  [PASS] VRAM=1024 max_image_size=1600 >= 0
+  [PASS] VRAM=1024 max_features=8000 >= 0
+  [PASS] VRAM=1024 use_gpu=1 >= 0
+  [PASS] VRAM=2048 max_image_size=2400 >= 0
+  [PASS] VRAM=2048 max_features=8192 >= 0
+  [PASS] VRAM=2048 use_gpu=1 >= 0
+  [PASS] VRAM=4096 max_image_size=3200 >= 0
+  [PASS] VRAM=4096 max_features=16384 >= 0
+  [PASS] VRAM=4096 use_gpu=1 >= 0
+
+4. Chunk size recommendations
+  [PASS] chunk(VRAM=0, RAM=2.0) = 100 — got 100
+  [PASS] chunk(VRAM=512, RAM=4.0) = 100 — got 100
+  [PASS] chunk(VRAM=1024, RAM=4.0) = 150 — got 150
+  [PASS] chunk(VRAM=2048, RAM=8.0) = 250 — got 250
+  [PASS] chunk(VRAM=4096, RAM=16.0) = 400 — got 400
+
+5. Chunk size always positive
+  [PASS] all chunk sizes positive
+
+6. resolve_chunk_size priority
+  [PASS] explicit override wins — got 42
+  [PASS] config value used when no override — got 250
+
+7. Retry count from config
+  [PASS] retry_count > 0 — got 2
+  [PASS] retry_count <= 10 (bounded) — got 2
+  [PASS] downscale_factor < 1.0 — got 0.75
+  [PASS] downscale_factor > 0.0 — got 0.75
+  [PASS] after 7 retries, size=213 >= 100
+
+============================================================
+ TOTAL: 38 PASS, 0 FAIL
+============================================================

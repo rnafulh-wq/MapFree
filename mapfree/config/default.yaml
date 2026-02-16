@@ -1,0 +1,71 @@
+# MapFree default configuration
+# Override with --config <file> or MAPFREE_CONFIG=<path>
+# All values are optional; defaults below keep current behavior.
+
+# ---------------------------------------------------------------------------
+# Chunking
+# ---------------------------------------------------------------------------
+# Default max images per chunk when not using profile-based recommendation.
+# null = use profile-based (chunk_sizes) or env MAPFREE_CHUNK_SIZE
+chunk_size: null
+max_images_per_chunk: 250
+
+# Per-profile max images per chunk (used when chunk_size is null and no env)
+chunk_sizes:
+  HIGH: 400
+  MEDIUM: 250
+  LOW: 150
+  CPU_SAFE: 100
+
+# Multiply recommended chunk size by this (e.g. 0.8 = use 80% for safety)
+memory_multiplier: 1.0
+
+# ---------------------------------------------------------------------------
+# Profile
+# ---------------------------------------------------------------------------
+# Force profile: null = auto from VRAM; or LOW | MEDIUM | HIGH | CPU_SAFE
+profile_override: null
+
+# Profile definitions (VRAM thresholds in code; params here)
+profiles:
+  HIGH:
+    profile: HIGH
+    max_image_size: 3200
+    max_features: 16384
+    matcher: sequential
+    use_gpu: 1
+  MEDIUM:
+    profile: MEDIUM
+    max_image_size: 2400
+    max_features: 8192
+    matcher: sequential
+    use_gpu: 1
+  LOW:
+    profile: LOW
+    max_image_size: 1600
+    max_features: 8000
+    matcher: exhaustive
+    use_gpu: 1
+  CPU_SAFE:
+    profile: CPU_SAFE
+    max_image_size: 1600
+    max_features: 8000
+    matcher: exhaustive
+    use_gpu: 0
+
+# ---------------------------------------------------------------------------
+# Retries & VRAM watchdog (dense phase)
+# ---------------------------------------------------------------------------
+retry_count: 2
+
+vram_watchdog:
+  threshold: 0.9
+  poll_interval: 5
+  downscale_factor: 0.75
+
+# ---------------------------------------------------------------------------
+# COLMAP mapper
+# ---------------------------------------------------------------------------
+colmap:
+  mapper_ba_global_max_iter: 30
+  mapper_ba_local_max_iter: 20
