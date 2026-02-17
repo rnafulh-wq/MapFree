@@ -64,8 +64,10 @@ vram_watchdog:
   downscale_factor: 0.75
 
 # ---------------------------------------------------------------------------
-# COLMAP mapper
+# COLMAP
 # ---------------------------------------------------------------------------
+# colmap_bin: path to colmap executable (optional). If null, use MAPFREE_COLMAP_BIN env or PATH.
 colmap:
+  colmap_bin: null
   mapper_ba_global_max_iter: 30
   mapper_ba_local_max_iter: 20

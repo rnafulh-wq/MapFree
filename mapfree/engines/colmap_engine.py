@@ -1,8 +1,10 @@
 """
 COLMAP engine: runs colmap via subprocess wrapper.
 Pipeline never calls COLMAP directly — only through this engine.
+Colmap binary: MAPFREE_COLMAP_BIN env, or config colmap.colmap_bin, else PATH.
 """
 import os
+import shutil
 from pathlib import Path
 
 from mapfree.core.engine import BaseEngine
@@ -14,6 +16,22 @@ os.environ.setdefault("OMP_NUM_THREADS", "4")
 def _get_cfg():
     from mapfree.config import get_config
     return get_config()
+
+
+def get_colmap_bin() -> str:
+    """Resolve colmap executable: env MAPFREE_COLMAP_BIN > config colmap.colmap_bin > which colmap > 'colmap'."""
+    env_bin = os.environ.get("MAPFREE_COLMAP_BIN", "").strip()
+    if env_bin:
+        return os.path.abspath(env_bin) if os.path.sep in env_bin else env_bin
+    cfg = _get_cfg()
+    cfg_bin = (cfg.get("colmap") or {}).get("colmap_bin")
+    if cfg_bin:
+        p = str(cfg_bin).strip()
+        return os.path.abspath(p) if os.path.sep in p else p
+    found = shutil.which("colmap")
+    if found and os.path.sep in found:
+        return os.path.abspath(found)
+    return found or "colmap"
 
 
 def _profile(ctx, key, default):
@@ -45,7 +63,7 @@ class ColmapEngine(BaseEngine):
         max_features = min(_profile(ctx, "max_features", 8192), 8000)
         use_gpu = _profile(ctx, "use_gpu", 1)
         cmd = [
-            "colmap", "feature_extractor",
+            get_colmap_bin(), "feature_extractor",
             "--database_path", str(db),
             "--image_path", str(img_path),
             "--ImageReader.single_camera", "1",
@@ -62,7 +80,7 @@ class ColmapEngine(BaseEngine):
         use_gpu = _profile(ctx, "use_gpu", 1)
         cmd_name = "sequential_matcher" if matcher == "sequential" else "exhaustive_matcher"
         cmd = [
-            "colmap", cmd_name,
+            get_colmap_bin(), cmd_name,
             "--database_path", str(db),
             "--SiftMatching.use_gpu", str(1 if use_gpu else 0),
         ]
@@ -78,7 +96,7 @@ class ColmapEngine(BaseEngine):
         out_sparse = Path(ctx.sparse_path)
         out_sparse.mkdir(parents=True, exist_ok=True)
         cmd = [
-            "colmap", "mapper",
+            get_colmap_bin(), "mapper",
             "--database_path", str(db),
             "--image_path", str(img_path),
             "--output_path", str(out_sparse),
@@ -99,7 +117,7 @@ class ColmapEngine(BaseEngine):
         gpu_idx = "0" if use_gpu else "-1"
 
         _run_stage(ctx, [
-            "colmap", "image_undistorter",
+            get_colmap_bin(), "image_undistorter",
             "--image_path", str(img_path),
             "--input_path", str(sparse_dir),
             "--output_path", str(dense_dir),
@@ -107,7 +125,7 @@ class ColmapEngine(BaseEngine):
         ], "dense")
 
         _run_stage(ctx, [
-            "colmap", "patch_match_stereo",
+            get_colmap_bin(), "patch_match_stereo",
             "--workspace_path", str(dense_dir),
             "--workspace_format", "COLMAP",
             "--PatchMatchStereo.gpu_index", gpu_idx,
@@ -118,7 +136,7 @@ class ColmapEngine(BaseEngine):
         ], "dense")
 
         _run_stage(ctx, [
-            "colmap", "stereo_fusion",
+            get_colmap_bin(), "stereo_fusion",
             "--workspace_path", str(dense_dir),
             "--workspace_format", "COLMAP",
             "--input_type", "geometric",

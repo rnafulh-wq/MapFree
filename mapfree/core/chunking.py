@@ -10,6 +10,10 @@ from . import hardware
 from .config import IMAGE_EXTENSIONS
 from .profiles import resolve_chunk_size as _profiles_resolve
 
+def _colmap_bin():
+    from mapfree.engines.colmap_engine import get_colmap_bin
+    return get_colmap_bin()
+
 
 def resolve_chunk_size(override: int | None = None) -> int:
     """
@@ -104,7 +108,7 @@ def merge_sparse_models(project_path: Path, sparse_dirs: list[Path]) -> Path:
             out = project_path / "sparse_merged" / f"tmp_{i}"
             out.mkdir(parents=True, exist_ok=True)
         cmd = [
-            "colmap", "model_merger",
+            _colmap_bin(), "model_merger",
             "--input_path1", str(current),
             "--input_path2", str(next_dir),
             "--output_path", str(out),
