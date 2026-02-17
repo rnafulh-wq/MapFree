@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run this in your terminal to install all dependencies (SETUP_POPOS.md).
+# Run this in your terminal to install dependencies (Pop OS).
 # Usage: bash scripts/setup_popos.sh
 
 set -e

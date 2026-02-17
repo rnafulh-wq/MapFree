@@ -2,15 +2,6 @@
 
 Pipeline 3D (feature extraction → matching → sparse → dense) lewat engine + profile. Satu **core** (pipeline, context, events) dipakai oleh **CLI** dan **GUI** lewat `MapFreeController`.
 
-## Backup & Migrasi ke Pop OS 24 LTS
-
-```bash
-./scripts/backup_mapfree.sh
-# Output: ~/mapfree_backup/mapfree_YYYYMMDD_HHMMSS.tar.gz
-```
-
-Lihat **SETUP_POPOS.md** untuk panduan restore dan setup di Pop OS 24 LTS Nvidia.
-
 ## Layout
 
 ```
