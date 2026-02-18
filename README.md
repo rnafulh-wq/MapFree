@@ -24,6 +24,8 @@ mapfree run <image_folder> --output <project>
 # or: python -m mapfree.cli run <image_folder> -o <project>
 ```
 
+Final sparse model: `sparse_merged/0/` (chunked) or `sparse/0/` (single). The pipeline also exports to `final_results/` (sparse copy + `sparse.ply`).
+
 Optional: `--chunk-size 300`, `--force-profile LOW`.
 
 **Legacy CLI** (dari root repo):

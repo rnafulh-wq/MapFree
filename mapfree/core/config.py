@@ -28,4 +28,13 @@ ENV_CHUNK_SIZE = "MAPFREE_CHUNK_SIZE"
 ENV_LOG_LEVEL = "MAPFREE_LOG_LEVEL"
 ENV_LOG_DIR = "MAPFREE_LOG_DIR"
 
+# ---------------------------------------------------------------------------
+# Quality presets (Metashape-style): single downscale for feature + dense
+# ---------------------------------------------------------------------------
+QUALITY_PRESETS = {
+    "high": 1,    # full resolution (still VRAM-limited)
+    "medium": 2,  # image size ÷ 2
+    "low": 4,     # image size ÷ 4
+}
+
 # COLMAP / VRAM watchdog values moved to mapfree/config/default.yaml

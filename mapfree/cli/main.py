@@ -34,6 +34,8 @@ def main() -> None:
     run_parser = subparsers.add_parser("run", help="Run full pipeline on image folder")
     run_parser.add_argument("image_folder", type=str, help="Path to folder of images")
     run_parser.add_argument("--output", "-o", required=True, type=str, help="Output project directory")
+    run_parser.add_argument("--quality", "-q", type=str, choices=["high", "medium", "low"], default=None,
+                            help="Metashape-style quality: high=full res, medium=÷2, low=÷4 (default: prompt if interactive)")
     run_parser.add_argument("--chunk-size", type=int, default=None, help="Max images per chunk (default: from config default.yaml)")
     run_parser.add_argument("--force-profile", type=str, choices=["LOW", "MEDIUM", "HIGH", "CPU_SAFE"], default=None, help="Override auto profile selection")
     run_parser.add_argument("--log-level", type=str, default=None, choices=["DEBUG", "INFO", "WARNING", "ERROR"], help="Log level (default: INFO or MAPFREE_LOG_LEVEL)")
@@ -57,6 +59,20 @@ def main() -> None:
     level = getattr(logging, args.log_level) if args.log_level else None
     setup_logging(level=level, log_dir=args.log_dir)
 
+    quality = args.quality
+    if quality is None and sys.stdin.isatty():
+        print("Select quality (Metashape-style smart scaling):")
+        print("  1 = High   (full resolution, VRAM-limited)")
+        print("  2 = Medium (image size ÷ 2)")
+        print("  3 = Low    (image size ÷ 4)")
+        try:
+            raw = input("Choice [1-3] (default 2): ").strip() or "2"
+            quality = {"1": "high", "2": "medium", "3": "low"}.get(raw, "medium")
+        except (EOFError, KeyboardInterrupt):
+            quality = "medium"
+    if quality is None:
+        quality = "medium"
+
     controller = MapFreeController(profile=None)
     controller.run_project(
         str(image_folder),
@@ -64,6 +80,7 @@ def main() -> None:
         on_event=_print_event,
         chunk_size=args.chunk_size,
         force_profile=args.force_profile,
+        quality=quality,
     )
 
 

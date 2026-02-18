@@ -65,8 +65,8 @@ colmap feature_extractor \
   --database_path database.db \
   --image_path "$IMAGE_PATH" \
   --ImageReader.single_camera 1 \
-  --SiftExtraction.use_gpu $USE_GPU \
-  --SiftExtraction.max_image_size $MAX_IMAGE_SIZE \
+  --FeatureExtraction.use_gpu $USE_GPU \
+  --FeatureExtraction.max_image_size $MAX_IMAGE_SIZE \
   --SiftExtraction.max_num_features $MAX_FEATURES \
   --SiftExtraction.first_octave -1 \
   --SiftExtraction.peak_threshold 0.006
@@ -78,11 +78,11 @@ colmap feature_extractor \
 if [ "$MATCHER" = "exhaustive" ]; then
     colmap exhaustive_matcher \
       --database_path database.db \
-      --SiftMatching.use_gpu $USE_GPU
+      --FeatureMatching.use_gpu $USE_GPU
 else
     colmap sequential_matcher \
       --database_path database.db \
-      --SiftMatching.use_gpu $USE_GPU
+      --FeatureMatching.use_gpu $USE_GPU
 fi
 
 ########################################

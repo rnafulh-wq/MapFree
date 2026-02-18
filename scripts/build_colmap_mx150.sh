@@ -31,8 +31,8 @@ test_gpu_sift() {
   cp "$img" "$tmpdir/"
   colmap feature_extractor --database_path "$tmpdb" --image_path "$tmpdir" \
     --ImageReader.camera_model OPENCV --ImageReader.single_camera 1 \
-    --SiftExtraction.use_gpu 1 --SiftExtraction.gpu_index 0 \
-    --SiftExtraction.max_image_size 2000 --SiftExtraction.max_num_features 4096
+    --FeatureExtraction.use_gpu 1 --FeatureExtraction.gpu_index 0 \
+    --FeatureExtraction.max_image_size 2000 --SiftExtraction.max_num_features 4096
   echo "GPU SIFT test OK."
   rm -f "$tmpdb"; rm -rf "$tmpdir"
   exit 0

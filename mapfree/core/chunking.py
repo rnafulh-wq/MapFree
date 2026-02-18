@@ -9,6 +9,7 @@ from pathlib import Path
 from . import hardware
 from .config import IMAGE_EXTENSIONS
 from .profiles import resolve_chunk_size as _profiles_resolve
+from .wrapper import get_process_env
 
 def _colmap_bin():
     from mapfree.engines.colmap_engine import get_colmap_bin
@@ -75,7 +76,8 @@ def merge_sparse_models(project_path: Path, sparse_dirs: list[Path]) -> Path:
     """
     Merge multiple sparse models into project/sparse_merged/0.
     Uses colmap model_merger. If only one dir, copies it.
-    Returns path to merged sparse (sparse_merged/0).
+    Returns path to merged sparse (sparse_merged/0). This is the canonical final sparse
+    output for chunked runs; the pipeline also exports it to final_results/ (copy + .ply).
     """
     project_path = Path(project_path)
     out_merged = project_path / "sparse_merged" / "0"
@@ -113,7 +115,13 @@ def merge_sparse_models(project_path: Path, sparse_dirs: list[Path]) -> Path:
             "--input_path2", str(next_dir),
             "--output_path", str(out),
         ]
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        r = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=300,
+            env=get_process_env(),
+        )
         if r.returncode != 0:
             raise RuntimeError(
                 f"COLMAP model_merger failed: {r.stderr or r.stdout or 'unknown'}"

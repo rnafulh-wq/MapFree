@@ -12,7 +12,7 @@ def file_valid(path) -> bool:
 
 
 def sparse_valid(sparse_dir) -> bool:
-    """Sparse dir (e.g. .../sparse/0) has cameras.bin and non-empty images/points3D."""
+    """Sparse dir (e.g. .../sparse_merged/0 or .../sparse/0) has cameras.bin and non-empty images/points3D."""
     d = Path(sparse_dir)
     cam = d / "cameras.bin"
     if not file_valid(cam):

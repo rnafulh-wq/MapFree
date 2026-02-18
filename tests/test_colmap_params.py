@@ -35,7 +35,7 @@ def capture_cmd(engine_method, ctx, **kwargs):
     captured = []
     def fake_run(cmd, **kw):
         captured.append(cmd)
-    with patch("mapfree.engines.colmap_engine._run", side_effect=fake_run):
+    with patch("mapfree.engines.colmap_engine.run_command", side_effect=fake_run):
         try:
             engine_method(ctx, **kwargs) if kwargs else engine_method(ctx)
         except Exception:
@@ -66,13 +66,14 @@ KNOWN_MAPPER_FLAGS = {
 KNOWN_FEATURE_FLAGS = {
     "--database_path", "--image_path",
     "--ImageReader.single_camera", "--ImageReader.camera_model",
-    "--SiftExtraction.max_image_size", "--SiftExtraction.max_num_features",
-    "--SiftExtraction.use_gpu",
+    "--FeatureExtraction.max_image_size", "--FeatureExtraction.num_threads",
+    "--SiftExtraction.max_num_features",
+    "--FeatureExtraction.use_gpu",
 }
 
 KNOWN_MATCHER_FLAGS = {
     "--database_path",
-    "--SiftMatching.use_gpu",
+    "--FeatureMatching.use_gpu",
 }
 
 KNOWN_DENSE_FLAGS = {
@@ -110,7 +111,7 @@ with tempfile.TemporaryDirectory() as tmp:
     if cmds:
         cmd = cmds[0]
         report("command starts with 'colmap feature_extractor'",
-               cmd[0] == "colmap" and cmd[1] == "feature_extractor")
+               (cmd[0] == "colmap" or cmd[0].endswith("/colmap")) and cmd[1] == "feature_extractor")
         check_no_duplicate_flags(cmd, "feature_extraction")
         flags = {a for a in cmd if a.startswith("--")}
         unknown = flags - KNOWN_FEATURE_FLAGS
@@ -126,7 +127,7 @@ with tempfile.TemporaryDirectory() as tmp:
     if cmds:
         cmd = cmds[0]
         report("command starts with 'colmap exhaustive_matcher'",
-               cmd[0] == "colmap" and "matcher" in cmd[1])
+               (cmd[0] == "colmap" or cmd[0].endswith("/colmap")) and "matcher" in cmd[1])
         check_no_duplicate_flags(cmd, "matching")
 
     # ---------------------------------------------------------------
@@ -138,7 +139,7 @@ with tempfile.TemporaryDirectory() as tmp:
     if cmds:
         cmd = cmds[0]
         report("command starts with 'colmap mapper'",
-               cmd[0] == "colmap" and cmd[1] == "mapper")
+               (cmd[0] == "colmap" or cmd[0].endswith("/colmap")) and cmd[1] == "mapper")
         check_no_duplicate_flags(cmd, "sparse")
 
         # Specific BUG-002 check: ba_global and ba_local must be DIFFERENT flags
@@ -189,7 +190,7 @@ with tempfile.TemporaryDirectory() as tmp:
         # max_image_size should be capped at 1600
         idx = None
         for j, a in enumerate(cmd):
-            if a == "--SiftExtraction.max_image_size":
+            if a == "--FeatureExtraction.max_image_size":
                 idx = j + 1
                 break
         if idx and idx < len(cmd):
