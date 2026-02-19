@@ -26,7 +26,7 @@ colmap feature_extractor \
   --image_path "$IMAGES_DIR" \
   --FeatureExtraction.use_gpu 1 \
   --FeatureExtraction.gpu_index 0 \
-  --SiftExtraction.max_image_size 2000 \
+  --FeatureExtraction.max_image_size 2000 \
   --SiftExtraction.max_num_features 6000
 
 ################################

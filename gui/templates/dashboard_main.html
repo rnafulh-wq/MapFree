@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MapFree Photogrammetry Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#eb7500",
+                        "primary-hover": "#d16400",
+                        "background-dark": "#242424", // Deep dark background
+                        "surface-dark": "#333333", // Panels
+                        "surface-lighter": "#404040", // Hover states / inputs
+                        "border-dark": "#4a4a4a",
+                        "text-main": "#f3f3f3",
+                        "text-muted": "#a0a0a0",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "mono": ["JetBrains Mono", "monospace"],
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "sm": "0.2rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom Scrollbar for dark theme */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #242424; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #555; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #777; 
+        }
+        
+        /* Checkbox custom style override */
+        input[type="checkbox"]:checked {
+            background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
+        }
+    </style>
+</head>
+<body class="bg-background-dark text-text-main font-display antialiased overflow-hidden h-screen flex flex-col">
+<!-- Top Navigation Bar -->
+<header class="h-12 bg-surface-dark border-b border-border-dark flex items-center justify-between px-4 shrink-0 z-20">
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-2xl">grid_view</span>
+<h1 class="text-sm font-bold tracking-tight text-white uppercase">MapFree <span class="text-text-muted font-normal normal-case ml-1">v2.4.1</span></h1>
+</div>
+<nav class="hidden md:flex items-center gap-1">
+<button class="px-3 py-1 text-xs font-medium text-text-muted hover:text-white hover:bg-surface-lighter rounded transition-colors">File</button>
+<button class="px-3 py-1 text-xs font-medium text-text-muted hover:text-white hover:bg-surface-lighter rounded transition-colors">Edit</button>
+<button class="px-3 py-1 text-xs font-medium text-white bg-surface-lighter rounded transition-colors">Process</button>
+<button class="px-3 py-1 text-xs font-medium text-text-muted hover:text-white hover:bg-surface-lighter rounded transition-colors">View</button>
+<button class="px-3 py-1 text-xs font-medium text-text-muted hover:text-white hover:bg-surface-lighter rounded transition-colors">Help</button>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2 bg-black/20 px-3 py-1 rounded text-xs text-text-muted font-mono border border-white/5">
+<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                GPU: RTX 4090 (42°C)
+            </div>
+<div class="w-8 h-8 rounded-full bg-surface-lighter flex items-center justify-center border border-white/10" data-alt="User profile picture" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBtY_nTjqwuLzn02VPbOmGVoqMSEZn-7pgKZgYvWKcgvMQTQJkbmUtKlRbw2ooWIihtTe4KlnkPEboP1QS8S6WReCtILKe-YulT2hyjhoO7aqcsXANez0xlbmey0dfWbHOxvT3EtPXHyH-TQ-NnaDz40-kl4A5I82TJ1T8OX2aQN7ir1ucwHCBnB0aepryJ5Q3ynceL7BC1yCOnD4LKiZHURadFj7DxzRfV1BgrusqJD4VZhDD0LN4XxAhcl_DlRhvVXieBh_upLFQ'); background-size: cover; background-position: center;"></div>
+</div>
+</header>
+<!-- Main Workspace Area -->
+<main class="flex-1 flex overflow-hidden">
+<!-- Left Sidebar: Project Assets -->
+<aside class="w-72 bg-surface-dark border-r border-border-dark flex flex-col shrink-0 z-10 shadow-xl">
+<div class="p-3 border-b border-border-dark flex items-center justify-between">
+<h2 class="text-xs font-semibold uppercase tracking-wider text-text-muted">Project Assets</h2>
+<button type="button" id="add-images-btn" class="text-text-muted hover:text-white transition-colors" title="Add Images"><span class="material-symbols-outlined text-sm">add</span></button>
+</div>
+<div class="flex-1 overflow-y-auto p-2 space-y-1">
+<!-- Group: Cameras -->
+<div class="group">
+<div class="flex items-center gap-2 px-2 py-1.5 hover:bg-surface-lighter rounded cursor-pointer select-none">
+<span class="material-symbols-outlined text-text-muted text-sm group-hover:text-white">expand_more</span>
+<span class="material-symbols-outlined text-primary text-sm">photo_camera</span>
+<span class="text-sm font-medium flex-1">Cameras</span>
+<span class="text-xs text-text-muted">142/142</span>
+</div>
+<div class="pl-8 pr-1 py-1 space-y-0.5">
+<div class="flex items-center gap-2 text-xs text-text-muted hover:text-white py-1">
+<span class="material-symbols-outlined text-[16px] text-green-500">check_circle</span>
+<span>Chunk 1 (Aligned)</span>
+</div>
+</div>
+</div>
+<!-- Group: Tie Points -->
+<div class="group">
+<div class="flex items-center gap-2 px-2 py-1.5 hover:bg-surface-lighter rounded cursor-pointer select-none">
+<span class="material-symbols-outlined text-text-muted text-sm group-hover:text-white">expand_more</span>
+<span class="material-symbols-outlined text-blue-400 text-sm">grain</span>
+<span class="text-sm font-medium flex-1">Tie Points</span>
+<span class="text-xs text-text-muted">450k</span>
+</div>
+<div class="pl-8 pr-1 py-1">
+<div class="flex items-center justify-between group/item">
+<div class="flex items-center gap-2">
+<input checked="" class="rounded border-border-dark bg-surface-lighter text-primary focus:ring-0 w-3 h-3" type="checkbox"/>
+<span class="text-xs text-white">Sparse Cloud</span>
+</div>
+<span class="material-symbols-outlined text-text-muted text-xs opacity-0 group-hover/item:opacity-100 cursor-pointer">more_vert</span>
+</div>
+</div>
+</div>
+<!-- Group: Depth Maps -->
+<div class="group">
+<div class="flex items-center gap-2 px-2 py-1.5 hover:bg-surface-lighter rounded cursor-pointer select-none">
+<span class="material-symbols-outlined text-text-muted text-sm group-hover:text-white">chevron_right</span>
+<span class="material-symbols-outlined text-purple-400 text-sm">layers</span>
+<span class="text-sm font-medium flex-1">Depth Maps</span>
+</div>
+</div>
+<!-- Group: Dense Cloud -->
+<div class="group">
+<div class="flex items-center gap-2 px-2 py-1.5 bg-surface-lighter rounded cursor-pointer select-none border border-white/5">
+<span class="material-symbols-outlined text-white text-sm">expand_more</span>
+<span class="material-symbols-outlined text-primary text-sm">cloud</span>
+<span class="text-sm font-medium text-white flex-1">Dense Cloud</span>
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+</div>
+<div class="pl-8 pr-1 py-2 space-y-1">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<input checked="" class="rounded border-border-dark bg-background-dark text-primary focus:ring-0 w-3 h-3" type="checkbox"/>
+<span class="text-xs text-white">High Quality</span>
+</div>
+<span class="text-[10px] text-primary border border-primary/30 px-1 rounded bg-primary/10">Active</span>
+</div>
+</div>
+</div>
+<!-- Group: 3D Model -->
+<div class="group">
+<div class="flex items-center gap-2 px-2 py-1.5 hover:bg-surface-lighter rounded cursor-pointer select-none">
+<span class="material-symbols-outlined text-text-muted text-sm group-hover:text-white">chevron_right</span>
+<span class="material-symbols-outlined text-teal-400 text-sm">view_in_ar</span>
+<span class="text-sm font-medium flex-1">3D Model</span>
+</div>
+</div>
+<!-- Group: Orthomosaic -->
+<div class="group">
+<div class="flex items-center gap-2 px-2 py-1.5 hover:bg-surface-lighter rounded cursor-pointer select-none">
+<span class="material-symbols-outlined text-text-muted text-sm group-hover:text-white">chevron_right</span>
+<span class="material-symbols-outlined text-yellow-400 text-sm">map</span>
+<span class="text-sm font-medium flex-1">Orthomosaic</span>
+</div>
+</div>
+</div>
+<!-- Mini Metadata Table -->
+<div class="h-48 border-t border-border-dark bg-[#2a2a2a] flex flex-col">
+<div class="px-3 py-2 bg-surface-dark border-b border-border-dark flex justify-between items-center">
+<span class="text-[10px] font-bold uppercase text-text-muted">Selected Image Metadata</span>
+<span class="material-symbols-outlined text-xs text-text-muted cursor-pointer">open_in_full</span>
+</div>
+<div class="overflow-auto flex-1">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-dark sticky top-0">
+<tr>
+<th class="p-2 text-[10px] font-medium text-text-muted border-b border-border-dark">Filename</th>
+<th class="p-2 text-[10px] font-medium text-text-muted border-b border-border-dark">Lat</th>
+<th class="p-2 text-[10px] font-medium text-text-muted border-b border-border-dark">Long</th>
+<th class="p-2 text-[10px] font-medium text-text-muted border-b border-border-dark">Alt</th>
+</tr>
+</thead>
+<tbody class="font-mono text-[10px] text-gray-300 divide-y divide-white/5">
+<tr class="hover:bg-primary/20 bg-primary/10 cursor-pointer">
+<td class="p-2 truncate max-w-[80px]">IMG_0042.jpg</td>
+<td class="p-2">45.5017</td>
+<td class="p-2">-73.5673</td>
+<td class="p-2">142.5m</td>
+</tr>
+<tr class="hover:bg-surface-lighter cursor-pointer">
+<td class="p-2 truncate max-w-[80px]">IMG_0043.jpg</td>
+<td class="p-2">45.5018</td>
+<td class="p-2">-73.5674</td>
+<td class="p-2">142.8m</td>
+</tr>
+<tr class="hover:bg-surface-lighter cursor-pointer">
+<td class="p-2 truncate max-w-[80px]">IMG_0044.jpg</td>
+<td class="p-2">45.5019</td>
+<td class="p-2">-73.5675</td>
+<td class="p-2">143.1m</td>
+</tr>
+<tr class="hover:bg-surface-lighter cursor-pointer">
+<td class="p-2 truncate max-w-[80px]">IMG_0045.jpg</td>
+<td class="p-2">45.5020</td>
+<td class="p-2">-73.5676</td>
+<td class="p-2">142.2m</td>
+</tr>
+<tr class="hover:bg-surface-lighter cursor-pointer">
+<td class="p-2 truncate max-w-[80px]">IMG_0046.jpg</td>
+<td class="p-2">45.5021</td>
+<td class="p-2">-73.5677</td>
+<td class="p-2">142.4m</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</aside>
+<!-- Center Viewport -->
+<section class="flex-1 relative bg-[#1a1a1a] flex flex-col min-w-0">
+<!-- Toolbar Overlay -->
+<div class="absolute top-4 left-4 z-10 flex flex-col gap-2">
+<div class="bg-surface-dark/90 backdrop-blur border border-white/10 rounded-lg shadow-lg flex flex-col p-1">
+<button class="p-2 text-white hover:bg-white/10 rounded" title="Select"><span class="material-symbols-outlined text-[20px]">arrow_selector_tool</span></button>
+<button class="p-2 text-white hover:bg-white/10 rounded" title="Rotate"><span class="material-symbols-outlined text-[20px]">3d_rotation</span></button>
+<button class="p-2 text-white hover:bg-white/10 rounded" title="Pan"><span class="material-symbols-outlined text-[20px]">pan_tool</span></button>
+<button class="p-2 text-white hover:bg-white/10 rounded" title="Measure"><span class="material-symbols-outlined text-[20px]">straighten</span></button>
+<div class="h-px bg-white/10 my-1"></div>
+<button class="p-2 text-primary bg-primary/20 rounded" title="Reset View"><span class="material-symbols-outlined text-[20px]">center_focus_strong</span></button>
+</div>
+</div>
+<!-- View Modes Overlay -->
+<div class="absolute top-4 right-4 z-10">
+<div class="bg-surface-dark/90 backdrop-blur border border-white/10 rounded-lg shadow-lg flex p-1">
+<button class="px-3 py-1.5 text-xs font-medium text-text-muted hover:text-white hover:bg-white/10 rounded">Points</button>
+<button class="px-3 py-1.5 text-xs font-medium text-white bg-primary/20 text-primary border border-primary/30 rounded">Cloud</button>
+<button class="px-3 py-1.5 text-xs font-medium text-text-muted hover:text-white hover:bg-white/10 rounded">Mesh</button>
+<button class="px-3 py-1.5 text-xs font-medium text-text-muted hover:text-white hover:bg-white/10 rounded">Textured</button>
+</div>
+</div>
+<!-- 3D Canvas Placeholder -->
+<div class="w-full h-full relative overflow-hidden group">
+<!-- Abstract 3D visualization background -->
+<div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-[#2a2a2a] to-[#111111]" data-alt="3D workspace background with radial gradient" role="img">
+</div>
+<!-- Grid Overlay -->
+<div class="absolute inset-0 opacity-20" style="background-image: linear-gradient(#444 1px, transparent 1px), linear-gradient(90deg, #444 1px, transparent 1px); background-size: 40px 40px; transform: perspective(500px) rotateX(60deg) translateY(-100px) scale(2);">
+</div>
+<!-- Point Cloud Simulation (CSS Dots) -->
+<div class="absolute inset-0 flex items-center justify-center opacity-80 mix-blend-screen pointer-events-none">
+<div class="w-[400px] h-[300px] bg-[url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&amp;w=1000&amp;auto=format&amp;fit=crop')] bg-cover bg-center rounded-xl opacity-60 blur-[1px] shadow-[0_0_100px_rgba(235,117,0,0.3)]" data-alt="Abstract representation of a 3D point cloud of earth from space"></div>
+</div>
+<!-- Camera Frustums Simulation -->
+<div class="absolute top-1/4 left-1/3 w-4 h-4 border-2 border-primary/50 transform rotate-45"></div>
+<div class="absolute top-1/3 left-1/2 w-4 h-4 border-2 border-primary/50 transform rotate-12"></div>
+<div class="absolute top-1/2 left-2/3 w-4 h-4 border-2 border-primary/50 transform -rotate-12"></div>
+<!-- Center Crosshair -->
+<div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+<div class="w-4 h-4 border border-white/30 rounded-full"></div>
+<div class="w-1 h-1 bg-primary rounded-full absolute"></div>
+</div>
+<!-- Compass / Axis Widget Bottom Left -->
+<div class="absolute bottom-8 left-8 w-16 h-16 pointer-events-none">
+<div class="relative w-full h-full">
+<div class="absolute bottom-0 left-0 w-12 h-0.5 bg-red-500"></div> <!-- X -->
+<div class="absolute bottom-0 left-0 w-0.5 h-12 bg-green-500"></div> <!-- Y -->
+<div class="absolute bottom-0 left-0 w-8 h-0.5 bg-blue-500 transform -rotate-45 origin-bottom-left"></div> <!-- Z -->
+<span class="absolute bottom-1 right-2 text-[10px] text-red-500 font-bold">X</span>
+<span class="absolute top-2 left-2 text-[10px] text-green-500 font-bold">Y</span>
+</div>
+</div>
+</div>
+<!-- Bottom Terminal / Logs Panel (Collapsible) -->
+<div class="h-40 bg-[#1e1e1e] border-t border-border-dark flex flex-col shrink-0">
+<div class="px-4 py-1.5 bg-surface-dark border-b border-border-dark flex justify-between items-center select-none cursor-row-resize">
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
+<span class="material-symbols-outlined text-sm">terminal</span>
+                            Console Output
+                        </div>
+<div class="h-3 w-px bg-white/10"></div>
+<div class="flex items-center gap-2 text-xs text-text-muted hover:text-white cursor-pointer">
+<span class="w-2 h-2 rounded-full bg-red-500"></span>
+                            Errors (0)
+                        </div>
+<div class="flex items-center gap-2 text-xs text-text-muted hover:text-white cursor-pointer">
+<span class="w-2 h-2 rounded-full bg-yellow-500"></span>
+                            Warnings (2)
+                        </div>
+</div>
+<div class="flex items-center gap-2">
+<button class="text-text-muted hover:text-white" title="Clear Log"><span class="material-symbols-outlined text-sm">block</span></button>
+<button class="text-text-muted hover:text-white" title="Minimize"><span class="material-symbols-outlined text-sm">keyboard_arrow_down</span></button>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto p-2 font-mono text-xs space-y-1">
+<div class="flex gap-3 text-text-muted">
+<span class="text-gray-500 select-none">[10:42:01]</span>
+<span>Project "MapFree Project 01" loaded successfully.</span>
+</div>
+<div class="flex gap-3 text-text-muted">
+<span class="text-gray-500 select-none">[10:42:05]</span>
+<span>Found 142 cameras. All cameras aligned.</span>
+</div>
+<div class="flex gap-3 text-yellow-500/80">
+<span class="text-gray-500 select-none">[10:42:06]</span>
+<span>Warning: Camera calibration parameters differ significantly from initial estimate.</span>
+</div>
+<div class="flex gap-3 text-text-muted">
+<span class="text-gray-500 select-none">[10:42:15]</span>
+<span>Device 1: NVIDIA GeForce RTX 4090 initialized for CUDA processing.</span>
+</div>
+<div class="flex gap-3 text-text-main">
+<span class="text-gray-500 select-none">[10:43:00]</span>
+<span><span class="text-primary font-bold">&gt;&gt;&gt;</span> Started Dense Cloud generation...</span>
+</div>
+<div class="flex gap-3 text-text-muted animate-pulse">
+<span class="text-gray-500 select-none">[10:43:02]</span>
+<span>Reconstructing depth... (45%)</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Right Sidebar: Processing Settings -->
+<aside class="w-80 bg-surface-dark border-l border-border-dark flex flex-col shrink-0 z-10 shadow-xl">
+<!-- Header -->
+<div class="p-4 border-b border-border-dark">
+<h2 class="text-sm font-semibold text-white">Processing Settings</h2>
+<p class="text-xs text-text-muted mt-1">Configure parameters for the current step.</p>
+</div>
+<!-- Scrollable Settings -->
+<div class="flex-1 overflow-y-auto p-4 space-y-6">
+<!-- Alignment Section -->
+<div class="space-y-3">
+<div class="flex items-center justify-between">
+<h3 class="text-xs font-bold uppercase tracking-wider text-text-muted">Alignment</h3>
+<span class="text-[10px] text-green-500 border border-green-500/30 px-1.5 rounded bg-green-500/10">Done</span>
+</div>
+<div class="bg-background-dark p-3 rounded border border-border-dark opacity-60">
+<div class="grid grid-cols-2 gap-y-2 text-xs">
+<span class="text-text-muted">Accuracy</span>
+<span class="text-right text-white">High</span>
+<span class="text-text-muted">Key point limit</span>
+<span class="text-right text-white">40,000</span>
+<span class="text-text-muted">Tie point limit</span>
+<span class="text-right text-white">4,000</span>
+</div>
+</div>
+</div>
+<!-- Dense Cloud Section (Active) -->
+<div class="space-y-3 relative">
+<div class="absolute -left-4 top-0 bottom-0 w-1 bg-primary rounded-r"></div>
+<div class="flex items-center justify-between">
+<h3 class="text-xs font-bold uppercase tracking-wider text-white">Dense Cloud</h3>
+<span class="text-[10px] text-primary border border-primary/30 px-1.5 rounded bg-primary/10 animate-pulse">Running</span>
+</div>
+<div class="space-y-4">
+<!-- Quality Slider -->
+<div class="space-y-2">
+<div class="flex justify-between text-xs">
+<label class="text-text-muted">Quality</label>
+<span class="text-primary font-medium">Medium</span>
+</div>
+<input class="w-full h-1 bg-surface-lighter rounded-lg appearance-none cursor-pointer accent-primary" max="5" min="1" type="range" value="3"/>
+<div class="flex justify-between text-[10px] text-gray-600 px-1">
+<span>Low</span>
+<span>Ultra</span>
+</div>
+</div>
+<!-- Depth Filtering -->
+<div class="space-y-1.5">
+<label class="text-xs text-text-muted block">Depth Filtering</label>
+<div class="relative">
+<select class="block w-full rounded border-border-dark bg-surface-lighter text-white text-xs py-2 pl-3 pr-8 focus:border-primary focus:ring-primary">
+<option>Mild</option>
+<option>Moderate</option>
+<option selected="">Aggressive</option>
+<option>Disabled</option>
+</select>
+</div>
+</div>
+<!-- Toggles -->
+<div class="space-y-2 pt-1">
+<label class="flex items-center justify-between cursor-pointer">
+<span class="text-xs text-text-muted">Calculate point colors</span>
+<input checked="" class="rounded border-border-dark bg-surface-lighter text-primary focus:ring-0 h-4 w-4" type="checkbox"/>
+</label>
+<label class="flex items-center justify-between cursor-pointer">
+<span class="text-xs text-text-muted">Calculate point confidence</span>
+<input class="rounded border-border-dark bg-surface-lighter text-primary focus:ring-0 h-4 w-4" type="checkbox"/>
+</label>
+</div>
+</div>
+</div>
+<div class="h-px bg-border-dark w-full"></div>
+<!-- Orthomosaic Section (Future) -->
+<div class="space-y-3 opacity-50 hover:opacity-100 transition-opacity">
+<div class="flex items-center justify-between">
+<h3 class="text-xs font-bold uppercase tracking-wider text-text-muted">Orthomosaic</h3>
+<span class="material-symbols-outlined text-sm text-text-muted">lock</span>
+</div>
+<div class="space-y-1.5">
+<label class="text-xs text-text-muted block">Projection Source</label>
+<select class="block w-full rounded border-border-dark bg-background-dark text-gray-500 text-xs py-2 pl-3 pr-8" disabled="">
+<option>DEM</option>
+<option>Mesh</option>
+</select>
+</div>
+</div>
+</div>
+<!-- Bottom Action Area -->
+<div class="p-4 bg-[#2a2a2a] border-t border-border-dark space-y-4">
+<!-- Progress Bar -->
+<div class="space-y-1.5">
+<div class="flex justify-between items-end">
+<span class="text-xs font-medium text-white">Generating Dense Cloud...</span>
+<span class="text-xs font-mono text-primary">45%</span>
+</div>
+<div class="w-full bg-surface-lighter rounded-full h-2 overflow-hidden">
+<div class="bg-primary h-2 rounded-full relative overflow-hidden" style="width: 45%">
+<div class="absolute inset-0 bg-white/20 animate-[pulse_2s_infinite]"></div>
+</div>
+</div>
+<div class="flex justify-between text-[10px] text-text-muted">
+<span>Time elapsed: 00:03:12</span>
+<span>Est. remaining: 00:04:45</span>
+</div>
+</div>
+<!-- Main CTA Button -->
+<div class="flex gap-2">
+<button class="flex-1 bg-surface-lighter text-white py-2.5 rounded-lg text-sm font-medium hover:bg-[#505050] transition-colors border border-white/5">
+                        Cancel
+                    </button>
+<button class="flex-[2] bg-primary text-white py-2.5 rounded-lg text-sm font-bold hover:bg-primary-hover shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-lg">play_arrow</span>
+                        Start Processing
+                    </button>
+</div>
+</div>
+</aside>
+</main>
+<script>
+    // Pastikan API pywebview siap (tidak tersedia di browser biasa)
+    window.addEventListener('pywebviewready', function() {
+        var btn = document.getElementById('add-images-btn');
+        if (!btn) return;
+        btn.addEventListener('click', function() {
+            if (typeof pywebview === 'undefined' || !pywebview.api || !pywebview.api.open_folder_dialog) return;
+            pywebview.api.open_folder_dialog().then(function(path) {
+                if (path) {
+                    window.mapfreeSelectedFolder = path;
+                    if (typeof window.appendConsoleLog === 'function') {
+                        window.appendConsoleLog('Folder selected: ' + path, 'success');
+                    }
+                }
+            }).catch(function(err) {
+                if (typeof window.appendConsoleLog === 'function') {
+                    window.appendConsoleLog('Folder dialog error: ' + (err && err.message ? err.message : String(err)), 'error');
+                }
+            });
+        });
+    });
+    async function selectFolder() {
+        if (typeof pywebview === 'undefined' || !pywebview.api || !pywebview.api.open_folder_dialog) return;
+        try {
+            var path = await pywebview.api.open_folder_dialog();
+            if (path) {
+                window.mapfreeSelectedFolder = path;
+                if (typeof window.appendConsoleLog === 'function') {
+                    window.appendConsoleLog('Folder selected: ' + path, 'success');
+                }
+            }
+        } catch (e) {
+            if (typeof window.appendConsoleLog === 'function') {
+                window.appendConsoleLog('Error: ' + (e && e.message ? e.message : String(e)), 'error');
+            }
+        }
+    }
+</script>
+</body></html>

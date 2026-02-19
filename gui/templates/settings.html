@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}MapFree — Settings{% endblock %}
+{% block content %}
+<section class="flex-1 flex overflow-hidden">
+    <div class="flex-1 overflow-y-auto bg-surface-dark p-8">
+        <div class="max-w-2xl mx-auto space-y-8">
+            <h2 class="text-xl font-semibold tracking-tight text-white flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary">view_in_ar</span>
+                Settings
+            </h2>
+            <div>
+                <h3 class="text-sm font-bold uppercase tracking-wider text-neutral-400 mb-4 border-b border-border-dark pb-2">GPU Configuration</h3>
+                <div class="flex items-start gap-3 mb-6">
+                    <input id="cuda-toggle" type="checkbox" class="rounded border-border-dark bg-surface-lighter text-primary focus:ring-0 h-5 w-5" checked/>
+                    <label for="cuda-toggle" class="cursor-pointer">
+                        <span class="block text-sm font-medium text-white">Enable CUDA/GPU Acceleration</span>
+                        <span class="block text-xs text-text-muted mt-1">Use NVIDIA GPU for faster processing.</span>
+                    </label>
+                </div>
+                <label class="block text-sm font-medium text-text-main mb-2">Primary GPU</label>
+                <select id="config-primary-device" class="w-full rounded bg-surface-lighter border border-border-dark text-white py-2.5 px-4 text-sm">
+                    <option value="gpu">NVIDIA GPU (auto)</option>
+                    <option value="cpu">CPU Only</option>
+                </select>
+            </div>
+            <div>
+                <h3 class="text-sm font-bold uppercase tracking-wider text-neutral-400 mb-4 border-b border-border-dark pb-2">CPU Configuration</h3>
+                <div class="mb-2">
+<label class="text-sm font-medium text-text-main">Max CPU Threads <span id="config-cpu-threads-value" class="text-primary">4</span></label>
+                <input type="range" id="config-cpu-threads" min="1" max="32" value="4" class="w-full accent-primary"/>
+                    <p class="text-xs text-text-muted mt-2">More threads speed up dense generation.</p>
+                </div>
+            </div>
+            <div class="flex gap-3 pt-4">
+                <a href="{{ url_for('dashboard') }}" class="px-5 py-2 rounded text-sm font-medium text-text-muted border border-border-dark hover:bg-surface-lighter">Cancel</a>
+                <button type="button" id="settings-apply" class="px-5 py-2 rounded text-sm font-medium bg-primary text-white hover:bg-primary-hover">Apply Changes</button>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+(function() {
+    var cudaToggle = document.getElementById('cuda-toggle');
+    var primaryDevice = document.getElementById('config-primary-device');
+    var cpuThreads = document.getElementById('config-cpu-threads');
+    var applyBtn = document.getElementById('settings-apply');
+    function loadConfig() {
+        fetch('/api/config').then(function(r) { return r.json(); }).then(function(c) {
+            if (cudaToggle) cudaToggle.checked = !!c.gpu_enabled;
+            if (primaryDevice) primaryDevice.value = c.primary_device || 'gpu';
+            if (cpuThreads) { cpuThreads.value = c.cpu_threads || 4; var vEl = document.getElementById('config-cpu-threads-value'); if (vEl) vEl.textContent = c.cpu_threads || 4; }
+        }).catch(function() {});
+    }
+    loadConfig();
+    if (cpuThreads) cpuThreads.addEventListener('input', function() {
+        var vEl = document.getElementById('config-cpu-threads-value');
+        if (vEl) vEl.textContent = cpuThreads.value;
+    });
+    if (applyBtn) applyBtn.addEventListener('click', function() {
+        var payload = {
+            gpu_enabled: cudaToggle ? cudaToggle.checked : true,
+            primary_device: primaryDevice ? primaryDevice.value : 'gpu',
+            cpu_threads: parseInt(cpuThreads ? cpuThreads.value : 4, 10) || 4
+        };
+        fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+            .then(function(r) { return r.json(); })
+            .then(function() {
+                if (window.appendConsoleLog) window.appendConsoleLog('Settings saved to config.json', 'success');
+            })
+            .catch(function() {
+                if (window.appendConsoleLog) window.appendConsoleLog('Failed to save settings', 'error');
+            });
+    });
+})();
+</script>
+{% endblock %}

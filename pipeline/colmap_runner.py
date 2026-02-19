@@ -1,5 +1,6 @@
 """COLMAP CLI wrapper. Builds and runs COLMAP commands with config-driven parameters."""
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -7,6 +8,9 @@ from .exceptions import ColmapError
 from .logger import get_logger
 
 logger = get_logger("colmap")
+
+# So COLMAP finds venv libs (e.g. libonnxruntime.so.1) when PATH/LD_LIBRARY_PATH not set in shell.
+_VENV_LIB = "/media/pop_mangto/E/dev/MapFree/venv/lib"
 
 
 def run_colmap(cmd: list[str], dry_run: bool = False, num_threads: int = 4) -> None:
@@ -17,8 +21,8 @@ def run_colmap(cmd: list[str], dry_run: bool = False, num_threads: int = 4) -> N
     logger.info("COLMAP: %s", " ".join(cmd))
     if dry_run:
         return
-    import os
-    env = os.environ.copy()
+    env = dict(os.environ)
+    env["LD_LIBRARY_PATH"] = _VENV_LIB + ":" + env.get("LD_LIBRARY_PATH", "")
     env["OMP_NUM_THREADS"] = str(num_threads)
     result = subprocess.run(cmd, env=env, capture_output=True, text=True)
     if result.returncode != 0:
@@ -37,14 +41,16 @@ def build_feature_extractor_args(project_path: Path, image_path: Path, config: d
     fe_cfg = config.get("feature_extractor", {})
     max_size = fe_cfg.get("max_image_size", 2000)
     gpu = fe_cfg.get("gpu_index", 0)
+    num_threads = config.get("system", {}).get("num_threads", -1)
     args = [
         "colmap", "feature_extractor",
         "--database_path", str(db),
         "--image_path", str(image_path),
         "--ImageReader.single_camera", "0",
         "--ImageReader.camera_model", "OPENCV",
-        "--SiftExtraction.max_image_size", str(max_size),
-        "--SiftExtraction.gpu_index", str(gpu),
+        "--FeatureExtraction.max_image_size", str(max_size),
+        "--FeatureExtraction.num_threads", str(num_threads),
+        "--FeatureExtraction.gpu_index", str(gpu),
     ]
     return args
 
@@ -57,7 +63,7 @@ def build_matcher_args(project_path: Path, config: dict) -> list[str]:
     match_type = matcher_cfg.get("type", "spatial")
     gpu = matcher_cfg.get("gpu_index", 0)
     cmd = "sequential_matcher" if match_type == "sequential" else "spatial_matcher"
-    args = ["colmap", cmd, "--database_path", str(db), "--SiftMatching.gpu_index", str(gpu)]
+    args = ["colmap", cmd, "--database_path", str(db), "--FeatureMatching.gpu_index", str(gpu)]
     return args
 
 

@@ -38,7 +38,7 @@ profiles:
     profile: MEDIUM
     max_image_size: 2400
     max_features: 8192
-    matcher: sequential
+    matcher: sequential   # order from EXIF (GPS then time) via image_list_path
     use_gpu: 1
   LOW:
     profile: LOW
@@ -64,8 +64,12 @@ vram_watchdog:
   downscale_factor: 0.75
 
 # ---------------------------------------------------------------------------
-# COLMAP mapper
+# COLMAP
 # ---------------------------------------------------------------------------
+# colmap_bin: path to colmap executable (optional). If null, use MAPFREE_COLMAP_BIN env or PATH.
+# num_threads: feature_extractor threads (-1 = auto). COLMAP 3.14 uses FeatureExtraction.num_threads.
 colmap:
-  mapper_ba_global_max_iter: 30
-  mapper_ba_local_max_iter: 20
+  colmap_bin: null
+  num_threads: -1
+  mapper_ba_global_max_iter: 50
+  mapper_ba_local_max_iter: 25

@@ -1,6 +1,8 @@
 """
 Pipeline: orchestration only.
 Flow: _prepare_environment -> _run_sparse -> _run_dense -> _post_process.
+Final sparse output: sparse_merged/0/ (chunked) or sparse/0/ (single). After run, also exported
+to final_results/ (sparse copy + sparse.ply) via final_results.export_final_results().
 Delegates: state (state.py), validation (validation.py), profile (profiles.py), detection (hardware.py).
 """
 from pathlib import Path
@@ -22,16 +24,19 @@ from .state import (
 )
 from .validation import sparse_valid, dense_valid
 from .logger import get_logger, get_chunk_logger, set_log_file_for_project
+from . import final_results as final_results_module
+from .config import QUALITY_PRESETS
 
 
 class Pipeline:
-    def __init__(self, engine, context, on_event=None, chunk_size=None, force_profile=None, event_emitter=None):
+    def __init__(self, engine, context, on_event=None, chunk_size=None, force_profile=None, event_emitter=None, quality=None):
         self.engine = engine
         self.ctx = context
         self.on_event = on_event or (lambda e: None)
         self.chunk_size = chunk_size
         self.force_profile = force_profile
         self.event_emitter = event_emitter
+        self.quality = quality if quality in QUALITY_PRESETS else "medium"
         self._project_path = None
         self._image_path = None
         self._profile = None
@@ -59,7 +64,10 @@ class Pipeline:
                 if log_path:
                     self._log.info("Log file: %s", log_path)
             self._run_sparse()
-            self._run_dense()
+            if not self._abort:
+                self._filter_sparse()
+            if not self._abort:
+                self._run_dense()
             self._post_process()
         except Exception as e:
             self._hook("pipeline_error", error=e)
@@ -78,8 +86,13 @@ class Pipeline:
 
         self._project_path = Path(self.ctx.project_path)
 
-        vram_mb = hardware.detect_gpu_vram()
-        self.emit("step", "Detected VRAM: %d MB" % vram_mb, 0.02)
+        hw = hardware.get_hardware_profile()
+        self._log.info(
+            "Hardware: RAM %.2f GB, VRAM %d MB",
+            hw.ram_gb,
+            hw.vram_mb,
+        )
+        self.emit("step", "Detected VRAM: %d MB" % hw.vram_mb, 0.02)
         force = self.force_profile or cfg.get("profile_override")
         if force:
             profile = get_profile(
@@ -89,10 +102,14 @@ class Pipeline:
             )
             profile["profile"] = force
         else:
-            profile = get_profile(vram_mb)
+            profile = get_profile(hw.vram_mb)
         self._profile = profile
         self.ctx.profile = profile
+        downscale = QUALITY_PRESETS.get(self.quality, 1)
+        self.ctx.profile["quality"] = self.quality
+        self.ctx.profile["downscale"] = downscale
         self.emit("step", "Selected profile: %s" % profile["profile"], 0.05)
+        self.emit("step", "Quality: %s (downscale %d)" % (self.quality.upper(), downscale), 0.05)
 
         self.chunk_size = chunking.resolve_chunk_size(self.chunk_size)
 
@@ -118,6 +135,11 @@ class Pipeline:
             self._run_chunked_sparse()
         else:
             self._run_single_sparse()
+
+    def _filter_sparse(self):
+        """Sparse point filtering bypassed: COLMAP point_filtering binary incompatible (SIGABRT)."""
+        self._log.info("Skipping sparse point filtering due to binary incompatibility")
+        self.emit("step", "Skipping filtering due to binary incompatibility", 0.55)
 
     def _run_dense(self):
         from mapfree.config import get_config
@@ -151,11 +173,34 @@ class Pipeline:
             if dense_valid(self.ctx.dense_path):
                 mark_step_done(project_path, "dense")
             self.emit("step", "[DONE] dense reconstruction", None)
+        fused_ply = Path(self.ctx.dense_path) / "fused.ply"
+        if fused_ply.exists() and fused_ply.stat().st_size < 1024:
+            self._log.warning(
+                "Dense fusion produced an empty model, possibly due to VRAM limits (fused.ply %d bytes)",
+                fused_ply.stat().st_size,
+            )
         self._hook("step_end", step_name="dense")
 
     def _post_process(self):
-        """Clear state if all completion steps done; emit complete."""
+        """Export final sparse to final_results/ (copy + PLY), then clear state if done; emit complete."""
         project_path = self._project_path
+        sparse_dir = Path(self.ctx.sparse_path)
+        if sparse_valid(sparse_dir):
+            try:
+                final_dir = final_results_module.export_final_results(project_path, sparse_dir)
+                self._log.info(
+                    "Final sparse model exported to %s (sparse copy + %s)",
+                    final_dir,
+                    final_results_module.SPARSE_PLY_NAME,
+                )
+                self.emit(
+                    "step",
+                    "Final sparse exported to %s" % (final_dir / final_results_module.SPARSE_PLY_NAME),
+                    None,
+                )
+            except Exception as e:
+                self._log.warning("Could not export final results: %s", e)
+                self.emit("step", "Final results export skipped: %s" % e, None)
         state = load_state(project_path)
         if all(state.get(s, False) for s in COMPLETION_STEPS):
             reset_state(project_path)
@@ -245,6 +290,7 @@ class Pipeline:
             self.emit("step", "Merging sparse models", 0.45)
             merged = chunking.merge_sparse_models(project_path, sparse_dirs)
             self.ctx.sparse_path = str(merged)
+            self._log.info("Final sparse output: %s (also exported to final_results/ after pipeline)", merged)
             self.ctx.image_path = str(image_path)
             self.ctx.dense_path = str(project_path / "dense")
             if sparse_valid(Path(merged)):

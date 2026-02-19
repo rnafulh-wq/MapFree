@@ -1,11 +1,24 @@
 """
 Subprocess guard for engine calls (colmap, openmvs, etc.).
 Production hardening: timeout, exit-code validation, bounded retry, per-stage log.
+All subprocess calls use an env with LD_LIBRARY_PATH including venv/lib so COLMAP
+(and other binaries) find libonnxruntime etc. when PATH is not passed through.
 """
+import os
 import subprocess
 import time
 import traceback
 from pathlib import Path
+
+# Prepend to LD_LIBRARY_PATH so COLMAP/model_merger etc. find venv libs (e.g. libonnxruntime.so.1).
+VENV_LIB = "/media/pop_mangto/E/dev/MapFree/venv/lib"
+
+
+def get_process_env(env: dict | None = None) -> dict:
+    """Return env dict with VENV_LIB prepended to LD_LIBRARY_PATH. Use for any COLMAP subprocess."""
+    base = dict(env if env is not None else os.environ)
+    base["LD_LIBRARY_PATH"] = VENV_LIB + ":" + base.get("LD_LIBRARY_PATH", "")
+    return base
 
 
 class EngineExecutionError(Exception):
@@ -21,15 +34,18 @@ def run_command(
     timeout: int = 7200,
     retry: int = 2,
     cwd: Path | None = None,
+    env: dict | None = None,
 ) -> bool:
     """
     Run command with timeout, retries, and per-stage log.
     Retries on both non-zero exit and timeout (up to retry attempts).
+    Always passes an env with LD_LIBRARY_PATH including venv/lib (so COLMAP finds shared libs).
     """
     logs_dir = workspace / "logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
     log_file = logs_dir / f"{stage_name}.log"
     run_cwd = Path(cwd) if cwd is not None else workspace
+    run_env = get_process_env(env)
 
     attempt = 0
     max_attempts = retry + 1
@@ -44,6 +60,7 @@ def run_command(
                 timeout=timeout,
                 text=True,
                 cwd=run_cwd,
+                env=run_env,
             )
             duration = time.time() - start
 

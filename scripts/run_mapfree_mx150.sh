@@ -114,7 +114,7 @@ step_feature_extraction() {
     --FeatureExtraction.use_gpu 0 \
     --FeatureExtraction.gpu_index -1 \
     --FeatureExtraction.num_threads 4 \
-    --SiftExtraction.max_image_size 2000 \
+    --FeatureExtraction.max_image_size 2000 \
     --SiftExtraction.max_num_features 4096 \
     2>&1 | tee -a "$LOG_FILE"
   exc=${PIPESTATUS[0]}

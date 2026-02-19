@@ -14,7 +14,7 @@
 4. COLMAP `mapper` (CPU bundle adjustment, limited iterations)
 5. COLMAP `image_undistorter`
 6. COLMAP `patch_match_stereo` (GPU, limited resolution)
-7. Outputs: sparse + dense point clouds
+7. Outputs: sparse (sparse_merged/0 for chunked, sparse/0 for single) + dense point clouds; final_results/ holds a copy and sparse.ply
 
 ## Hardware Constraints
 
@@ -30,7 +30,7 @@ Target: Ubuntu, i5-class CPU (max 4 threads), NVIDIA MX150 2GB VRAM.
 - `config/` — YAML configs (default, mx150)
 - `pipeline/` — Python orchestration (project, steps, COLMAP runner, exporter, logging)
 - `cli/` — Entry point (`run.py`)
-- `projects/` — One folder per project (images, sparse, dense, logs)
+- `projects/` — One folder per project (images, sparse, sparse_merged/0 as final sparse when chunked, dense, final_results/ with sparse copy + sparse.ply, logs)
 - `logs/` — Global pipeline logs
 
 ## Resume and Dry-Run
