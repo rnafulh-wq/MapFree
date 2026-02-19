@@ -71,7 +71,8 @@ def main() -> None:
         except (EOFError, KeyboardInterrupt):
             quality = "medium"
     if quality is None:
-        quality = "medium"
+        from mapfree.core.config import recommend_quality_from_hardware
+        quality = recommend_quality_from_hardware()
 
     controller = MapFreeController(profile=None)
     controller.run_project(

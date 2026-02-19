@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}MapFree — Processing{% endblock %}
+{% block content %}
+<section class="flex-1 overflow-y-auto bg-surface-dark p-8">
+    <div class="max-w-4xl mx-auto space-y-8">
+        <div class="flex justify-between items-end">
+            <div>
+                <span class="bg-primary/20 text-primary text-xs font-bold px-2 py-0.5 rounded uppercase">Active Job</span>
+                <h1 class="text-2xl font-bold text-white mt-2">Processing</h1>
+                <p class="text-text-muted text-sm mt-1">Step 3 of 5: Dense Cloud Generation</p>
+            </div>
+            <div class="text-right">
+                <p class="text-4xl font-bold text-primary" id="processing-progress-pct">0%</p>
+                <p class="text-xs text-text-muted uppercase">Overall Progress</p>
+            </div>
+        </div>
+        <div class="w-full h-3 bg-surface-lighter rounded-full overflow-hidden">
+            <div id="processing-progress-bar" class="bg-primary h-full rounded-full transition-all" style="width: 0%"></div>
+        </div>
+        <p class="text-sm text-text-muted">Estimated time remaining: <span id="processing-eta" class="text-white font-medium">—</span></p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-background-dark rounded-lg p-6 border border-border-dark">
+                <p class="text-text-muted text-xs font-bold uppercase mb-1">CPU Usage</p>
+                <p class="text-2xl font-bold text-white" id="processing-cpu">0%</p>
+            </div>
+            <div class="bg-background-dark rounded-lg p-6 border border-border-dark">
+                <p class="text-text-muted text-xs font-bold uppercase mb-1">RAM</p>
+                <p class="text-2xl font-bold text-white" id="processing-ram">0 <span class="text-sm text-text-muted">MB</span></p>
+            </div>
+            <div class="bg-background-dark rounded-lg p-6 border border-border-dark">
+                <p class="text-text-muted text-xs font-bold uppercase mb-1">Elapsed</p>
+                <p class="text-2xl font-bold text-white tabular-nums" id="processing-elapsed">00:00</p>
+            </div>
+        </div>
+        <div class="flex gap-3 flex-wrap items-center">
+            <a href="{{ url_for('dashboard') }}" class="px-5 py-2 rounded text-sm font-medium border border-border-dark text-text-muted hover:bg-surface-lighter">Back to Dashboard</a>
+            <button type="button" id="processing-pause-btn" class="px-5 py-2 rounded text-sm font-medium bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 border border-amber-500/30 hidden">Pause</button>
+            <button type="button" id="processing-resume-btn" class="px-5 py-2 rounded text-sm font-medium bg-green-600/20 text-green-400 hover:bg-green-600/30 border border-green-500/30 hidden">Resume</button>
+            <button type="button" id="processing-cancel-btn" class="px-5 py-2 rounded text-sm font-medium bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-500/30">Cancel</button>
+        </div>
+    </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+(function() {
+    function fmtTime(sec) {
+        if (sec == null || isNaN(sec)) return '00:00';
+        var m = Math.floor(sec / 60);
+        var s = Math.floor(sec % 60);
+        return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+    }
+    function stopProcess() {
+        fetch('/api/processing/stop', { method: 'POST' }).catch(function() {});
+        if (typeof pywebview !== 'undefined' && pywebview.api && typeof pywebview.api.stop_mapping_process === 'function') {
+            pywebview.api.stop_mapping_process();
+        }
+    }
+    function pauseProcess() {
+        fetch('/api/processing/pause', { method: 'POST' }).catch(function() {});
+        if (typeof pywebview !== 'undefined' && pywebview.api && typeof pywebview.api.pause_mapping_process === 'function') {
+            pywebview.api.pause_mapping_process();
+        }
+    }
+    function resumeProcess() {
+        fetch('/api/processing/resume', { method: 'POST' }).catch(function() {});
+        if (typeof pywebview !== 'undefined' && pywebview.api && typeof pywebview.api.resume_mapping_process === 'function') {
+            pywebview.api.resume_mapping_process();
+        }
+    }
+    var cancelBtn = document.getElementById('processing-cancel-btn');
+    var pauseBtn = document.getElementById('processing-pause-btn');
+    var resumeBtn = document.getElementById('processing-resume-btn');
+    if (cancelBtn) cancelBtn.addEventListener('click', stopProcess);
+    if (pauseBtn) pauseBtn.addEventListener('click', function() { pauseProcess(); pauseBtn.classList.add('hidden'); if (resumeBtn) resumeBtn.classList.remove('hidden'); });
+    if (resumeBtn) resumeBtn.addEventListener('click', function() { resumeProcess(); resumeBtn.classList.add('hidden'); if (pauseBtn) pauseBtn.classList.remove('hidden'); });
+    function poll() {
+        fetch('/api/processing/status').then(function(r) { return r.json(); }).then(function(s) {
+            var cpuEl = document.getElementById('processing-cpu');
+            var ramEl = document.getElementById('processing-ram');
+            var elapsedEl = document.getElementById('processing-elapsed');
+            var pctEl = document.getElementById('processing-progress-pct');
+            var barEl = document.getElementById('processing-progress-bar');
+            var etaEl = document.getElementById('processing-eta');
+            if (cpuEl) cpuEl.textContent = (s.cpu != null ? s.cpu : 0) + '%';
+            if (ramEl) {
+                var mb = (s.ram_mb != null ? s.ram_mb : 0);
+                if (mb >= 1024) ramEl.innerHTML = (mb / 1024).toFixed(1) + ' <span class="text-sm text-text-muted">GB</span>';
+                else ramEl.innerHTML = Math.round(mb) + ' <span class="text-sm text-text-muted">MB</span>';
+            }
+            if (elapsedEl) elapsedEl.textContent = fmtTime(s.elapsed_sec);
+            var pct = (s.progress != null ? s.progress : 0);
+            if (pctEl) pctEl.textContent = pct + '%';
+            if (barEl) barEl.style.width = pct + '%';
+            if (etaEl) etaEl.textContent = s.running ? '…' : '—';
+            var running = !!s.running;
+            var paused = !!s.paused;
+            if (cancelBtn) { cancelBtn.disabled = !running; cancelBtn.classList.toggle('opacity-50 cursor-not-allowed', !running); }
+            if (pauseBtn) { pauseBtn.classList.toggle('hidden', !running || paused); pauseBtn.disabled = !running; }
+            if (resumeBtn) { resumeBtn.classList.toggle('hidden', !running || !paused); resumeBtn.disabled = !running; }
+        }).catch(function() {});
+    }
+    poll();
+    var interval = setInterval(poll, 1000);
+})();
+</script>
+{% endblock %}
