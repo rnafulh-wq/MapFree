@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QStatusBar,
     QMessageBox,
     QApplication,
+    QFileDialog,
 )
 from PySide6.QtCore import Qt
 
@@ -26,6 +27,7 @@ from mapfree.gui.panels import (
 )
 from mapfree.gui.qt_controller import QtController
 from mapfree.gui.workers import PipelineWorker
+from mapfree.utils.file_utils import list_images
 
 # Order of stages for "done" progression
 _STAGE_ORDER = [
@@ -52,6 +54,8 @@ class MainWindow(QMainWindow):
         self._controller = QtController()
         self._worker = None
         self._current_stage = None
+        self._image_path = None
+        self._project_path = None
         self._setup_window()
         self._setup_menubar()
         self._setup_toolbar()
@@ -76,8 +80,10 @@ class MainWindow(QMainWindow):
         menubar = self.menuBar()
 
         file_menu = menubar.addMenu("&File")
-        file_menu.addAction("&New...")
-        file_menu.addAction("&Open...")
+        file_menu.addAction("New &job", self._on_new_job)
+        file_menu.addAction("Import &Photos...", self._on_import_photos)
+        file_menu.addAction("Set output &folder...", self._on_set_output_folder)
+        file_menu.addAction("&Open project...", self._on_open)
         file_menu.addSeparator()
         file_menu.addAction("E&xit", self.close)
 
@@ -97,8 +103,9 @@ class MainWindow(QMainWindow):
         self._toolbar = QToolBar("Main")
         self._toolbar.setMovable(True)
         self.addToolBar(self._toolbar)
-        self._toolbar.addAction("New")
-        self._toolbar.addAction("Open")
+        self._toolbar.addAction("New job", self._on_new_job)
+        self._toolbar.addAction("Import Photos", self._on_import_photos)
+        self._toolbar.addAction("Set output", self._on_set_output_folder)
         self._toolbar.addSeparator()
         self._toolbar.addAction("Run", self._start_pipeline)
 
@@ -136,6 +143,93 @@ class MainWindow(QMainWindow):
     def _connect_project_panel(self):
         self._project_panel.startRequested.connect(self._start_pipeline)
         self._project_panel.stopRequested.connect(self._on_stop_requested)
+        self._project_panel.importPhotosRequested.connect(self._on_import_photos)
+        self._project_panel.outputFolderRequested.connect(self._on_set_output_folder)
+        self._project_panel.stepsChanged.connect(self._update_run_enabled)
+        self._update_run_enabled()
+
+    def _can_run(self):
+        """Semua 4 langkah harus terisi: nama job, foto, penyimpanan, kualitas."""
+        job = self._project_panel.get_job_name()
+        return bool(job and self._image_path and self._project_path)
+
+    def _update_run_enabled(self):
+        self._project_panel.set_run_enabled(self._can_run())
+
+    def _refresh_project_panel(self):
+        image_count = 0
+        if self._image_path:
+            try:
+                image_count = len(list_images(Path(self._image_path)))
+            except (OSError, TypeError):
+                pass
+        self._project_panel.set_image_count(image_count)
+        self._project_panel.set_output_folder(
+            str(self._project_path) if self._project_path else ""
+        )
+
+    def _on_new_job(self):
+        """Reset: kosongkan nama job, foto, penyimpanan. Run dinonaktifkan sampai 4 langkah terisi."""
+        self._image_path = None
+        self._project_path = None
+        self._project_panel.set_job_name("")
+        self._project_panel.set_image_count(0)
+        self._project_panel.set_output_folder("")
+        self._update_run_enabled()
+        self._statusbar.showMessage("New job. Isi 1–4: nama, import foto, penyimpanan, kualitas.")
+
+    def _on_set_output_folder(self):
+        folder = QFileDialog.getExistingDirectory(
+            self,
+            "Pilih folder penyimpanan job",
+            str(self._project_path) if self._project_path else "",
+            QFileDialog.Option.ShowDirsOnly,
+        )
+        if not folder:
+            return
+        self._project_path = Path(folder)
+        self._refresh_project_panel()
+        self._update_run_enabled()
+        self._statusbar.showMessage("Penyimpanan: %s" % folder)
+
+    def _on_open(self):
+        """Buka folder proyek (penyimpanan). Jika ada subfolder 'images', dipakai sebagai folder foto."""
+        project_folder = QFileDialog.getExistingDirectory(
+            self,
+            "Open project",
+            "",
+            QFileDialog.Option.ShowDirsOnly,
+        )
+        if not project_folder:
+            return
+        self._project_path = Path(project_folder)
+        images_sub = self._project_path / "images"
+        if images_sub.is_dir():
+            self._image_path = images_sub
+        self._project_panel.set_job_name(self._project_path.name)
+        self._refresh_project_panel()
+        self._update_run_enabled()
+        self._statusbar.showMessage("Opened: %s" % project_folder)
+
+    def _on_import_photos(self):
+        image_folder = QFileDialog.getExistingDirectory(
+            self,
+            "Import foto — Pilih folder berisi foto",
+            str(self._image_path) if self._image_path else "",
+            QFileDialog.Option.ShowDirsOnly,
+        )
+        if not image_folder:
+            return
+        self._image_path = Path(image_folder)
+        if not self._project_path:
+            self._project_path = self._image_path / "output"
+        self._refresh_project_panel()
+        self._update_run_enabled()
+        try:
+            n = len(list_images(self._image_path)) if self._image_path else 0
+        except (OSError, TypeError):
+            n = 0
+        self._statusbar.showMessage("Foto: %s (%d file)" % (image_folder, n))
 
     def _connect_controller_signals(self):
         self._controller.progressChanged.connect(self._progress_panel.update_progress)
@@ -204,12 +298,30 @@ class MainWindow(QMainWindow):
     def _start_pipeline(self):
         if self._worker is not None and self._worker.isRunning():
             return
+        if not self._can_run():
+            miss = []
+            if not self._project_panel.get_job_name():
+                miss.append("1. Nama job")
+            if not self._image_path:
+                miss.append("2. Import foto")
+            if not self._project_path:
+                miss.append("3. Penyimpanan job")
+            QMessageBox.warning(
+                self,
+                "Run Pipeline",
+                "Lengkapi dulu:\n" + "\n".join(miss or ["Semua langkah 1–4."]),
+            )
+            return
+        image_path = str(self._image_path)
+        project_path = str(self._project_path)
+        quality = self._project_panel.get_quality()
         self._project_panel.set_running(True)
         self._project_panel.set_all_pending()
         self._worker = PipelineWorker(
             self._controller,
-            "",
-            "",
+            image_path,
+            project_path,
+            quality=quality,
         )
         self._worker.finished.connect(self._on_worker_finished)
         self._worker.start()
@@ -217,6 +329,7 @@ class MainWindow(QMainWindow):
     def _on_worker_finished(self):
         self._worker = None
         self._project_panel.set_running(False)
+        self._update_run_enabled()
         self._progress_panel.update_state("idle")
 
     def closeEvent(self, event):

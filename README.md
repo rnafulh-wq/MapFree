@@ -46,6 +46,38 @@ Important components:
 - Python 3.10+
 - COLMAP installed and on PATH (or set `MAPFREE_COLMAP_BIN`)
 - OpenMVS installed and on PATH if using dense mesh pipeline (optional; COLMAP dense is default)
+- **PDAL and GDAL** — required only for geospatial stages (LAS conversion, DSM/DTM, orthophoto). Not bundled; must be installed on the system and on PATH.
+
+### PDAL & GDAL (geospatial)
+
+MapFree does not ship PDAL or GDAL. Install them and ensure they are on your PATH.
+
+**Ubuntu / Debian:**
+
+```bash
+sudo apt update
+sudo apt install -y pdal gdal-bin
+```
+
+**Conda (any OS):**
+
+```bash
+conda install -c conda-forge pdal gdal
+```
+
+**Verify PATH:**
+
+```bash
+which pdal gdalinfo gdal_grid gdal_translate gdalwarp
+```
+
+All five commands should print paths. From the project root you can run:
+
+```bash
+python -c "from mapfree.utils.dependency_check import check_geospatial_dependencies; check_geospatial_dependencies(); print('PDAL & GDAL OK')"
+```
+
+To disable geospatial stages without installing PDAL/GDAL, set in config: `enable_geospatial: false`.
 
 ### Setup
 

@@ -72,6 +72,14 @@ vram_watchdog:
   downscale_factor: 0.75
 
 # ---------------------------------------------------------------------------
+# Geospatial (after dense)
+# ---------------------------------------------------------------------------
+# Run geospatial stages: convert to LAS, ground classification, DSM, DTM, orthophoto.
+enable_geospatial: true
+# Resolution (units per pixel) for DSM and DTM rasters.
+dtm_resolution: 0.05
+
+# ---------------------------------------------------------------------------
 # COLMAP
 # ---------------------------------------------------------------------------
 # colmap_bin: path to colmap executable (optional). If null, use MAPFREE_COLMAP_BIN env or PATH.

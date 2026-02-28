@@ -54,6 +54,8 @@ def _defaults() -> dict:
         "vram_watchdog": {"threshold": 0.9, "poll_interval": 5, "downscale_factor": 0.75},
         "dense_engine": "colmap",
         "colmap": {"mapper_ba_global_max_iter": 30, "mapper_ba_local_max_iter": 20},
+        "enable_geospatial": True,
+        "dtm_resolution": 0.05,
     }
 
 

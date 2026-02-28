@@ -1,6 +1,7 @@
 """
 Pipeline: orchestration only.
-Flow: _prepare_environment -> _run_sparse -> _run_dense -> _post_process.
+Flow: _prepare_environment -> _run_sparse -> _run_dense -> _run_geospatial_stages -> _post_process.
+Project output structure: sparse/, dense/, geospatial/ (dense.las, classified.las, dsm.tif, dtm.tif, orthophoto.tif).
 Final sparse output: sparse_merged/0/ (chunked) or sparse/0/ (single). After run, also exported
 to final_results/ (sparse copy + sparse.ply) via final_results.export_final_results().
 Delegates: state (state.py), validation (validation.py), profile (profiles.py), detection (hardware.py).
@@ -95,6 +96,10 @@ class Pipeline:
                 self._run_dense()
                 self._bus("stage_completed", {"stage": "dense"})
                 self._bus("progress_updated", 80)
+                if self._config_enable_geospatial():
+                    self._run_geospatial_stages()
+                else:
+                    self._log.info("Geospatial stages disabled by config (enable_geospatial=false)")
             self._bus("stage_started", {"stage": "post_process"})
             self._post_process()
             self._bus("stage_completed", {"stage": "post_process"})
@@ -263,6 +268,125 @@ class Pipeline:
             self.emit("step", "[RESUME] State file removed (all steps complete)", None)
         self._hook("pipeline_complete")
         self.emit("complete", "Pipeline finished", 1.0)
+
+    def _config_enable_geospatial(self) -> bool:
+        """True if config.enable_geospatial is True."""
+        from mapfree.config import get_config
+        cfg = get_config()
+        return bool(cfg.get("enable_geospatial", True))
+
+    def _run_geospatial_stages(self):
+        """Run geospatial stages after dense: convert to LAS, ground classification, DSM, DTM, orthophoto."""
+        from mapfree.config import get_config
+        from mapfree.utils.dependency_check import check_geospatial_dependencies
+        from mapfree.geospatial.georef import convert_ply_to_las
+        from mapfree.geospatial.classification import classify_ground
+        from mapfree.geospatial.rasterizer import generate_dsm, generate_dtm
+        from mapfree.geospatial.orthomosaic import generate_orthophoto
+
+        try:
+            check_geospatial_dependencies()
+        except RuntimeError as e:
+            self._log.warning("Skipping geospatial stages: %s", e)
+            return
+
+        cfg = get_config()
+        resolution = float(cfg.get("dtm_resolution", 0.05))
+
+        project_path = Path(self._project_path)
+        dense_path = Path(self.ctx.dense_path)
+        image_path = self._image_path or project_path / "images"
+        geo_dir = Path(self.ctx.geospatial_path)
+        geo_dir.mkdir(parents=True, exist_ok=True)
+
+        # Output paths: geospatial/dense.las, classified.las, dsm.tif, dtm.tif, orthophoto.tif
+        dense_las = geo_dir / "dense.las"
+        classified_las = geo_dir / "classified.las"
+        dsm_tif = geo_dir / "dsm.tif"
+        dtm_tif = geo_dir / "dtm.tif"
+        ortho_tif = geo_dir / "orthophoto.tif"
+
+        # 1. Convert to LAS
+        stage = "geospatial_convert_las"
+        self._bus("stage_started", {"stage": stage})
+        self._bus("progress_updated", 81)
+        fused_ply = dense_path / "fused.ply"
+        if not fused_ply.exists():
+            self._log.warning("Skipping %s: dependency missing (fused.ply not found)", stage)
+            self._bus("stage_completed", {"stage": stage, "skipped": True})
+        else:
+            try:
+                convert_ply_to_las(fused_ply, dense_las, event_bus=None)
+                self._bus("stage_completed", {"stage": stage})
+            except Exception as e:
+                self._log.warning("Skipping %s: %s", stage, e)
+                self._bus("stage_completed", {"stage": stage, "skipped": True})
+
+        # 2. Ground Classification
+        stage = "geospatial_ground_classification"
+        self._bus("stage_started", {"stage": stage})
+        self._bus("progress_updated", 82)
+        if not dense_las.exists():
+            self._log.warning("Skipping %s: dependency missing (dense.las not found)", stage)
+            self._bus("stage_completed", {"stage": stage, "skipped": True})
+        else:
+            try:
+                classify_ground(dense_las, classified_las)
+                self._bus("stage_completed", {"stage": stage})
+            except Exception as e:
+                self._log.warning("Skipping %s: %s", stage, e)
+                self._bus("stage_completed", {"stage": stage, "skipped": True})
+
+        # 3. DSM Generation
+        stage = "geospatial_dsm"
+        self._bus("stage_started", {"stage": stage})
+        self._bus("progress_updated", 83)
+        if not dense_las.exists():
+            self._log.warning("Skipping %s: dependency missing (dense.las not found)", stage)
+            self._bus("stage_completed", {"stage": stage, "skipped": True})
+        else:
+            try:
+                generate_dsm(dense_las, dsm_tif, resolution=resolution)
+                self._bus("stage_completed", {"stage": stage})
+            except Exception as e:
+                self._log.warning("Skipping %s: %s", stage, e)
+                self._bus("stage_completed", {"stage": stage, "skipped": True})
+
+        # 4. DTM Generation
+        stage = "geospatial_dtm"
+        self._bus("stage_started", {"stage": stage})
+        self._bus("progress_updated", 84)
+        if not classified_las.exists():
+            self._log.warning("Skipping %s: dependency missing (classified.las not found)", stage)
+            self._bus("stage_completed", {"stage": stage, "skipped": True})
+        else:
+            try:
+                generate_dtm(classified_las, dtm_tif, resolution=resolution)
+                self._bus("stage_completed", {"stage": stage})
+            except Exception as e:
+                self._log.warning("Skipping %s: %s", stage, e)
+                self._bus("stage_completed", {"stage": stage, "skipped": True})
+
+        # 5. Orthophoto Generation (skip only if georeference missing)
+        stage = "geospatial_orthophoto"
+        self._bus("stage_started", {"stage": stage})
+        self._bus("progress_updated", 85)
+        if not dtm_tif.exists():
+            self._log.warning("Skipping %s: dependency missing (dtm.tif not found)", stage)
+            self._bus("stage_completed", {"stage": stage, "skipped": True})
+        else:
+            try:
+                generate_orthophoto(image_path, dtm_tif, ortho_tif)
+                self._bus("stage_completed", {"stage": stage})
+            except RuntimeError as e:
+                if "georeferenced" in str(e).lower():
+                    self._log.warning("Skipping %s: orthophoto requires georeferenced dataset.", stage)
+                    self._bus("stage_completed", {"stage": stage, "skipped": True})
+                else:
+                    raise
+            except Exception as e:
+                self._log.warning("Skipping %s: %s", stage, e)
+                self._bus("stage_completed", {"stage": stage, "skipped": True})
 
     # ------------------------------------------------------------------
     # Sparse: chunked
