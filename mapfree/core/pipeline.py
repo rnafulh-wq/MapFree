@@ -52,32 +52,72 @@ class Pipeline:
         if self.event_emitter is not None:
             self.event_emitter.emit(event_name, **payload)
 
+    def _bus(self, event_name: str, data=None):
+        """Emit via context.event_bus only. No direct GUI/controller state modification."""
+        if getattr(self.ctx, "event_bus", None) is not None:
+            self.ctx.event_bus.emit(event_name, data)
+
     def run(self):
+        ctx = self.ctx
+        bus = getattr(ctx, "event_bus", None)
+        if getattr(ctx, "stop_event", None) is not None:
+            ctx.stop_event.clear()
+        self._stop_requested = False
+
+        def on_stop_requested(_, data):
+            self._stop_requested = True
+            if getattr(ctx, "stop_event", None) is not None:
+                ctx.stop_event.set()
+
+        if bus is not None:
+            bus.subscribe("pipeline_stop_requested", on_stop_requested)
+
         self._hook("pipeline_start")
         self.emit("start", "Pipeline started", 0.0)
+        self._bus("pipeline_started")
         try:
             self._prepare_environment()
             if self._abort:
                 return
+            self._bus("progress_updated", 10)
             if self._project_path is not None:
                 log_path = set_log_file_for_project(self._project_path)
                 if log_path:
                     self._log.info("Log file: %s", log_path)
+            self._bus("stage_started", {"stage": "sparse"})
             self._run_sparse()
             if not self._abort:
                 self._filter_sparse()
             if not self._abort:
+                self._bus("stage_completed", {"stage": "sparse"})
+                self._bus("progress_updated", 40)
+                self._bus("stage_started", {"stage": "dense"})
                 self._run_dense()
+                self._bus("stage_completed", {"stage": "dense"})
+                self._bus("progress_updated", 80)
+            self._bus("stage_started", {"stage": "post_process"})
             self._post_process()
+            self._bus("stage_completed", {"stage": "post_process"})
+            self._bus("pipeline_finished")
         except Exception as e:
-            self._hook("pipeline_error", error=e)
-            self.emit("error", str(e))
+            if getattr(self, "_stop_requested", False):
+                self._bus("pipeline_error", "Stopped by user")
+                self._hook("pipeline_error", error=e)
+                self.emit("error", "Stopped by user")
+            else:
+                self._bus("pipeline_error", str(e))
+                self._hook("pipeline_error", error=e)
+                self.emit("error", str(e))
+            self._log.exception("Pipeline failed: %s", e)
+            raise
+        finally:
+            if bus is not None:
+                bus.unsubscribe("pipeline_stop_requested", on_stop_requested)
             if self._project_path is not None:
                 try:
                     save_state(self._project_path, load_state(self._project_path))
                 except Exception:
                     pass
-            raise
 
     def _prepare_environment(self):
         """Resolve profile, chunk size, image count; prepare context and chunk list."""
@@ -144,41 +184,57 @@ class Pipeline:
     def _run_dense(self):
         from mapfree.config import get_config
         cfg = get_config()
+        dense_engine = str(cfg.get("dense_engine") or "colmap").strip().lower()
         retry_count = int(cfg.get("retry_count", 2))
         vw = cfg.get("vram_watchdog") or {}
         downscale = float(vw.get("downscale_factor", 0.75))
 
         project_path = self._project_path
         self._hook("step_start", step_name="dense")
-        if is_step_done(project_path, "dense") and dense_valid(self.ctx.dense_path):
-            self.emit("step", "[RESUME] Skipping dense", None)
-        else:
-            self.emit("step", "[RUNNING] dense reconstruction", 0.6)
-            Path(self.ctx.dense_path).mkdir(parents=True, exist_ok=True)
-            use_gpu = self.ctx.profile.get("use_gpu", 1)
-            vram_mb = hardware.detect_gpu_vram()
-            enable_watchdog = bool(use_gpu and vram_mb > 0)
-            for attempt in range(retry_count + 1):
-                try:
-                    self.engine.dense(self.ctx, vram_watchdog=enable_watchdog)
-                    break
-                except VramWatchdogError:
-                    if attempt < retry_count:
-                        current = self.ctx.profile.get("max_image_size") or 800
-                        new_size = max(100, int(current * downscale))
-                        self.ctx.profile["max_image_size"] = new_size
-                        self.emit("step", "VRAM exceeded, retrying dense with max_image_size=%d" % new_size, None)
-                    else:
-                        raise
-            if dense_valid(self.ctx.dense_path):
+
+        if dense_engine == "openmvs":
+            openmvs_output = project_path / "openmvs" / "scene_textured.mvs"
+            if openmvs_output.exists():
+                self.emit("step", "[RESUME] Skipping dense (OpenMVS)", None)
+            else:
+                self.emit("step", "[RUNNING] OpenMVS pipeline", 0.6)
+                from mapfree.engines.openmvs_engine import OpenMVSEngine
+                openmvs_ctx = self.ctx
+                if getattr(openmvs_ctx, "logger", None) is None:
+                    openmvs_ctx.logger = self._log
+                OpenMVSEngine(openmvs_ctx).run()
                 mark_step_done(project_path, "dense")
-            self.emit("step", "[DONE] dense reconstruction", None)
-        fused_ply = Path(self.ctx.dense_path) / "fused.ply"
-        if fused_ply.exists() and fused_ply.stat().st_size < 1024:
-            self._log.warning(
-                "Dense fusion produced an empty model, possibly due to VRAM limits (fused.ply %d bytes)",
-                fused_ply.stat().st_size,
-            )
+                self.emit("step", "[DONE] OpenMVS pipeline", None)
+        else:
+            if is_step_done(project_path, "dense") and dense_valid(self.ctx.dense_path):
+                self.emit("step", "[RESUME] Skipping dense", None)
+            else:
+                self.emit("step", "[RUNNING] dense reconstruction", 0.6)
+                Path(self.ctx.dense_path).mkdir(parents=True, exist_ok=True)
+                use_gpu = self.ctx.profile.get("use_gpu", 1)
+                vram_mb = hardware.detect_gpu_vram()
+                enable_watchdog = bool(use_gpu and vram_mb > 0)
+                for attempt in range(retry_count + 1):
+                    try:
+                        self.engine.dense(self.ctx, vram_watchdog=enable_watchdog)
+                        break
+                    except VramWatchdogError:
+                        if attempt < retry_count:
+                            current = self.ctx.profile.get("max_image_size") or 800
+                            new_size = max(100, int(current * downscale))
+                            self.ctx.profile["max_image_size"] = new_size
+                            self.emit("step", "VRAM exceeded, retrying dense with max_image_size=%d" % new_size, None)
+                        else:
+                            raise
+                if dense_valid(self.ctx.dense_path):
+                    mark_step_done(project_path, "dense")
+                self.emit("step", "[DONE] dense reconstruction", None)
+            fused_ply = Path(self.ctx.dense_path) / "fused.ply"
+            if fused_ply.exists() and fused_ply.stat().st_size < 1024:
+                self._log.warning(
+                    "Dense fusion produced an empty model, possibly due to VRAM limits (fused.ply %d bytes)",
+                    fused_ply.stat().st_size,
+                )
         self._hook("step_end", step_name="dense")
 
     def _post_process(self):

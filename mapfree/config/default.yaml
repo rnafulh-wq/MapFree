@@ -54,7 +54,15 @@ profiles:
     use_gpu: 0
 
 # ---------------------------------------------------------------------------
-# Retries & VRAM watchdog (dense phase)
+# Dense engine (after sparse)
+# ---------------------------------------------------------------------------
+# dense_engine: colmap | openmvs  (allowed values only)
+#   colmap  = COLMAP dense (patch_match + stereo_fusion -> fused.ply)
+#   openmvs = OpenMVS pipeline (InterfaceCOLMAP -> Densify -> Mesh -> Refine -> Texture)
+dense_engine: colmap
+
+# ---------------------------------------------------------------------------
+# Retries & VRAM watchdog (dense phase, colmap only)
 # ---------------------------------------------------------------------------
 retry_count: 2
 

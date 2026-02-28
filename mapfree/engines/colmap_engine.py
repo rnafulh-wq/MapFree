@@ -58,6 +58,17 @@ def _profile(ctx, key, default):
 
 def _run_stage(ctx, command, stage_name, timeout=3600):
     workspace = Path(ctx.project_path)
+    logger = getattr(ctx, "logger", None)
+    bus = getattr(ctx, "event_bus", None)
+
+    if bus is not None:
+        bus.emit("engine_stage_started", {"engine": "colmap", "stage": stage_name})
+
+    def on_line(line: str) -> None:
+        if bus is not None:
+            bus.emit("engine_log", {"engine": "colmap", "message": line})
+
+    stop_event = getattr(ctx, "stop_event", None)
     try:
         run_command(
             command,
@@ -66,9 +77,16 @@ def _run_stage(ctx, command, stage_name, timeout=3600):
             timeout=timeout,
             retry=2,
             cwd=workspace,
+            logger=logger,
+            line_callback=on_line,
+            stop_event=stop_event,
         )
     except EngineExecutionError as e:
+        if bus is not None:
+            bus.emit("engine_stage_completed", {"engine": "colmap", "stage": stage_name})
         raise RuntimeError(f"Engine failed: {e}") from e
+    if bus is not None:
+        bus.emit("engine_stage_completed", {"engine": "colmap", "stage": stage_name})
 
 
 def _get_dji_opencv_params(image_path: Path) -> str | None:

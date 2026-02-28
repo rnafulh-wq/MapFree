@@ -4,11 +4,14 @@ Production hardening: timeout, exit-code validation, bounded retry, per-stage lo
 All subprocess calls use an env with LD_LIBRARY_PATH including venv/lib so COLMAP
 (and other binaries) find libonnxruntime etc. when PATH is not passed through.
 """
+import logging
 import os
 import subprocess
+import threading
 import time
 import traceback
 from pathlib import Path
+from typing import Callable
 
 # Prepend to LD_LIBRARY_PATH so COLMAP/model_merger etc. find venv libs (e.g. libonnxruntime.so.1).
 VENV_LIB = "/media/pop_mangto/E/dev/MapFree/venv/lib"
@@ -27,6 +30,78 @@ class EngineExecutionError(Exception):
     pass
 
 
+def run_process_streaming(
+    command: list,
+    *,
+    cwd: Path | str | None = None,
+    env: dict | None = None,
+    timeout: int | None = None,
+    logger: logging.Logger | None = None,
+    log_file: Path | None = None,
+    line_callback: Callable[[str], None] | None = None,
+    stop_event: threading.Event | None = None,
+) -> int:
+    """
+    Run command with Popen; stream stdout/stderr (combined) line-by-line to logger, log_file, and/or line_callback.
+    If stop_event is set, a watcher thread will terminate the process; no zombie left.
+    Returns exit code. Raises subprocess.TimeoutExpired on timeout.
+    """
+    run_env = get_process_env(env)
+    proc = subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        cwd=cwd,
+        env=run_env,
+    )
+    log_fp = open(log_file, "a") if log_file else None
+    read_done = threading.Event()
+
+    def read_output():
+        try:
+            for line in proc.stdout:
+                line = line.rstrip()
+                if logger is not None:
+                    logger.info(line)
+                if log_fp is not None:
+                    log_fp.write(line + "\n")
+                    log_fp.flush()
+                if line_callback is not None:
+                    try:
+                        line_callback(line)
+                    except Exception:
+                        pass
+        finally:
+            if log_fp is not None:
+                log_fp.close()
+            read_done.set()
+
+    def watcher():
+        while proc.poll() is None:
+            if stop_event is not None and stop_event.wait(timeout=0.5):
+                try:
+                    proc.kill()
+                except (OSError, ProcessLookupError):
+                    pass
+                break
+
+    t = threading.Thread(target=read_output, daemon=True)
+    t.start()
+    if stop_event is not None:
+        w = threading.Thread(target=watcher, daemon=True)
+        w.start()
+    try:
+        proc.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait()
+        raise
+    finally:
+        read_done.wait(timeout=5)
+    return proc.returncode
+
+
 def run_command(
     command: list,
     workspace: Path,
@@ -35,9 +110,12 @@ def run_command(
     retry: int = 2,
     cwd: Path | None = None,
     env: dict | None = None,
+    logger: logging.Logger | None = None,
+    line_callback: Callable[[str], None] | None = None,
+    stop_event: threading.Event | None = None,
 ) -> bool:
     """
-    Run command with timeout, retries, and per-stage log.
+    Run command with timeout, retries, and per-stage log. Streams output to log file and optional logger.
     Retries on both non-zero exit and timeout (up to retry attempts).
     Always passes an env with LD_LIBRARY_PATH including venv/lib (so COLMAP finds shared libs).
     """
@@ -45,39 +123,37 @@ def run_command(
     logs_dir.mkdir(parents=True, exist_ok=True)
     log_file = logs_dir / f"{stage_name}.log"
     run_cwd = Path(cwd) if cwd is not None else workspace
-    run_env = get_process_env(env)
 
     attempt = 0
     max_attempts = retry + 1
 
     while attempt < max_attempts:
         try:
+            with open(log_file, "a") as f:
+                f.write(f"\n--- Attempt {attempt} ---\n")
             start = time.time()
-            result = subprocess.run(
+            returncode = run_process_streaming(
                 command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                timeout=timeout,
-                text=True,
                 cwd=run_cwd,
-                env=run_env,
+                env=env,
+                timeout=timeout,
+                logger=logger,
+                log_file=log_file,
+                line_callback=line_callback,
+                stop_event=stop_event,
             )
             duration = time.time() - start
 
             with open(log_file, "a") as f:
-                f.write(f"\n--- Attempt {attempt} ({duration:.1f}s) ---\n")
-                if result.stdout:
-                    f.write(result.stdout)
-                if result.stderr:
-                    f.write(result.stderr)
+                f.write(f"--- Completed in {duration:.1f}s (exit {returncode}) ---\n")
 
-            if result.returncode != 0:
+            if returncode != 0:
                 with open(log_file, "a") as f:
-                    f.write(f"\nExit code: {result.returncode}\n")
+                    f.write(f"\nExit code: {returncode}\n")
                 attempt += 1
                 if attempt >= max_attempts:
                     raise EngineExecutionError(
-                        f"{stage_name} failed with code {result.returncode}"
+                        f"{stage_name} failed with code {returncode}"
                     )
                 continue
             return True

@@ -34,18 +34,26 @@ Optional: `--chunk-size 300`, `--force-profile LOW`.
 python -m cli.main <image_path> <project_path>
 ```
 
-**GUI** (PySide6):
+**GUI (Qt / PySide6)** — jendela sederhana:
 
 ```bash
-python gui/app.py
+python3 -m gui.app
 ```
-
-Atau `python -m gui.app` jika package terinstall (`pip install -e .`).
 
 ## Setup
 
 ```bash
+cd /path/to/MapFree
 pip install -e .
 ```
 
-PySide6 masuk di `pyproject.toml`. CLI dan GUI memakai engine yang sama lewat `MapFreeController`.
+Jika muncul error **externally-managed-environment**, pakai virtual environment:
+
+```bash
+python3 -m venv venv
+source venv/bin/activate   # Linux/macOS
+pip install -e .
+python3 -m gui.app
+```
+
+Dependencies: PySide6, PyYAML, psutil. CLI dan GUI memakai engine yang sama lewat `MapFreeController`.

@@ -1,4 +1,4 @@
-from mapfree.api.controller import MapFreeController
+from mapfree.application.controller import MapFreeController
 from mapfree.core.events import Event, EventEmitter
 from mapfree.core.pipeline import Pipeline
 from mapfree.core.context import ProjectContext

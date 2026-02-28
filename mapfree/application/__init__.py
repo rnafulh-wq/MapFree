@@ -1,4 +1,4 @@
-"""Re-export for backward compatibility. Prefer mapfree.application.controller."""
+# Application layer: controller, project manager, license, state machine
 
 from mapfree.application.controller import MapFreeController
 

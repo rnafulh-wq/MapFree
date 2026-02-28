@@ -11,6 +11,7 @@ from mapfree.api.controller import MapFreeController
 from mapfree.config import load_config
 from mapfree.core.events import Event
 from mapfree.core.logger import setup_logging
+from mapfree.core.state import PipelineState
 
 
 def _print_event(e: Event) -> None:
@@ -83,6 +84,10 @@ def main() -> None:
         force_profile=args.force_profile,
         quality=quality,
     )
+    if controller.worker_thread is not None:
+        controller.worker_thread.join()
+    if controller.state == PipelineState.ERROR:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

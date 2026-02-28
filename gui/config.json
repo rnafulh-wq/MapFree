@@ -1,6 +1,0 @@
-{
-  "gpu_enabled": true,
-  "gpu_id": 0,
-  "cpu_threads": 4,
-  "primary_device": "gpu"
-}
