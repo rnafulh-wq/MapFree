@@ -11,6 +11,7 @@ from .config import IMAGE_EXTENSIONS
 from .profiles import resolve_chunk_size as _profiles_resolve
 from .wrapper import get_process_env
 
+
 def _colmap_bin():
     from mapfree.engines.colmap_engine import get_colmap_bin
     return get_colmap_bin()

@@ -4,9 +4,21 @@ Tracks pipeline step completion and per-chunk progress via .mapfree_state.json.
 Does not know engine output layout; use validation.py for output checks.
 """
 import json
+from enum import Enum
 from pathlib import Path
 
 from .config import PIPELINE_STEPS, CHUNK_STEPS
+
+
+class PipelineState(Enum):
+    """High-level pipeline execution state."""
+    IDLE = "idle"
+    RUNNING = "running"
+    SPARSE = "sparse"
+    DENSE = "dense"
+    FINISHED = "finished"
+    ERROR = "error"
+
 
 STATE_FILE = ".mapfree_state.json"
 

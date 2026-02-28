@@ -1,5 +1,6 @@
 # Python
 __pycache__/
+*.pyc
 *.py[cod]
 *$py.class
 *.so
@@ -8,8 +9,12 @@ venv/
 .venv/
 env/
 
-# Build
+# Build / PySide6 / PyInstaller
 build/
+dist/
+*.spec
+*.egg-info/
+*.egg
 
 # Generated / binary / data
 *.log

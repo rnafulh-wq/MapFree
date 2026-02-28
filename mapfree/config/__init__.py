@@ -52,6 +52,7 @@ def _defaults() -> dict:
         },
         "retry_count": 2,
         "vram_watchdog": {"threshold": 0.9, "poll_interval": 5, "downscale_factor": 0.75},
+        "dense_engine": "colmap",
         "colmap": {"mapper_ba_global_max_iter": 30, "mapper_ba_local_max_iter": 20},
     }
 
@@ -81,6 +82,13 @@ def load_config(override_path: str | Path | None = None) -> dict:
         p = Path(override_path)
         if p.exists():
             base = _deep_merge(base, _load_yaml(p))
+
+    # Allow only colmap | openmvs for dense_engine (env MAPFREE_DENSE_ENGINE overrides)
+    dense = os.environ.get("MAPFREE_DENSE_ENGINE", "").strip().lower() or str(base.get("dense_engine") or "colmap").strip().lower()
+    if dense not in ("colmap", "openmvs"):
+        base["dense_engine"] = "colmap"
+    else:
+        base["dense_engine"] = dense
 
     _CACHE = base
     return base
