@@ -169,7 +169,7 @@ def run_command(
 
         except EngineExecutionError:
             raise
-        except Exception as e:
+        except Exception:
             with open(log_file, "a") as f:
                 f.write(f"\n--- Attempt {attempt}: EXCEPTION ---\n")
                 f.write(traceback.format_exc())

@@ -1,6 +1,6 @@
 """Viewer panel — placeholder for future OpenGL / PyQtGraph 3D or image view."""
 
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QSizePolicy, QFrame
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QSizePolicy
 from PySide6.QtCore import Qt
 
 

@@ -9,8 +9,6 @@ from PySide6.QtWidgets import (
     QTreeWidget,
     QTreeWidgetItem,
     QSizePolicy,
-    QFrame,
-    QScrollArea,
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor

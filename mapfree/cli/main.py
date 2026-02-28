@@ -13,20 +13,22 @@ from mapfree.core.events import Event
 from mapfree.core.logger import setup_logging
 from mapfree.core.state import PipelineState
 
+logger = logging.getLogger(__name__)
 
-def _print_event(e: Event) -> None:
+
+def _emit_event(e: Event) -> None:
     if e.type == "step":
         msg = e.message or ""
         pct = (" [%d%%]" % int(e.progress * 100)) if e.progress is not None else ""
-        print(msg + pct)
+        logger.info("%s%s", msg, pct)
     elif e.type == "complete":
-        print("DONE:", e.message)
+        logger.info("DONE: %s", e.message)
     elif e.type == "error":
-        print("ERROR:", e.message)
+        logger.error("ERROR: %s", e.message)
         sys.exit(1)
     else:
         if e.message:
-            print(e.message)
+            logger.info("%s", e.message)
 
 
 def main() -> None:
@@ -54,7 +56,7 @@ def main() -> None:
     image_folder = Path(args.image_folder).resolve()
     project_path = Path(args.output).resolve()
     if not image_folder.is_dir():
-        print("ERROR: image_folder is not a directory: %s" % image_folder)
+        logger.error("image_folder is not a directory: %s", image_folder)
         sys.exit(1)
 
     level = getattr(logging, args.log_level) if args.log_level else None
@@ -62,10 +64,10 @@ def main() -> None:
 
     quality = args.quality
     if quality is None and sys.stdin.isatty():
-        print("Select quality (Metashape-style smart scaling):")
-        print("  1 = High   (full resolution, VRAM-limited)")
-        print("  2 = Medium (image size ÷ 2)")
-        print("  3 = Low    (image size ÷ 4)")
+        logger.info(
+            "Select quality (Metashape-style smart scaling): "
+            "1=High, 2=Medium, 3=Low"
+        )
         try:
             raw = input("Choice [1-3] (default 2): ").strip() or "2"
             quality = {"1": "high", "2": "medium", "3": "low"}.get(raw, "medium")
@@ -79,7 +81,7 @@ def main() -> None:
     controller.run_project(
         str(image_folder),
         str(project_path),
-        on_event=_print_event,
+        on_event=_emit_event,
         chunk_size=args.chunk_size,
         force_profile=args.force_profile,
         quality=quality,

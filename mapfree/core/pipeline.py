@@ -10,7 +10,7 @@ from pathlib import Path
 from . import chunking, hardware
 from .config import COMPLETION_STEPS
 from .engine import VramWatchdogError
-from .events import Event, EventEmitter
+from .events import Event
 from .profiles import get_profile
 from .state import (
     load_state,

@@ -1,7 +1,6 @@
 """
 Lightweight in-process event bus: subscribe/emit with thread-safe callbacks.
 """
-import logging
 import threading
 from collections import defaultdict
 from typing import Any, Callable

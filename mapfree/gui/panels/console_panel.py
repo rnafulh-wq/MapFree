@@ -8,8 +8,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QSizePolicy,
 )
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont, QTextCursor
+from PySide6.QtGui import QFont
 
 
 # Log level colors (dark theme)

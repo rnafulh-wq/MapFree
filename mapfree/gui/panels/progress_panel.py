@@ -7,7 +7,6 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QSizePolicy,
 )
-from PySide6.QtCore import Qt
 
 
 class ProgressPanel(QWidget):
