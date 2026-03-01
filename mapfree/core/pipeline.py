@@ -133,7 +133,7 @@ class Pipeline:
 
     def _prepare_environment(self):
         """Resolve profile, chunk size, image count; prepare context and chunk list."""
-        from mapfree.config import get_config
+        from mapfree.core.config import get_config
         cfg = get_config()
 
         self._project_path = Path(self.ctx.project_path)
@@ -194,7 +194,7 @@ class Pipeline:
         self.emit("step", "Skipping filtering due to binary incompatibility", 0.55)
 
     def _run_dense(self):
-        from mapfree.config import get_config
+        from mapfree.core.config import get_config
         cfg = get_config()
         dense_engine = str(cfg.get("dense_engine") or "colmap").strip().lower()
         retry_count = int(cfg.get("retry_count", 2))
@@ -278,13 +278,13 @@ class Pipeline:
 
     def _config_enable_geospatial(self) -> bool:
         """True if config.enable_geospatial is True."""
-        from mapfree.config import get_config
+        from mapfree.core.config import get_config
         cfg = get_config()
         return bool(cfg.get("enable_geospatial", True))
 
     def _run_geospatial_stages(self):
         """Run geospatial stages after dense: convert to LAS, ground classification, DSM, DTM, orthophoto."""
-        from mapfree.config import get_config
+        from mapfree.core.config import get_config
         from mapfree.utils.dependency_check import check_geospatial_dependencies
         from mapfree.geospatial.georef import convert_ply_to_las
         from mapfree.geospatial.classification import classify_ground
@@ -410,7 +410,7 @@ class Pipeline:
         After geospatial stages: use config.target_epsg if set; else if auto_detect_epsg
         detect CRS from images; else skip. Then reproject dtm/dsm/orthophoto to *_epsg.tif.
         """
-        from mapfree.config import get_config
+        from mapfree.core.config import get_config
         from mapfree.geospatial.crs_manager import CRSManager
 
         cfg = get_config()

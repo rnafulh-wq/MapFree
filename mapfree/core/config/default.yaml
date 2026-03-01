@@ -5,28 +5,22 @@
 # ---------------------------------------------------------------------------
 # Chunking
 # ---------------------------------------------------------------------------
-# Default max images per chunk when not using profile-based recommendation.
-# null = use profile-based (chunk_sizes) or env MAPFREE_CHUNK_SIZE
 chunk_size: null
 max_images_per_chunk: 250
 
-# Per-profile max images per chunk (used when chunk_size is null and no env)
 chunk_sizes:
   HIGH: 400
   MEDIUM: 250
   LOW: 150
   CPU_SAFE: 100
 
-# Multiply recommended chunk size by this (e.g. 0.8 = use 80% for safety)
 memory_multiplier: 1.0
 
 # ---------------------------------------------------------------------------
 # Profile
 # ---------------------------------------------------------------------------
-# Force profile: null = auto from VRAM; or LOW | MEDIUM | HIGH | CPU_SAFE
 profile_override: null
 
-# Profile definitions (VRAM thresholds in code; params here)
 profiles:
   HIGH:
     profile: HIGH
@@ -38,7 +32,7 @@ profiles:
     profile: MEDIUM
     max_image_size: 2400
     max_features: 8192
-    matcher: sequential   # order from EXIF (GPS then time) via image_list_path
+    matcher: sequential
     use_gpu: 1
   LOW:
     profile: LOW
@@ -54,15 +48,12 @@ profiles:
     use_gpu: 0
 
 # ---------------------------------------------------------------------------
-# Dense engine (after sparse)
+# Dense engine
 # ---------------------------------------------------------------------------
-# dense_engine: colmap | openmvs  (allowed values only)
-#   colmap  = COLMAP dense (patch_match + stereo_fusion -> fused.ply)
-#   openmvs = OpenMVS pipeline (InterfaceCOLMAP -> Densify -> Mesh -> Refine -> Texture)
 dense_engine: colmap
 
 # ---------------------------------------------------------------------------
-# Retries & VRAM watchdog (dense phase, colmap only)
+# Retries & VRAM watchdog
 # ---------------------------------------------------------------------------
 retry_count: 2
 
@@ -72,21 +63,16 @@ vram_watchdog:
   downscale_factor: 0.75
 
 # ---------------------------------------------------------------------------
-# Geospatial (after dense)
+# Geospatial
 # ---------------------------------------------------------------------------
-# Run geospatial stages: convert to LAS, ground classification, DSM, DTM, orthophoto.
 enable_geospatial: true
-# Resolution (units per pixel) for DSM and DTM rasters.
 dtm_resolution: 0.05
-# CRS reprojection: if target_epsg is set, use it; else if auto_detect_epsg, detect from EXIF GPS; else skip.
 auto_detect_epsg: true
-target_epsg: null   # e.g. 32648 to force UTM 48N; null = use auto-detect or skip
+target_epsg: null
 
 # ---------------------------------------------------------------------------
 # COLMAP
 # ---------------------------------------------------------------------------
-# colmap_bin: path to colmap executable (optional). If null, use MAPFREE_COLMAP_BIN env or PATH.
-# num_threads: feature_extractor threads (-1 = auto). COLMAP 3.14 uses FeatureExtraction.num_threads.
 colmap:
   colmap_bin: null
   num_threads: -1

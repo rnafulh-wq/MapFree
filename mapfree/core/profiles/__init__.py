@@ -1,6 +1,6 @@
 """
 Profile selection: VRAM/RAM -> profile dict and chunk size.
-All values from config (mapfree/config/default.yaml); no hardcoding.
+All values from config (mapfree/core/config/default.yaml); no hardcoding.
 """
 import os
 
@@ -8,7 +8,7 @@ from mapfree.core.config import ENV_CHUNK_SIZE
 
 
 def _cfg():
-    from mapfree.config import get_config
+    from mapfree.core.config import get_config
     return get_config()
 
 
@@ -76,7 +76,6 @@ def resolve_chunk_size(override: int | None, vram_mb: int, ram_gb: float) -> int
     return recommend_chunk_size(vram_mb, ram_gb)
 
 
-# Backward compatibility: lazy module attributes (read from config when accessed)
 def __getattr__(name: str):
     if name == "PROFILES":
         return get_profiles()

@@ -20,11 +20,11 @@ from mapfree.gui.panels import (
     ProjectPanel,
     ConsolePanel,
     ProgressPanel,
-    ViewerPanel,
     STATUS_RUNNING,
     STATUS_DONE,
     STATUS_ERROR,
 )
+from mapfree.viewer.gl_widget import ViewerWidget, set_default_opengl_format
 from mapfree.gui.qt_controller import QtController
 from mapfree.gui.workers import PipelineWorker
 from mapfree.utils.file_utils import list_images
@@ -114,6 +114,12 @@ class MainWindow(QMainWindow):
         self._toolbar.addAction("Set output", self._on_set_output_folder)
         self._toolbar.addSeparator()
         self._toolbar.addAction("Run", self._start_pipeline)
+        self._toolbar.addSeparator()
+        self._toolbar.addAction("Load Point Cloud", self._on_load_point_cloud)
+        self._toolbar.addAction("Load Mesh", self._on_load_mesh)
+        self._toolbar.addAction("Clear View", self._on_clear_view)
+        self._toolbar.addAction("Zoom Fit", self._on_zoom_fit)
+        self._toolbar.addAction("Toggle Axes", self._on_toggle_axes)
 
     def _setup_statusbar(self):
         self._statusbar = QStatusBar()
@@ -129,7 +135,8 @@ class MainWindow(QMainWindow):
         self._project_panel = ProjectPanel()
         self._console_panel = ConsolePanel()
         self._progress_panel = ProgressPanel()
-        self._viewer_panel = ViewerPanel()
+        set_default_opengl_format()
+        self._viewer_panel = ViewerWidget()
 
         horizontal = QSplitter(Qt.Orientation.Horizontal)
         horizontal.addWidget(self._project_panel)
@@ -277,10 +284,43 @@ class MainWindow(QMainWindow):
         self._statusbar.showMessage("Export failed.")
         QMessageBox.critical(self, "Export Error", message or "Export failed.")
 
-    def _on_dense_ready(self, file_path: str):
-        """Load fused.ply into the 3D viewer when dense reconstruction completes."""
-        if file_path and Path(file_path).exists():
-            self._viewer_panel.load_point_cloud(file_path)
+    def _on_load_point_cloud(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Load Point Cloud",
+            str(self._project_path) if self._project_path else "",
+            "PLY files (*.ply);;LAS files (*.las);;All files (*)",
+        )
+        if path:
+            if self._viewer_panel.load_point_cloud(path):
+                self._statusbar.showMessage("Loaded point cloud: %s" % path)
+            else:
+                self._statusbar.showMessage("Failed to load point cloud.")
+
+    def _on_load_mesh(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Load Mesh",
+            str(self._project_path) if self._project_path else "",
+            "PLY/OBJ files (*.ply *.obj);;PLY (*.ply);;OBJ (*.obj);;All files (*)",
+        )
+        if path:
+            if self._viewer_panel.load_mesh(path):
+                self._statusbar.showMessage("Loaded mesh: %s" % path)
+            else:
+                self._statusbar.showMessage("Failed to load mesh.")
+
+    def _on_clear_view(self):
+        self._viewer_panel.clear_scene()
+        self._statusbar.showMessage("View cleared.")
+
+    def _on_zoom_fit(self):
+        self._viewer_panel.zoom_fit()
+        self._statusbar.showMessage("Zoom fit.")
+
+    def _on_toggle_axes(self):
+        self._viewer_panel.toggle_axes()
+        self._statusbar.showMessage("Axes toggled.")
 
     def _on_open(self):
         """Buka folder proyek (penyimpanan). Jika ada subfolder 'images', dipakai sebagai folder foto."""
@@ -330,7 +370,8 @@ class MainWindow(QMainWindow):
         self._controller.exportStarted.connect(self._on_export_started)
         self._controller.exportFinished.connect(self._on_export_finished)
         self._controller.exportError.connect(self._on_export_error)
-        self._controller.denseReady.connect(self._on_dense_ready)
+        self._controller.pointCloudLoaded.connect(self._viewer_panel.load_point_cloud)
+        self._controller.meshLoaded.connect(self._viewer_panel.load_mesh)
 
     def _on_state_changed(self, state: str):
         self._statusbar.showMessage(state)

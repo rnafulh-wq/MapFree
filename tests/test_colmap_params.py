@@ -10,7 +10,7 @@ import tempfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from mapfree.config import reset_config, load_config
+from mapfree.core.config import reset_config, load_config
 reset_config()
 load_config()
 

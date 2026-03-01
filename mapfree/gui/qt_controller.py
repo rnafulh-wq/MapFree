@@ -27,7 +27,9 @@ class QtController(QObject, MapFreeController):
     exportFinished = Signal(object)     # Path or dict (for export_all)
     exportError = Signal(str)
 
-    denseReady = Signal(str)            # path to fused.ply when dense stage completes
+    denseReady = Signal(str)            # path to fused.ply when dense stage completes (legacy)
+    pointCloudLoaded = Signal(str)      # path when point cloud is loaded (e.g. dense fused.ply)
+    meshLoaded = Signal(str)            # path when mesh is loaded
 
     def __init__(self, profile=None, engine_type="colmap"):
         QObject.__init__(self)
@@ -118,6 +120,10 @@ class QtController(QObject, MapFreeController):
                 path = data.get("fused_ply")
                 if path:
                     self.denseReady.emit(path)
+                    self.pointCloudLoaded.emit(path)
+                mesh_path = data.get("mesh_path")
+                if mesh_path:
+                    self.meshLoaded.emit(mesh_path)
 
         def on_engine_log(ev, data):
             if not isinstance(data, dict):

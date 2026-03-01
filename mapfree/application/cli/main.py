@@ -43,14 +43,13 @@ def main() -> None:
     run_parser.add_argument("--force-profile", type=str, choices=["LOW", "MEDIUM", "HIGH", "CPU_SAFE"], default=None, help="Override auto profile selection")
     run_parser.add_argument("--log-level", type=str, default=None, choices=["DEBUG", "INFO", "WARNING", "ERROR"], help="Log level (default: INFO or MAPFREE_LOG_LEVEL)")
     run_parser.add_argument("--log-dir", type=str, default=None, help="Directory for mapfree.log (default: MAPFREE_LOG_DIR or console only)")
-    run_parser.add_argument("--config", "-c", type=str, default=None, help="Path to YAML config (default: mapfree/config/default.yaml + MAPFREE_CONFIG)")
+    run_parser.add_argument("--config", "-c", type=str, default=None, help="Path to YAML config (default: mapfree/core/config/default.yaml + MAPFREE_CONFIG)")
     args = parser.parse_args()
 
     if args.command != "run":
         parser.print_help()
         sys.exit(1)
 
-    # Load config first so profile/chunk/retry come from YAML (and --config override)
     load_config(override_path=args.config)
 
     image_folder = Path(args.image_folder).resolve()

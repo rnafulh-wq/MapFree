@@ -44,7 +44,7 @@ Important components:
 ### Requirements
 
 - Python 3.10+
-- **Python dependencies** (installed automatically with MapFree): PySide6, Open3D (3D viewer), NumPy, OpenCV, PyYAML, psutil, tqdm. Use `pip install -e .` or `pip install -r requirements.txt` so Open3D and the rest are installed.
+- **Python dependencies** (installed automatically with MapFree): PySide6, NumPy, OpenCV, PyYAML, psutil, tqdm. Use `pip install -e .` or `pip install -r requirements.txt`.
 - COLMAP installed and on PATH (or set `MAPFREE_COLMAP_BIN`)
 - OpenMVS installed and on PATH if using dense mesh pipeline (optional; COLMAP dense is default)
 - **PDAL and GDAL** — required only for geospatial stages (LAS conversion, DSM/DTM, orthophoto). Not bundled; must be installed on the system and on PATH.
@@ -82,17 +82,17 @@ To disable geospatial stages without installing PDAL/GDAL, set in config: `enabl
 
 ### Setup
 
-Use a virtual environment so dependencies (including Open3D) do not affect the system Python:
+Use a virtual environment so dependencies do not affect the system Python:
 
 ```bash
 git clone https://github.com/your-org/MapFree.git
 cd MapFree
 python3 -m venv venv
 source venv/bin/activate   # Windows: venv\Scripts\activate
-pip install -r requirements.txt   # installs PySide6, Open3D, and other deps
+pip install -r requirements.txt
 ```
 
-Or install as an editable package (includes Open3D and the `mapfree` CLI):
+Or install as an editable package (includes the `mapfree` CLI):
 
 ```bash
 pip install -e .
