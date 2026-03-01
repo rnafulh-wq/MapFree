@@ -56,6 +56,8 @@ def _defaults() -> dict:
         "colmap": {"mapper_ba_global_max_iter": 30, "mapper_ba_local_max_iter": 20},
         "enable_geospatial": True,
         "dtm_resolution": 0.05,
+        "auto_detect_epsg": True,
+        "target_epsg": None,  # If set, override auto-detect for reprojection
     }
 
 

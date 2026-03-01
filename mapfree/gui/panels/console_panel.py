@@ -49,7 +49,8 @@ class ConsolePanel(QWidget):
             }
         """)
         layout.addWidget(self._log)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
+        self.setMinimumHeight(120)
 
     def append_log(self, text: str, level: str = "info"):
         """Append a line with color. level: info (white), warning (yellow), error (red). Thread-safe when used as slot."""

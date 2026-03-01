@@ -78,6 +78,9 @@ vram_watchdog:
 enable_geospatial: true
 # Resolution (units per pixel) for DSM and DTM rasters.
 dtm_resolution: 0.05
+# CRS reprojection: if target_epsg is set, use it; else if auto_detect_epsg, detect from EXIF GPS; else skip.
+auto_detect_epsg: true
+target_epsg: null   # e.g. 32648 to force UTM 48N; null = use auto-detect or skip
 
 # ---------------------------------------------------------------------------
 # COLMAP

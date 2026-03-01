@@ -80,10 +80,13 @@ class MainWindow(QMainWindow):
         menubar = self.menuBar()
 
         file_menu = menubar.addMenu("&File")
-        file_menu.addAction("New &job", self._on_new_job)
-        file_menu.addAction("Import &Photos...", self._on_import_photos)
-        file_menu.addAction("Set output &folder...", self._on_set_output_folder)
-        file_menu.addAction("&Open project...", self._on_open)
+        file_menu.addAction("&New Project", self._on_new_job)
+        file_menu.addAction("&Open Project", self._on_open)
+        export_menu = file_menu.addMenu("&Export")
+        export_menu.addAction("Export &DTM", self._on_export_dtm)
+        export_menu.addAction("Export &DSM", self._on_export_dsm)
+        export_menu.addAction("Export &Orthophoto", self._on_export_orthophoto)
+        export_menu.addAction("Export &All", self._on_export_all)
         file_menu.addSeparator()
         file_menu.addAction("E&xit", self.close)
 
@@ -95,6 +98,9 @@ class MainWindow(QMainWindow):
         view_menu.actions()[-1].setChecked(True)
         view_menu.addAction("&Status Bar", self._toggle_statusbar).setCheckable(True)
         view_menu.actions()[-1].setChecked(True)
+        self._toggle_console_action = view_menu.addAction("Toggle &Console", self._toggle_console)
+        self._toggle_console_action.setCheckable(True)
+        self._toggle_console_action.setChecked(True)
 
         help_menu = menubar.addMenu("&Help")
         help_menu.addAction("&About")
@@ -127,10 +133,16 @@ class MainWindow(QMainWindow):
 
         horizontal = QSplitter(Qt.Orientation.Horizontal)
         horizontal.addWidget(self._project_panel)
-        vertical = QSplitter(Qt.Orientation.Vertical)
-        vertical.addWidget(self._viewer_panel)
-        vertical.addWidget(self._console_panel)
-        horizontal.addWidget(vertical)
+        self._vertical_splitter = QSplitter(Qt.Orientation.Vertical)
+        self._vertical_splitter.addWidget(self._viewer_panel)
+        self._vertical_splitter.addWidget(self._console_panel)
+        # Viewer : Console = 4 : 1 (stretch and initial sizes)
+        self._vertical_splitter.setStretchFactor(0, 4)  # Viewer
+        self._vertical_splitter.setStretchFactor(1, 1)  # Console
+        _unit = 200
+        self._vertical_splitter.setSizes([4 * _unit, 1 * _unit])  # proportional 4:1
+        self._vertical_splitter.setHandleWidth(6)
+        horizontal.addWidget(self._vertical_splitter)
         horizontal.setStretchFactor(0, 0)
         horizontal.setStretchFactor(1, 1)
         horizontal.setSizes([320, 880])
@@ -192,6 +204,84 @@ class MainWindow(QMainWindow):
         self._update_run_enabled()
         self._statusbar.showMessage("Penyimpanan: %s" % folder)
 
+    def _require_project_for_export(self) -> bool:
+        """Return True if project_path is set; else show warning and return False."""
+        if not self._project_path or not Path(self._project_path).is_dir():
+            QMessageBox.warning(
+                self,
+                "Export",
+                "No project open. Open or create a project first.",
+            )
+            return False
+        return True
+
+    def _on_export_dtm(self):
+        if not self._require_project_for_export():
+            return
+        folder = QFileDialog.getExistingDirectory(
+            self, "Export DTM — Select output folder", "",
+            QFileDialog.Option.ShowDirsOnly,
+        )
+        if not folder:
+            return
+        self._controller.export_dtm(self._project_path, Path(folder) / "dtm.tif")
+
+    def _on_export_dsm(self):
+        if not self._require_project_for_export():
+            return
+        folder = QFileDialog.getExistingDirectory(
+            self, "Export DSM — Select output folder", "",
+            QFileDialog.Option.ShowDirsOnly,
+        )
+        if not folder:
+            return
+        self._controller.export_dsm(self._project_path, Path(folder) / "dsm.tif")
+
+    def _on_export_orthophoto(self):
+        if not self._require_project_for_export():
+            return
+        folder = QFileDialog.getExistingDirectory(
+            self, "Export Orthophoto — Select output folder", "",
+            QFileDialog.Option.ShowDirsOnly,
+        )
+        if not folder:
+            return
+        self._controller.export_orthophoto(
+            self._project_path, Path(folder) / "orthophoto.tif"
+        )
+
+    def _on_export_all(self):
+        if not self._require_project_for_export():
+            return
+        folder = QFileDialog.getExistingDirectory(
+            self, "Export All — Select output folder", "",
+            QFileDialog.Option.ShowDirsOnly,
+        )
+        if not folder:
+            return
+        self._controller.export_all(self._project_path, Path(folder))
+
+    def _on_export_started(self):
+        self._statusbar.showMessage("Export in progress…")
+
+    def _on_export_finished(self, result):
+        self._statusbar.showMessage("Export completed.")
+        if isinstance(result, dict):
+            QMessageBox.information(
+                self, "Export", "DTM, DSM, and Orthophoto exported successfully."
+            )
+        else:
+            QMessageBox.information(self, "Export", "Export completed successfully.")
+
+    def _on_export_error(self, message: str):
+        self._statusbar.showMessage("Export failed.")
+        QMessageBox.critical(self, "Export Error", message or "Export failed.")
+
+    def _on_dense_ready(self, file_path: str):
+        """Load fused.ply into the 3D viewer when dense reconstruction completes."""
+        if file_path and Path(file_path).exists():
+            self._viewer_panel.load_point_cloud(file_path)
+
     def _on_open(self):
         """Buka folder proyek (penyimpanan). Jika ada subfolder 'images', dipakai sebagai folder foto."""
         project_folder = QFileDialog.getExistingDirectory(
@@ -237,6 +327,10 @@ class MainWindow(QMainWindow):
         self._controller.stateChanged.connect(self._on_state_changed)
         self._controller.pipelineFinished.connect(self._on_pipeline_finished)
         self._controller.pipelineError.connect(self._on_pipeline_error)
+        self._controller.exportStarted.connect(self._on_export_started)
+        self._controller.exportFinished.connect(self._on_export_finished)
+        self._controller.exportError.connect(self._on_export_error)
+        self._controller.denseReady.connect(self._on_dense_ready)
 
     def _on_state_changed(self, state: str):
         self._statusbar.showMessage(state)
@@ -362,3 +456,17 @@ class MainWindow(QMainWindow):
 
     def _toggle_statusbar(self, checked: bool):
         self._statusbar.setVisible(checked)
+
+    def _toggle_console(self):
+        if self._console_panel.isVisible():
+            self._console_panel.hide()
+            self._toggle_console_action.setChecked(False)
+            # Give all vertical space to viewer
+            h = self._vertical_splitter.size().height()
+            self._vertical_splitter.setSizes([h, 0])
+        else:
+            self._console_panel.show()
+            self._toggle_console_action.setChecked(True)
+            _unit = 200
+            self._vertical_splitter.setSizes([4 * _unit, 1 * _unit])
+        self._vertical_splitter.updateGeometry()

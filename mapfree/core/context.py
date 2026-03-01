@@ -23,7 +23,7 @@ class ProjectContext:
         self.stop_event = threading.Event()
 
     def prepare(self):
-        """Create project_output structure: sparse/, dense/, geospatial/."""
+        """Create project_output structure: sparse/, dense/, geospatial/ (dtm.tif, dtm_epsg.tif, dsm.tif, dsm_epsg.tif, orthophoto.tif, orthophoto_epsg.tif)."""
         self.project_path.mkdir(parents=True, exist_ok=True)
         self.sparse_path.mkdir(parents=True, exist_ok=True)
         self.dense_path.mkdir(parents=True, exist_ok=True)

@@ -1,7 +1,13 @@
 """
 Pipeline: orchestration only.
 Flow: _prepare_environment -> _run_sparse -> _run_dense -> _run_geospatial_stages -> _post_process.
-Project output structure: sparse/, dense/, geospatial/ (dense.las, classified.las, dsm.tif, dtm.tif, orthophoto.tif).
+Project output structure:
+  sparse/
+  dense/
+  geospatial/
+    dtm.tif, dtm_epsg.tif
+    dsm.tif, dsm_epsg.tif
+    orthophoto.tif, orthophoto_epsg.tif
 Final sparse output: sparse_merged/0/ (chunked) or sparse/0/ (single). After run, also exported
 to final_results/ (sparse copy + sparse.ply) via final_results.export_final_results().
 Delegates: state (state.py), validation (validation.py), profile (profiles.py), detection (hardware.py).
@@ -94,7 +100,8 @@ class Pipeline:
                 self._bus("progress_updated", 40)
                 self._bus("stage_started", {"stage": "dense"})
                 self._run_dense()
-                self._bus("stage_completed", {"stage": "dense"})
+                fused_ply = Path(self.ctx.dense_path) / "fused.ply"
+                self._bus("stage_completed", {"stage": "dense", "fused_ply": str(fused_ply)})
                 self._bus("progress_updated", 80)
                 if self._config_enable_geospatial():
                     self._run_geospatial_stages()
@@ -283,6 +290,14 @@ class Pipeline:
         from mapfree.geospatial.classification import classify_ground
         from mapfree.geospatial.rasterizer import generate_dsm, generate_dtm
         from mapfree.geospatial.orthomosaic import generate_orthophoto
+        from mapfree.geospatial.output_names import (
+            DTM_TIF,
+            DTM_EPSG_TIF,
+            DSM_TIF,
+            DSM_EPSG_TIF,
+            ORTHOPHOTO_TIF,
+            ORTHOPHOTO_EPSG_TIF,
+        )
 
         try:
             check_geospatial_dependencies()
@@ -299,12 +314,11 @@ class Pipeline:
         geo_dir = Path(self.ctx.geospatial_path)
         geo_dir.mkdir(parents=True, exist_ok=True)
 
-        # Output paths: geospatial/dense.las, classified.las, dsm.tif, dtm.tif, orthophoto.tif
         dense_las = geo_dir / "dense.las"
         classified_las = geo_dir / "classified.las"
-        dsm_tif = geo_dir / "dsm.tif"
-        dtm_tif = geo_dir / "dtm.tif"
-        ortho_tif = geo_dir / "orthophoto.tif"
+        dsm_tif = geo_dir / DSM_TIF
+        dtm_tif = geo_dir / DTM_TIF
+        ortho_tif = geo_dir / ORTHOPHOTO_TIF
 
         # 1. Convert to LAS
         stage = "geospatial_convert_las"
@@ -387,6 +401,68 @@ class Pipeline:
             except Exception as e:
                 self._log.warning("Skipping %s: %s", stage, e)
                 self._bus("stage_completed", {"stage": stage, "skipped": True})
+
+        # After DTM + DSM + Orthophoto: detect CRS and optionally reproject to EPSG
+        self._run_geospatial_crs_reproject(geo_dir, image_path, dtm_tif, dsm_tif, ortho_tif)
+
+    def _run_geospatial_crs_reproject(self, geo_dir, image_path, dtm_tif, dsm_tif, ortho_tif):
+        """
+        After geospatial stages: use config.target_epsg if set; else if auto_detect_epsg
+        detect CRS from images; else skip. Then reproject dtm/dsm/orthophoto to *_epsg.tif.
+        """
+        from mapfree.config import get_config
+        from mapfree.geospatial.crs_manager import CRSManager
+
+        cfg = get_config()
+        target_epsg = cfg.get("target_epsg")
+        auto_detect_epsg = bool(cfg.get("auto_detect_epsg", True))
+
+        if target_epsg is not None:
+            try:
+                epsg = int(target_epsg)
+            except (TypeError, ValueError):
+                self._log.warning("config.target_epsg invalid (%s); skipping reprojection.", target_epsg)
+                self._bus("crs_missing", {"message": "target_epsg invalid; reprojection skipped."})
+                return
+            self._log.info("Using config.target_epsg: %d", epsg)
+            self._bus("crs_detected", {"epsg": epsg, "source": "config"})
+        elif auto_detect_epsg:
+            epsg = CRSManager.detect_crs_from_images(image_path)
+            if epsg is None:
+                self._log.warning("No GPS in images; skipping CRS reprojection.")
+                self._bus("crs_missing", {"message": "No GPS in images; reprojection skipped."})
+                return
+            self._bus("crs_detected", {"epsg": epsg, "source": "auto"})
+        else:
+            self._log.info("CRS reprojection disabled (auto_detect_epsg=false, target_epsg not set).")
+            self._bus("crs_missing", {"message": "Reprojection disabled by config."})
+            return
+
+        dtm_epsg = geo_dir / DTM_EPSG_TIF
+        dsm_epsg = geo_dir / DSM_EPSG_TIF
+        ortho_epsg = geo_dir / ORTHOPHOTO_EPSG_TIF
+
+        event_bus = getattr(self.ctx, "event_bus", None)
+        try:
+            if dtm_tif.exists():
+                CRSManager.reproject_raster(dtm_tif, dtm_epsg, epsg, event_bus=event_bus)
+            if dsm_tif.exists():
+                CRSManager.reproject_raster(dsm_tif, dsm_epsg, epsg, event_bus=event_bus)
+            if ortho_tif.exists():
+                CRSManager.reproject_raster(ortho_tif, ortho_epsg, epsg, event_bus=event_bus)
+            self._bus("reprojection_completed", {
+                "epsg": epsg,
+                "dtm_epsg": str(dtm_epsg),
+                "dsm_epsg": str(dsm_epsg),
+                "orthophoto_epsg": str(ortho_epsg),
+            })
+            self._log.info(
+                "CRS reprojection completed: EPSG:%d -> %s, %s, %s",
+                epsg, DTM_EPSG_TIF, DSM_EPSG_TIF, ORTHOPHOTO_EPSG_TIF,
+            )
+        except Exception as e:
+            self._log.warning("CRS reprojection failed: %s", e)
+            self._bus("reprojection_completed", {"epsg": epsg, "error": str(e)})
 
     # ------------------------------------------------------------------
     # Sparse: chunked

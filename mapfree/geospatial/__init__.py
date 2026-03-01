@@ -13,6 +13,15 @@ from mapfree.geospatial.classification import classify_point_cloud, classify_gro
 from mapfree.geospatial.rasterizer import rasterize, generate_dsm, generate_dtm
 from mapfree.geospatial.orthomosaic import build_orthomosaic, generate_orthophoto
 from mapfree.geospatial.pipeline import run_geospatial_pipeline
+from mapfree.geospatial.crs_manager import CRSManager
+from mapfree.geospatial.output_names import (
+    DTM_TIF,
+    DTM_EPSG_TIF,
+    DSM_TIF,
+    DSM_EPSG_TIF,
+    ORTHOPHOTO_TIF,
+    ORTHOPHOTO_EPSG_TIF,
+)
 
 __all__ = [
     "georeference",
@@ -27,4 +36,11 @@ __all__ = [
     "build_orthomosaic",
     "generate_orthophoto",
     "run_geospatial_pipeline",
+    "CRSManager",
+    "DTM_TIF",
+    "DTM_EPSG_TIF",
+    "DSM_TIF",
+    "DSM_EPSG_TIF",
+    "ORTHOPHOTO_TIF",
+    "ORTHOPHOTO_EPSG_TIF",
 ]
