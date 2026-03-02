@@ -53,9 +53,11 @@ Important components:
 
 MapFree does not ship PDAL or GDAL. Install them and ensure they are on your PATH.
 
-**Ubuntu / Debian:**
+**Ubuntu / Debian (or use project script):**
 
 ```bash
+./scripts/install_geospatial.sh
+# or manually:
 sudo apt update
 sudo apt install -y pdal gdal-bin
 ```
@@ -103,16 +105,27 @@ pip install -e .
 **Desktop GUI:**
 
 ```bash
+mapfree gui
+# or
 python -m mapfree.app
 ```
+
+The app **opens with a placeholder** by default so it never crashes on startup. Click **"Enable 3D viewer"** in the window to turn on the OpenGL 3D viewer (software OpenGL is forced to reduce segfaults). Or run with 3D from start: `MAPFREE_OPENGL=1 mapfree gui`. To disable 3D entirely: `MAPFREE_NO_OPENGL=1 mapfree gui`
 
 **CLI (headless pipeline):**
 
 ```bash
 mapfree run <image_folder> --output <project_path>
-# or
-python -m mapfree.cli run <image_folder> -o <project_path>
+# Open output folder and orthophoto/DTM when done (like WebODM/Metashape):
+mapfree run <image_folder> -o <project_path> --open-results
 ```
+
+### Hasil output: DTM & orthophoto
+
+- Pipeline menghasilkan **sparse** → **dense** → (opsional) **geospatial** (DTM, DSM, orthophoto).
+- Folder **geospatial/** (dan file `dtm.tif`, `orthophoto.tif`) **hanya dibuat** jika dependency **PDAL** dan **GDAL** terpasang. Jika tidak, tahap geospatial di-skip dan Anda hanya mendapat `sparse/`, `dense/`, `final_results/`.
+- **Agar DTM dan orthophoto jadi:** pasang PDAL & GDAL (lihat [PDAL & GDAL (geospatial)](#pdal--gdal-geospatial)), lalu jalankan ulang; pipeline akan resume dari dense dan melanjutkan ke geospatial.
+- **Buka hasil otomatis:** gunakan `--open-results` agar setelah selesai folder output dan (jika ada) orthophoto/DTM dibuka dengan aplikasi default sistem.
 
 ## Project Structure
 

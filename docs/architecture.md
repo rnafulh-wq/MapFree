@@ -51,7 +51,8 @@
 3. **Dense** — Chosen by config `dense_engine`:
    - **colmap**: COLMAP `image_undistorter` → `patch_match_stereo` → `stereo_fusion` → `fused.ply`.
    - **openmvs**: OpenMVSEngine (InterfaceCOLMAP → DensifyPointCloud → ReconstructMesh → RefineMesh → TextureMesh) → `openmvs/scene_textured.mvs`.
-4. **Post-process** — Export sparse to `final_results/` (copy + sparse.ply); clear state when all steps complete.
+4. **Geospatial** (automatic if `enable_geospatial` and PDAL/GDAL available) — Convert dense to LAS → ground classification → DSM → DTM → orthophoto; optional CRS reprojection to `geospatial/*_epsg.tif`.
+5. **Post-process** — Export sparse to `final_results/` (copy + sparse.ply); clear state when all steps complete.
 
 ## Core Pipeline Components
 

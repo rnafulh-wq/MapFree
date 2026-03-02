@@ -1,5 +1,7 @@
 """Main application window — Blender/Metashape-style layout and dark theme."""
 
+import os
+import sys
 import time
 from pathlib import Path
 
@@ -13,6 +15,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QApplication,
     QFileDialog,
+    QLabel,
 )
 from PySide6.QtCore import Qt
 
@@ -24,19 +27,118 @@ from mapfree.gui.panels import (
     STATUS_DONE,
     STATUS_ERROR,
 )
-from mapfree.viewer.gl_widget import ViewerWidget, set_default_opengl_format
 from mapfree.gui.qt_controller import QtController
 from mapfree.gui.workers import PipelineWorker
 from mapfree.utils.file_utils import list_images
 
-# Order of stages for "done" progression
+# When GL is disabled: simple label, same no-op API as viewer so callers don't break
+class _ViewerDisabledWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        lab = QLabel("3D Viewer Disabled")
+        lab.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lab.setStyleSheet("color: #8a8a8a; font-size: 12px;")
+        layout.addWidget(lab)
+
+    def load_point_cloud(self, file_path: str) -> bool:
+        return False
+
+    def load_mesh(self, file_path: str) -> bool:
+        return False
+
+    def clear_scene(self) -> None:
+        pass
+
+    def zoom_fit(self) -> None:
+        pass
+
+    def toggle_axes(self) -> None:
+        pass
+
+
+def _viewer_disabled_widget(parent=None):
+    return _ViewerDisabledWidget(parent)
+
+
+# Placeholder when OpenGL not yet enabled; same API as ViewerWidget
+class _ViewerPlaceholder(QWidget):
+    """Placeholder until real 3D viewer is enabled. Supports 'Enable 3D viewer' callback."""
+
+    def __init__(self, parent=None, on_enable_gl=None, message: str | None = None):
+        super().__init__(parent)
+        self._on_enable_gl = on_enable_gl
+        layout = QVBoxLayout(self)
+        default_msg = (
+            "3D Viewer (placeholder). Pipeline, Export, Open Project work.\n"
+            "Click the button below to open the 3D viewer in a new window."
+        )
+        lab = QLabel(message if message else default_msg)
+        lab.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lab.setStyleSheet("color: #8a8a8a; font-size: 12px;")
+        layout.addWidget(lab)
+        if on_enable_gl is not None:
+            from PySide6.QtWidgets import QPushButton
+            btn = QPushButton("Open 3D viewer (new window)")
+            btn.setStyleSheet("padding: 8px 16px; font-size: 13px;")
+            btn.clicked.connect(self._request_enable_gl)
+            layout.addWidget(btn, alignment=Qt.AlignmentFlag.AlignCenter)
+
+    def _request_enable_gl(self):
+        if self._on_enable_gl is not None:
+            self._on_enable_gl()
+
+    def load_point_cloud(self, file_path: str) -> bool:
+        return False
+
+    def load_mesh(self, file_path: str) -> bool:
+        return False
+
+    def clear_scene(self) -> None:
+        pass
+
+    def zoom_fit(self) -> None:
+        pass
+
+    def toggle_axes(self) -> None:
+        pass
+
+
+# Order of stages for "done" progression (sparse → dense → geospatial → post_process)
 _STAGE_ORDER = [
     "feature_extraction",
     "matching",
     "sparse",
     "dense",
+    "geospatial",
     "post_process",
 ]
+
+
+def _get_best_result_path(project_path: Path):
+    """
+    Return (path_str, is_mesh) for the best 3D result to show in viewer (WebODM/Metashape-style).
+    Priority: OpenMVS mesh > dense fused.ply > final_results/dense.ply > final_results/sparse.ply.
+    """
+    proj = Path(project_path)
+    # OpenMVS mesh (prefer refined)
+    openmvs = proj / "openmvs"
+    for name in ("scene_mesh_refine.ply", "scene_mesh.ply"):
+        p = openmvs / name
+        if p.exists() and p.stat().st_size > 0:
+            return str(p), True
+    # Dense point cloud
+    fused = proj / "dense" / "fused.ply"
+    if fused.exists() and fused.stat().st_size >= 1024:
+        return str(fused), False
+    final = proj / "final_results"
+    dense_ply = final / "dense.ply"
+    if dense_ply.exists() and dense_ply.stat().st_size >= 1024:
+        return str(dense_ply), False
+    sparse_ply = final / "sparse.ply"
+    if sparse_ply.exists():
+        return str(sparse_ply), False
+    return None, False
 
 
 def _load_stylesheet():
@@ -49,8 +151,9 @@ def _load_stylesheet():
 class MainWindow(QMainWindow):
     """Main window: menu, toolbar, Project | Viewer+Console, Progress. Dark theme."""
 
-    def __init__(self):
+    def __init__(self, gl_enabled: bool = True):
         super().__init__()
+        self._gl_enabled = gl_enabled
         self._controller = QtController()
         self._worker = None
         self._current_stage = None
@@ -61,6 +164,8 @@ class MainWindow(QMainWindow):
         self._setup_toolbar()
         self._setup_statusbar()
         self._setup_central_widget()
+        if not self._gl_enabled:
+            self._statusbar.showMessage("3D viewer disabled due to OpenGL incompatibility.")
         self._apply_style()
         self._connect_controller_signals()
         self._connect_project_panel()
@@ -135,8 +240,7 @@ class MainWindow(QMainWindow):
         self._project_panel = ProjectPanel()
         self._console_panel = ConsolePanel()
         self._progress_panel = ProgressPanel()
-        set_default_opengl_format()
-        self._viewer_panel = ViewerWidget()
+        self._viewer_panel = self._create_viewer_widget()
 
         horizontal = QSplitter(Qt.Orientation.Horizontal)
         horizontal.addWidget(self._project_panel)
@@ -158,6 +262,42 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self._progress_panel)
 
         self.setCentralWidget(central)
+
+    def _create_viewer_widget(self):
+        if not self._gl_enabled:
+            return _viewer_disabled_widget(self)
+        if os.environ.get("MAPFREE_NO_OPENGL") == "1":
+            return _ViewerPlaceholder(self)
+        if os.environ.get("MAPFREE_OPENGL") == "1":
+            return self._create_gl_viewer()
+        return _ViewerPlaceholder(self, on_enable_gl=self._replace_with_gl_viewer)
+
+    def _create_gl_viewer(self):
+        from mapfree.viewer.gl_widget import ViewerWidget, set_default_opengl_format
+        set_default_opengl_format()
+        return ViewerWidget()
+
+    def _replace_with_gl_viewer(self):
+        """Open 3D viewer in a separate process so a segfault does not close MapFree."""
+        import subprocess
+        project_path = str(self._project_path) if self._project_path else ""
+        env = os.environ.copy()
+        env.setdefault("QT_OPENGL", "software")
+        env.setdefault("LIBGL_ALWAYS_SOFTWARE", "1")
+        try:
+            subprocess.Popen(
+                [sys.executable, "-m", "mapfree.viewer.standalone", project_path],
+                env=env,
+                start_new_session=True,
+            )
+            self._statusbar.showMessage("3D viewer opened in a new window.")
+        except Exception as e:
+            self._statusbar.showMessage("Could not start 3D viewer: %s" % e)
+            QMessageBox.warning(
+                self,
+                "3D Viewer",
+                "Could not start 3D viewer: %s\n\nOpen PLY files with MeshLab or CloudCompare." % e,
+            )
 
     def _connect_project_panel(self):
         self._project_panel.startRequested.connect(self._start_pipeline)
@@ -323,7 +463,7 @@ class MainWindow(QMainWindow):
         self._statusbar.showMessage("Axes toggled.")
 
     def _on_open(self):
-        """Buka folder proyek (penyimpanan). Jika ada subfolder 'images', dipakai sebagai folder foto."""
+        """Buka folder proyek (penyimpanan). Jika ada subfolder 'images', dipakai sebagai folder foto. Auto-load 3D result di viewer."""
         project_folder = QFileDialog.getExistingDirectory(
             self,
             "Open project",
@@ -340,6 +480,15 @@ class MainWindow(QMainWindow):
         self._refresh_project_panel()
         self._update_run_enabled()
         self._statusbar.showMessage("Opened: %s" % project_folder)
+        # Auto-load 3D result into viewer (WebODM/Metashape-style)
+        path, is_mesh = _get_best_result_path(self._project_path)
+        if path:
+            if is_mesh:
+                self._viewer_panel.load_mesh(path)
+            else:
+                self._viewer_panel.load_point_cloud(path)
+            self._viewer_panel.zoom_fit()
+            self._statusbar.showMessage("Opened: %s — 3D model loaded." % project_folder)
 
     def _on_import_photos(self):
         image_folder = QFileDialog.getExistingDirectory(
@@ -399,6 +548,11 @@ class MainWindow(QMainWindow):
             self._project_panel.set_stage_status("dense", STATUS_RUNNING)
             self._current_stage = "dense"
             return
+        if state == "geospatial":
+            self._project_panel.set_stage_status("dense", STATUS_DONE)
+            self._project_panel.set_stage_status("geospatial", STATUS_RUNNING)
+            self._current_stage = "geospatial"
+            return
         if state == "finished":
             for key in _STAGE_ORDER:
                 self._project_panel.set_stage_status(key, STATUS_DONE)
@@ -415,6 +569,16 @@ class MainWindow(QMainWindow):
         for key in _STAGE_ORDER:
             self._project_panel.set_stage_status(key, STATUS_DONE)
         self._project_panel.set_running(False)
+        # Auto-load 3D result into viewer (WebODM/Metashape-style)
+        if self._project_path:
+            path, is_mesh = _get_best_result_path(self._project_path)
+            if path:
+                if is_mesh:
+                    self._viewer_panel.load_mesh(path)
+                else:
+                    self._viewer_panel.load_point_cloud(path)
+                self._viewer_panel.zoom_fit()
+                self._statusbar.showMessage("Pipeline finished. 3D model loaded in viewer.")
 
     def _on_pipeline_error(self, message: str):
         self._statusbar.showMessage("Pipeline error.")

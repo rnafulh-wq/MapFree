@@ -15,12 +15,13 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor
 
-# Display names and order for pipeline stages
+# Display names and order for pipeline stages (sparse → dense → geospatial → post_process)
 STAGE_ITEMS = [
     ("feature_extraction", "Feature Extraction"),
     ("matching", "Matching"),
     ("sparse", "Sparse Reconstruction"),
     ("dense", "Dense Reconstruction"),
+    ("geospatial", "Geospatial (DTM / Orthophoto)"),
     ("post_process", "Post-Process"),
 ]
 

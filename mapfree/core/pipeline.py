@@ -104,7 +104,9 @@ class Pipeline:
                 self._bus("stage_completed", {"stage": "dense", "fused_ply": str(fused_ply)})
                 self._bus("progress_updated", 80)
                 if self._config_enable_geospatial():
+                    self._bus("stage_started", {"stage": "geospatial"})
                     self._run_geospatial_stages()
+                    self._bus("stage_completed", {"stage": "geospatial"})
                 else:
                     self._log.info("Geospatial stages disabled by config (enable_geospatial=false)")
             self._bus("stage_started", {"stage": "post_process"})
