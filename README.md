@@ -44,10 +44,47 @@ Important components:
 ### Requirements
 
 - Python 3.10+
+- **Python dependencies** (installed automatically with MapFree): PySide6, NumPy, OpenCV, PyYAML, psutil, tqdm. Use `pip install -e .` or `pip install -r requirements.txt`.
 - COLMAP installed and on PATH (or set `MAPFREE_COLMAP_BIN`)
 - OpenMVS installed and on PATH if using dense mesh pipeline (optional; COLMAP dense is default)
+- **PDAL and GDAL** — required only for geospatial stages (LAS conversion, DSM/DTM, orthophoto). Not bundled; must be installed on the system and on PATH.
+
+### PDAL & GDAL (geospatial)
+
+MapFree does not ship PDAL or GDAL. Install them and ensure they are on your PATH.
+
+**Ubuntu / Debian (or use project script):**
+
+```bash
+./scripts/install_geospatial.sh
+# or manually:
+sudo apt update
+sudo apt install -y pdal gdal-bin
+```
+
+**Conda (any OS):**
+
+```bash
+conda install -c conda-forge pdal gdal
+```
+
+**Verify PATH:**
+
+```bash
+which pdal gdalinfo gdal_grid gdal_translate gdalwarp
+```
+
+All five commands should print paths. From the project root you can run:
+
+```bash
+python -c "from mapfree.utils.dependency_check import check_geospatial_dependencies; check_geospatial_dependencies(); print('PDAL & GDAL OK')"
+```
+
+To disable geospatial stages without installing PDAL/GDAL, set in config: `enable_geospatial: false`.
 
 ### Setup
+
+Use a virtual environment so dependencies do not affect the system Python:
 
 ```bash
 git clone https://github.com/your-org/MapFree.git
@@ -57,7 +94,7 @@ source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-For editable install during development:
+Or install as an editable package (includes the `mapfree` CLI):
 
 ```bash
 pip install -e .
@@ -68,18 +105,46 @@ pip install -e .
 **Desktop GUI:**
 
 ```bash
+mapfree gui
+# or
 python -m mapfree.app
 ```
+
+The app **opens with a placeholder** by default so it never crashes on startup. Click **"Enable 3D viewer"** in the window to turn on the OpenGL 3D viewer (software OpenGL is forced to reduce segfaults). Or run with 3D from start: `MAPFREE_OPENGL=1 mapfree gui`. To disable 3D entirely: `MAPFREE_NO_OPENGL=1 mapfree gui`
 
 **CLI (headless pipeline):**
 
 ```bash
 mapfree run <image_folder> --output <project_path>
-# or
-python -m mapfree.cli run <image_folder> -o <project_path>
+# Open output folder and orthophoto/DTM when done (like WebODM/Metashape):
+mapfree run <image_folder> -o <project_path> --open-results
 ```
 
+### Hasil output: DTM & orthophoto
+
+- Pipeline menghasilkan **sparse** → **dense** → (opsional) **geospatial** (DTM, DSM, orthophoto).
+- Folder **geospatial/** (dan file `dtm.tif`, `orthophoto.tif`) **hanya dibuat** jika dependency **PDAL** dan **GDAL** terpasang. Jika tidak, tahap geospatial di-skip dan Anda hanya mendapat `sparse/`, `dense/`, `final_results/`.
+- **Agar DTM dan orthophoto jadi:** pasang PDAL & GDAL (lihat [PDAL & GDAL (geospatial)](#pdal--gdal-geospatial)), lalu jalankan ulang; pipeline akan resume dari dense dan melanjutkan ke geospatial.
+- **Buka hasil otomatis:** gunakan `--open-results` agar setelah selesai folder output dan (jika ada) orthophoto/DTM dibuka dengan aplikasi default sistem.
+
 ## Project Structure
+
+**Project output layout** (per run):
+
+```
+project_output/
+├── sparse/
+├── dense/
+└── geospatial/
+    ├── dtm.tif
+    ├── dtm_epsg.tif
+    ├── dsm.tif
+    ├── dsm_epsg.tif
+    ├── orthophoto.tif
+    └── orthophoto_epsg.tif
+```
+
+**Codebase:**
 
 ```
 MapFree/

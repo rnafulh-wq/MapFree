@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QTextEdit,
-    QLabel,
+    QGroupBox,
     QSizePolicy,
 )
 from PySide6.QtGui import QFont
@@ -25,31 +25,35 @@ class ConsolePanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
-        label = QLabel("Console")
-        label.setProperty("class", "header")
-        layout.addWidget(label)
+        layout.setContentsMargins(0, 0, 0, 0)
+        grp = QGroupBox("Console")
+        grp.setObjectName("consoleGroup")
+        gl = QVBoxLayout(grp)
+        gl.setContentsMargins(6, 8, 6, 6)
+        gl.setSpacing(0)
         self._log = QTextEdit()
         self._log.setReadOnly(True)
         self._log.setPlaceholderText("Pipeline output…")
-        self._log.setMinimumHeight(140)
-        font = QFont("Consolas", 11)
+        self._log.setMinimumHeight(80)
+        font = QFont("Consolas", 10)
         if not font.exactMatch():
-            font = QFont("Monospace", 11)
+            font = QFont("Monospace", 10)
         font.setStyleHint(QFont.StyleHint.Monospace)
         self._log.setFont(font)
         self._log.setStyleSheet("""
             QTextEdit {
                 background-color: #1e1e1e;
                 color: #e0e0e0;
-                border: 1px solid #3d3d3d;
-                border-radius: 6px;
-                padding: 8px;
+                border: 1px solid #3c3c3c;
+                border-radius: 4px;
+                padding: 4px 6px;
                 font-family: Consolas, Monospace;
             }
         """)
-        layout.addWidget(self._log)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        gl.addWidget(self._log)
+        layout.addWidget(grp)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
+        self.setMinimumHeight(0)
 
     def append_log(self, text: str, level: str = "info"):
         """Append a line with color. level: info (white), warning (yellow), error (red). Thread-safe when used as slot."""

@@ -29,7 +29,7 @@ COLMAP_VENV_BIN = "/media/pop_mangto/E/dev/MapFree/venv/bin/colmap"
 
 
 def _get_cfg():
-    from mapfree.config import get_config
+    from mapfree.core.config import get_config
     return get_config()
 
 

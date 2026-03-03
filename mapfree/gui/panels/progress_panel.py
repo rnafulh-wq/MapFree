@@ -15,8 +15,8 @@ class ProgressPanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(12, 6, 12, 6)
-        layout.setSpacing(12)
+        layout.setContentsMargins(8, 4, 8, 4)
+        layout.setSpacing(8)
 
         self._stage_label = QLabel("Idle")
         self._stage_label.setMinimumWidth(160)

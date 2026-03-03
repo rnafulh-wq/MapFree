@@ -10,7 +10,7 @@ import tempfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from mapfree.config import reset_config, load_config
+from mapfree.core.config import reset_config, load_config
 reset_config()
 load_config()
 
@@ -64,7 +64,7 @@ KNOWN_MAPPER_FLAGS = {
 }
 
 KNOWN_FEATURE_FLAGS = {
-    "--database_path", "--image_path",
+    "--database_path", "--image_path", "--image_list_path",
     "--ImageReader.single_camera", "--ImageReader.camera_model",
     "--FeatureExtraction.max_image_size", "--FeatureExtraction.num_threads",
     "--SiftExtraction.max_num_features",

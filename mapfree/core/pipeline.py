@@ -1,8 +1,17 @@
 """
 Pipeline: orchestration only.
-Flow: _prepare_environment -> _run_sparse -> _run_dense -> _post_process.
-Final sparse output: sparse_merged/0/ (chunked) or sparse/0/ (single). After run, also exported
-to final_results/ (sparse copy + sparse.ply) via final_results.export_final_results().
+Flow: _prepare_environment -> _run_sparse -> _run_dense -> _run_geospatial_stages -> _post_process.
+
+Project output directories (each stage writes only into its folder):
+  project_output/
+    sparse/        <- sparse stage
+    dense/         <- dense stage
+    geospatial/    <- geospatial stage
+      dsm.tif
+      dtm.tif
+      orthophoto.tif
+Sparse final output: sparse_merged/0/ (chunked) or sparse/0/ (single). After run, also exported
+to final_results/ via final_results.export_final_results().
 Delegates: state (state.py), validation (validation.py), profile (profiles.py), detection (hardware.py).
 """
 from pathlib import Path
@@ -75,6 +84,7 @@ class Pipeline:
         self._hook("pipeline_start")
         self.emit("start", "Pipeline started", 0.0)
         self._bus("pipeline_started")
+        self._state_cleared = False
         try:
             self._prepare_environment()
             if self._abort:
@@ -93,8 +103,15 @@ class Pipeline:
                 self._bus("progress_updated", 40)
                 self._bus("stage_started", {"stage": "dense"})
                 self._run_dense()
-                self._bus("stage_completed", {"stage": "dense"})
+                fused_ply = Path(self.ctx.dense_path) / "fused.ply"
+                self._bus("stage_completed", {"stage": "dense", "fused_ply": str(fused_ply)})
                 self._bus("progress_updated", 80)
+                if self._config_enable_geospatial():
+                    self._bus("stage_started", {"stage": "geospatial"})
+                    self._run_geospatial_stages(fused_ply)
+                    self._bus("stage_completed", {"stage": "geospatial"})
+                else:
+                    self._log.info("Geospatial stages disabled by config (enable_geospatial=false)")
             self._bus("stage_started", {"stage": "post_process"})
             self._post_process()
             self._bus("stage_completed", {"stage": "post_process"})
@@ -113,7 +130,7 @@ class Pipeline:
         finally:
             if bus is not None:
                 bus.unsubscribe("pipeline_stop_requested", on_stop_requested)
-            if self._project_path is not None:
+            if self._project_path is not None and not getattr(self, "_state_cleared", False):
                 try:
                     save_state(self._project_path, load_state(self._project_path))
                 except Exception:
@@ -121,7 +138,7 @@ class Pipeline:
 
     def _prepare_environment(self):
         """Resolve profile, chunk size, image count; prepare context and chunk list."""
-        from mapfree.config import get_config
+        from mapfree.core.config import get_config
         cfg = get_config()
 
         self._project_path = Path(self.ctx.project_path)
@@ -182,7 +199,7 @@ class Pipeline:
         self.emit("step", "Skipping filtering due to binary incompatibility", 0.55)
 
     def _run_dense(self):
-        from mapfree.config import get_config
+        from mapfree.core.config import get_config
         cfg = get_config()
         dense_engine = str(cfg.get("dense_engine") or "colmap").strip().lower()
         retry_count = int(cfg.get("retry_count", 2))
@@ -193,19 +210,32 @@ class Pipeline:
         self._hook("step_start", step_name="dense")
 
         if dense_engine == "openmvs":
-            openmvs_output = project_path / "openmvs" / "scene_textured.mvs"
-            if openmvs_output.exists():
-                self.emit("step", "[RESUME] Skipping dense (OpenMVS)", None)
-            else:
-                self.emit("step", "[RUNNING] OpenMVS pipeline", 0.6)
-                from mapfree.engines.openmvs_engine import OpenMVSEngine
-                openmvs_ctx = self.ctx
-                if getattr(openmvs_ctx, "logger", None) is None:
-                    openmvs_ctx.logger = self._log
-                OpenMVSEngine(openmvs_ctx).run()
-                mark_step_done(project_path, "dense")
-                self.emit("step", "[DONE] OpenMVS pipeline", None)
-        else:
+            from mapfree.engines.mvs_openmvs import OpenMVSEngine, openmvs_available
+            mvs_dir = project_path / "mvs"
+            if not openmvs_available():
+                self._log.warning("OpenMVS not found (InterfaceCOLMAP not in PATH); falling back to COLMAP dense")
+                self.emit("step", "OpenMVS not found, using COLMAP dense", None)
+                dense_engine = "colmap"
+            if dense_engine == "openmvs":
+                if is_step_done(project_path, "dense") and dense_valid(self.ctx.dense_path):
+                    self.emit("step", "[RESUME] Skipping dense (OpenMVS)", None)
+                elif (mvs_dir / "scene_dense.mvs").exists() and (Path(self.ctx.dense_path) / "fused.ply").exists():
+                    self.emit("step", "[RESUME] Skipping dense (OpenMVS already done)", None)
+                    mark_step_done(project_path, "dense")
+                else:
+                    self.emit("step", "[RUNNING] OpenMVS dense pipeline (quality=%s)" % self.quality, 0.6)
+                    openmvs_ctx = self.ctx
+                    if getattr(openmvs_ctx, "logger", None) is None:
+                        openmvs_ctx.logger = self._log
+                    try:
+                        OpenMVSEngine(openmvs_ctx, quality=self.quality).run_dense_pipeline()
+                    except RuntimeError as e:
+                        self._log.error("OpenMVS dense failed: %s", e)
+                        raise
+                    if dense_valid(self.ctx.dense_path):
+                        mark_step_done(project_path, "dense")
+                    self.emit("step", "[DONE] OpenMVS dense pipeline", None)
+        if dense_engine != "openmvs":
             if is_step_done(project_path, "dense") and dense_valid(self.ctx.dense_path):
                 self.emit("step", "[RESUME] Skipping dense", None)
             else:
@@ -241,6 +271,10 @@ class Pipeline:
         """Export final sparse to final_results/ (copy + PLY), then clear state if done; emit complete."""
         project_path = self._project_path
         sparse_dir = Path(self.ctx.sparse_path)
+        sparse_dir_0 = sparse_dir / "0"
+        if sparse_dir_0.exists():
+            sparse_dir = sparse_dir_0
+        dense_path = Path(self.ctx.dense_path)
         if sparse_valid(sparse_dir):
             try:
                 final_dir = final_results_module.export_final_results(project_path, sparse_dir)
@@ -258,11 +292,108 @@ class Pipeline:
                 self._log.warning("Could not export final results: %s", e)
                 self.emit("step", "Final results export skipped: %s" % e, None)
         state = load_state(project_path)
-        if all(state.get(s, False) for s in COMPLETION_STEPS):
+        all_steps_done = all(state.get(s, False) for s in COMPLETION_STEPS)
+        outputs_valid = sparse_valid(sparse_dir) and dense_valid(dense_path)
+        if all_steps_done or outputs_valid:
             reset_state(project_path)
+            self._state_cleared = True
             self.emit("step", "[RESUME] State file removed (all steps complete)", None)
         self._hook("pipeline_complete")
         self.emit("complete", "Pipeline finished", 1.0)
+
+    def _config_enable_geospatial(self) -> bool:
+        """True if config geospatial.enable (or enable_geospatial) is True."""
+        from mapfree.core.config import get_geospatial_config
+        return bool(get_geospatial_config().get("enable", True))
+
+    def _run_geospatial_stages(self, dense_output: Path):
+        """Run geospatial pipeline after dense; emit geospatial_started, dtm_done, orthophoto_done."""
+        from mapfree.geospatial.pipeline_geospatial import run_geospatial
+        from mapfree.geospatial.output_names import (
+            DTM_TIF,
+            DTM_EPSG_TIF,
+            DSM_TIF,
+            DSM_EPSG_TIF,
+            ORTHOPHOTO_TIF,
+            ORTHOPHOTO_EPSG_TIF,
+        )
+
+        try:
+            run_geospatial(
+                project_path=self._project_path,
+                dense_ply_path=dense_output,
+                on_event=lambda name: self._bus(name),
+            )
+        except RuntimeError as e:
+            self._log.warning("Skipping geospatial stages: %s", e)
+            return
+
+        project_path = Path(self._project_path)
+        geo_dir = Path(self.ctx.geospatial_path)
+        image_path = self._image_path or project_path / "images"
+        dtm_tif = geo_dir / DTM_TIF
+        dsm_tif = geo_dir / DSM_TIF
+        ortho_tif = geo_dir / ORTHOPHOTO_TIF
+        self._run_geospatial_crs_reproject(geo_dir, image_path, dtm_tif, dsm_tif, ortho_tif)
+
+    def _run_geospatial_crs_reproject(self, geo_dir, image_path, dtm_tif, dsm_tif, ortho_tif):
+        """
+        After geospatial stages: use geospatial.target_epsg if set; else if auto_detect_epsg
+        detect CRS from image EXIF (GPS) and assign EPSG; else skip. Then reproject to *_epsg.tif.
+        """
+        from mapfree.core.config import get_geospatial_config
+        from mapfree.geospatial.crs_manager import CRSManager
+
+        geo_cfg = get_geospatial_config()
+        target_epsg = geo_cfg.get("target_epsg")
+        auto_detect_epsg = bool(geo_cfg.get("auto_detect_epsg", True))
+
+        if target_epsg is not None:
+            try:
+                epsg = int(target_epsg)
+            except (TypeError, ValueError):
+                self._log.warning("config.target_epsg invalid (%s); skipping reprojection.", target_epsg)
+                self._bus("crs_missing", {"message": "target_epsg invalid; reprojection skipped."})
+                return
+            self._log.info("Using config.target_epsg: %d", epsg)
+            self._bus("crs_detected", {"epsg": epsg, "source": "config"})
+        elif auto_detect_epsg:
+            epsg = CRSManager.detect_crs_from_images(image_path)
+            if epsg is None:
+                self._log.warning("No GPS in images; skipping CRS reprojection.")
+                self._bus("crs_missing", {"message": "No GPS in images; reprojection skipped."})
+                return
+            self._bus("crs_detected", {"epsg": epsg, "source": "auto"})
+        else:
+            self._log.info("CRS reprojection disabled (auto_detect_epsg=false, target_epsg not set).")
+            self._bus("crs_missing", {"message": "Reprojection disabled by config."})
+            return
+
+        dtm_epsg = geo_dir / DTM_EPSG_TIF
+        dsm_epsg = geo_dir / DSM_EPSG_TIF
+        ortho_epsg = geo_dir / ORTHOPHOTO_EPSG_TIF
+
+        event_bus = getattr(self.ctx, "event_bus", None)
+        try:
+            if dtm_tif.exists():
+                CRSManager.reproject_raster(dtm_tif, dtm_epsg, epsg, event_bus=event_bus)
+            if dsm_tif.exists():
+                CRSManager.reproject_raster(dsm_tif, dsm_epsg, epsg, event_bus=event_bus)
+            if ortho_tif.exists():
+                CRSManager.reproject_raster(ortho_tif, ortho_epsg, epsg, event_bus=event_bus)
+            self._bus("reprojection_completed", {
+                "epsg": epsg,
+                "dtm_epsg": str(dtm_epsg),
+                "dsm_epsg": str(dsm_epsg),
+                "orthophoto_epsg": str(ortho_epsg),
+            })
+            self._log.info(
+                "CRS reprojection completed: EPSG:%d -> %s, %s, %s",
+                epsg, DTM_EPSG_TIF, DSM_EPSG_TIF, ORTHOPHOTO_EPSG_TIF,
+            )
+        except Exception as e:
+            self._log.warning("CRS reprojection failed: %s", e)
+            self._bus("reprojection_completed", {"epsg": epsg, "error": str(e)})
 
     # ------------------------------------------------------------------
     # Sparse: chunked

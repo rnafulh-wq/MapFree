@@ -7,8 +7,8 @@ import logging
 import sys
 from pathlib import Path
 
-from mapfree.api.controller import MapFreeController
-from mapfree.config import load_config
+from mapfree.application.controller import MapFreeController
+from mapfree.core.config import load_config
 from mapfree.core.events import Event
 from mapfree.core.logger import setup_logging
 from mapfree.core.state import PipelineState
