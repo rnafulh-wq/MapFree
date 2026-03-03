@@ -17,6 +17,42 @@ log = logging.getLogger(__name__)
 GROUND_CLASS = 2
 
 
+def convert_ply_to_las(input_ply: Path | str, output_las: Path | str, timeout: int = 3600) -> Path:
+    """
+    Convert a PLY point cloud to LAS using PDAL translate.
+
+    Runs: pdal translate input_ply output_las
+    Raises RuntimeError if input is missing, pdal is not found, or the command fails.
+    Returns output_las path.
+    """
+    input_ply = Path(input_ply)
+    output_las = Path(output_las)
+    if not input_ply.exists():
+        raise RuntimeError("convert_ply_to_las: input does not exist: %s" % input_ply)
+    output_las.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        result = subprocess.run(
+            ["pdal", "translate", str(input_ply.resolve()), str(output_las.resolve())],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("convert_ply_to_las timed out after %s seconds" % timeout)
+    except FileNotFoundError:
+        raise RuntimeError(
+            "convert_ply_to_las: pdal not found. Install PDAL and ensure it is on PATH."
+        )
+    if result.returncode != 0:
+        msg = result.stderr or result.stdout or "pdal translate failed"
+        raise RuntimeError("convert_ply_to_las failed: %s" % msg.strip())
+    if not output_las.exists():
+        raise RuntimeError("convert_ply_to_las: output was not created: %s" % output_las)
+    log.info("convert_ply_to_las: %s -> %s", input_ply, output_las)
+    return output_las
+
+
 def _smrf_pipeline_json(input_las: str, output_las: str) -> dict:
     return {
         "pipeline": [
@@ -34,23 +70,29 @@ def _smrf_pipeline_json(input_las: str, output_las: str) -> dict:
 
 
 def classify_ground(
-    input_las: Path,
-    output_las: Path,
+    input_las: Path | str,
+    output_ground_las: Path | str,
     timeout: int = 3600,
 ) -> Path:
     """
-    Classify ground points using PDAL SMRF filter. Writes a temporary pipeline
-    JSON, runs `pdal pipeline pipeline.json`, then verifies output has
-    classification class 2 (ground).
-    Raises RuntimeError on failure.
+    Classify ground points using PDAL SMRF filter.
+
+    Creates a PDAL JSON pipeline with filters.smrf (slope=0.2, window=16.0,
+    threshold=0.45, scalar=1.2), writes it to a temporary file, then runs:
+      pdal pipeline <pipeline.json>
+
+    Raises RuntimeError if input is missing, pdal is not found, or the command fails.
+    Returns output_ground_las path.
     """
     input_las = Path(input_las)
-    output_las = Path(output_las)
+    output_ground_las = Path(output_ground_las)
     if not input_las.exists():
         raise RuntimeError("classify_ground: input does not exist: %s" % input_las)
-    output_las.parent.mkdir(parents=True, exist_ok=True)
+    output_ground_las.parent.mkdir(parents=True, exist_ok=True)
 
-    pipeline = _smrf_pipeline_json(str(input_las.resolve()), str(output_las.resolve()))
+    pipeline = _smrf_pipeline_json(
+        str(input_las.resolve()), str(output_ground_las.resolve())
+    )
     with tempfile.NamedTemporaryFile(
         mode="w",
         suffix=".json",
@@ -79,13 +121,14 @@ def classify_ground(
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 
-    if not output_las.exists():
-        raise RuntimeError("classify_ground: output was not created: %s" % output_las)
+    if not output_ground_las.exists():
+        raise RuntimeError(
+            "classify_ground: output was not created: %s" % output_ground_las
+        )
 
-    # Ensure classification class 2 (ground) exists
     try:
         info_result = subprocess.run(
-            ["pdal", "info", str(output_las), "--stats"],
+            ["pdal", "info", str(output_ground_las), "--stats"],
             capture_output=True,
             text=True,
             timeout=60,
@@ -100,8 +143,8 @@ def classify_ground(
     except (FileNotFoundError, subprocess.TimeoutExpired):
         pass
 
-    log.info("classify_ground: %s -> %s", input_las, output_las)
-    return output_las
+    log.info("classify_ground: %s -> %s", input_las, output_ground_las)
+    return output_ground_las
 
 
 def classify_point_cloud(

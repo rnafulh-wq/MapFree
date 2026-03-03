@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QTreeWidget,
     QTreeWidgetItem,
     QSizePolicy,
+    QGroupBox,
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor
@@ -47,57 +48,69 @@ class ProjectPanel(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedWidth(340)
+        self.setFixedWidth(300)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(10)
+        layout.setContentsMargins(6, 6, 6, 6)
+        layout.setSpacing(6)
 
-        header = QLabel("Pengaturan Job")
-        header.setProperty("class", "header")
-        layout.addWidget(header)
+        # --- Project Settings (group) ---
+        project_grp = QGroupBox("Project")
+        project_grp.setObjectName("projectGroup")
+        pl = QVBoxLayout(project_grp)
+        pl.setContentsMargins(8, 10, 8, 8)
+        pl.setSpacing(4)
 
-        # 1. Nama job
-        layout.addWidget(QLabel("1. Nama job"))
+        def field_label(text: str) -> QLabel:
+            lb = QLabel(text)
+            lb.setProperty("class", "field")
+            lb.setMinimumWidth(100)
+            return lb
+
+        pl.addWidget(field_label("Job name"))
         self._job_edit = QLineEdit()
-        self._job_edit.setPlaceholderText("Masukkan nama job")
+        self._job_edit.setPlaceholderText("Project name")
         self._job_edit.textChanged.connect(self._on_steps_changed)
-        layout.addWidget(self._job_edit)
+        pl.addWidget(self._job_edit)
 
-        # 2. Import foto
-        layout.addWidget(QLabel("2. Import foto"))
-        btn_import = QPushButton("Pilih folder foto...")
+        pl.addWidget(field_label("Images"))
+        btn_import = QPushButton("Select folder...")
+        btn_import.setMinimumHeight(24)
         btn_import.clicked.connect(self.importPhotosRequested.emit)
-        layout.addWidget(btn_import)
-        self._image_count_label = QLabel("Foto: 0")
+        pl.addWidget(btn_import)
+        self._image_count_label = QLabel("0 images")
         self._image_count_label.setProperty("class", "muted")
-        layout.addWidget(self._image_count_label)
+        pl.addWidget(self._image_count_label)
 
-        # 3. Penyimpanan
-        layout.addWidget(QLabel("3. Penyimpanan job"))
-        btn_output = QPushButton("Pilih folder penyimpanan...")
+        pl.addWidget(field_label("Output"))
+        btn_output = QPushButton("Select folder...")
+        btn_output.setMinimumHeight(24)
         btn_output.clicked.connect(self.outputFolderRequested.emit)
-        layout.addWidget(btn_output)
+        pl.addWidget(btn_output)
         self._output_label = QLabel("—")
         self._output_label.setWordWrap(True)
         self._output_label.setProperty("class", "muted")
-        layout.addWidget(self._output_label)
+        pl.addWidget(self._output_label)
 
-        # 4. Kualitas
-        layout.addWidget(QLabel("4. Kualitas pengolahan"))
+        pl.addWidget(field_label("Quality"))
         self._quality_combo = QComboBox()
         self._quality_combo.addItems(QUALITY_OPTIONS)
         self._quality_combo.setCurrentText("Medium")
         self._quality_combo.currentTextChanged.connect(self._on_steps_changed)
-        layout.addWidget(self._quality_combo)
+        pl.addWidget(self._quality_combo)
 
-        stage_header = QLabel("Pipeline Stages")
-        stage_header.setProperty("class", "header")
-        layout.addWidget(stage_header)
+        layout.addWidget(project_grp)
+
+        # --- Pipeline Stages (group) ---
+        pipeline_grp = QGroupBox("Pipeline")
+        pipeline_grp.setObjectName("pipelineGroup")
+        pl2 = QVBoxLayout(pipeline_grp)
+        pl2.setContentsMargins(8, 10, 8, 8)
+        pl2.setSpacing(4)
 
         self._stage_tree = QTreeWidget()
         self._stage_tree.setHeaderLabels(["Stage", "Status"])
         self._stage_tree.setColumnCount(2)
-        self._stage_tree.setColumnWidth(0, 180)
+        self._stage_tree.setColumnWidth(0, 160)
         self._stage_tree.setRootIsDecorated(False)
         self._stage_tree.setAlternatingRowColors(False)
         self._items = {}
@@ -106,20 +119,23 @@ class ProjectPanel(QWidget):
             item.setData(0, Qt.ItemDataRole.UserRole, key)
             self._stage_tree.addTopLevelItem(item)
             self._items[key] = item
-        layout.addWidget(self._stage_tree)
+        pl2.addWidget(self._stage_tree)
 
         btn_layout = QHBoxLayout()
         self._start_btn = QPushButton("Run")
         self._start_btn.setObjectName("startButton")
+        self._start_btn.setMinimumHeight(28)
         self._stop_btn = QPushButton("Stop")
         self._stop_btn.setObjectName("stopButton")
+        self._stop_btn.setMinimumHeight(28)
         self._stop_btn.setEnabled(False)
         self._start_btn.clicked.connect(self.startRequested.emit)
         self._stop_btn.clicked.connect(self.stopRequested.emit)
         btn_layout.addWidget(self._start_btn)
         btn_layout.addWidget(self._stop_btn)
-        layout.addLayout(btn_layout)
+        pl2.addLayout(btn_layout)
 
+        layout.addWidget(pipeline_grp)
         layout.addStretch()
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
 
@@ -134,7 +150,7 @@ class ProjectPanel(QWidget):
             self._job_edit.setText(name or "")
 
     def set_image_count(self, count: int):
-        self._image_count_label.setText("Foto: %d" % max(0, count))
+        self._image_count_label.setText("%d images" % max(0, count))
         self.stepsChanged.emit()
 
     def set_output_folder(self, path: str):

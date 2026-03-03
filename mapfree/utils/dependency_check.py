@@ -5,8 +5,13 @@ Check availability of external tools (PDAL, GDAL) for geospatial stages.
 import shutil
 import subprocess
 import logging
+from typing import List
 
 log = logging.getLogger(__name__)
+
+# Default tools and their version flags (run as: tool + version_args)
+_DEFAULT_TOOLS = ["pdal", "gdalinfo", "gdalwarp"]
+_VERSION_ARGS = {"pdal": ["--version"], "gdalinfo": ["--version"], "gdalwarp": ["--version"]}
 
 # Commands to check: (executable, version_args)
 _VERSION_CHECKS = [
@@ -38,6 +43,39 @@ def _run_version(cmd: str, args) -> tuple[bool, str]:
         return False, "timeout"
     except Exception as e:
         return False, str(e)
+
+
+def check_external_tools(tools: List[str] | None = None) -> None:
+    """
+    Run subprocess version checks to verify external tools are available.
+
+    tools: list of executable names to check (default: ["pdal", "gdalinfo", "gdalwarp"]).
+    Each is run as: <tool> --version (or tool-specific version flags).
+
+    Raises RuntimeError with a clear message listing any missing or failing tools.
+    """
+    if tools is None:
+        tools = _DEFAULT_TOOLS
+    missing = []
+    for cmd in tools:
+        args = _VERSION_ARGS.get(cmd, ["--version"])
+        if not shutil.which(cmd):
+            missing.append(cmd)
+            continue
+        ok, msg = _run_version(cmd, args)
+        if not ok:
+            missing.append("%s (%s)" % (cmd, msg))
+        else:
+            log.debug("%s: %s", cmd, msg)
+
+    if missing:
+        raise RuntimeError(
+            "Required external tools missing or failed. Install them and ensure they are on PATH.\n"
+            "Missing or failed: %s\n"
+            "Example (Ubuntu): sudo apt install pdal gdal-bin\n"
+            "Example (conda): conda install -c conda-forge pdal gdal"
+            % ", ".join(missing)
+        )
 
 
 def check_geospatial_dependencies() -> None:

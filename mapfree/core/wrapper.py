@@ -44,22 +44,42 @@ def run_process_streaming(
     """
     Run command with Popen; stream stdout/stderr (combined) line-by-line to logger, log_file, and/or line_callback.
     If stop_event is set, a watcher thread will terminate the process; no zombie left.
-    Returns exit code. Raises subprocess.TimeoutExpired on timeout.
+    Returns exit code. Raises subprocess.TimeoutExpired on timeout, EngineExecutionError on spawn failure.
     """
     run_env = get_process_env(env)
-    proc = subprocess.Popen(
-        command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        cwd=cwd,
-        env=run_env,
-    )
-    log_fp = open(log_file, "a") if log_file else None
+    log_fp = None
+    try:
+        proc = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            cwd=cwd,
+            env=run_env,
+        )
+    except OSError as e:
+        msg = "Subprocess failed to start: %s" % (e,)
+        if logger:
+            logger.error(msg)
+        if log_file:
+            try:
+                Path(log_file).parent.mkdir(parents=True, exist_ok=True)
+                with open(log_file, "a") as f:
+                    f.write("\n--- SPAWN FAILED ---\n%s\n" % msg)
+            except Exception:
+                pass
+        raise EngineExecutionError(msg) from e
+    if log_file:
+        try:
+            log_fp = open(log_file, "a")
+        except Exception:
+            log_fp = None
     read_done = threading.Event()
 
     def read_output():
         try:
+            if proc.stdout is None:
+                return
             for line in proc.stdout:
                 line = line.rstrip()
                 if logger is not None:

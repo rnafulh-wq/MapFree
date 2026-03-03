@@ -54,10 +54,15 @@ def _defaults() -> dict:
         "vram_watchdog": {"threshold": 0.9, "poll_interval": 5, "downscale_factor": 0.75},
         "dense_engine": "colmap",
         "colmap": {"mapper_ba_global_max_iter": 30, "mapper_ba_local_max_iter": 20},
+        "geospatial": {
+            "enable": True,
+            "resolution": 0.5,
+            "target_epsg": None,  # If null, auto-detect from image EXIF
+        },
         "enable_geospatial": True,
         "dtm_resolution": 0.05,
         "auto_detect_epsg": True,
-        "target_epsg": None,  # If set, override auto-detect for reprojection
+        "target_epsg": None,
     }
 
 
@@ -101,6 +106,22 @@ def load_config(override_path: str | Path | None = None) -> dict:
 def get_config(override_path: str | Path | None = None) -> dict:
     """Alias for load_config; use for read-only access."""
     return load_config(override_path)
+
+
+def get_geospatial_config(override_path: str | Path | None = None) -> dict:
+    """
+    Return resolved geospatial config: enable, resolution, target_epsg.
+    Reads from geospatial.* first, then falls back to top-level enable_geospatial,
+    dtm_resolution, target_epsg, auto_detect_epsg.
+    """
+    cfg = get_config(override_path)
+    geo = cfg.get("geospatial") or {}
+    return {
+        "enable": geo.get("enable", cfg.get("enable_geospatial", True)),
+        "resolution": float(geo.get("resolution", cfg.get("dtm_resolution", 0.05))),
+        "target_epsg": geo.get("target_epsg") if "target_epsg" in geo else cfg.get("target_epsg"),
+        "auto_detect_epsg": geo.get("auto_detect_epsg", cfg.get("auto_detect_epsg", True)),
+    }
 
 
 def reset_config() -> None:

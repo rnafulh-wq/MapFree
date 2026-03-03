@@ -28,8 +28,9 @@ class QtController(QObject, MapFreeController):
     exportError = Signal(str)
 
     denseReady = Signal(str)            # path to fused.ply when dense stage completes (legacy)
-    pointCloudLoaded = Signal(str)      # path when point cloud is loaded (e.g. dense fused.ply)
+    pointCloudLoaded = Signal(str)     # path when point cloud is loaded (e.g. dense fused.ply)
     meshLoaded = Signal(str)            # path when mesh is loaded
+    camerasLoaded = Signal(dict)       # GeoJSON FeatureCollection when photos with GPS are imported
 
     def __init__(self, profile=None, engine_type="colmap"):
         QObject.__init__(self)

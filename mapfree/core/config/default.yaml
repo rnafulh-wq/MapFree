@@ -65,6 +65,11 @@ vram_watchdog:
 # ---------------------------------------------------------------------------
 # Geospatial
 # ---------------------------------------------------------------------------
+geospatial:
+  enable: true
+  resolution: 0.5
+  target_epsg: null   # If null, auto-detect EPSG from image EXIF (GPS)
+
 enable_geospatial: true
 dtm_resolution: 0.05
 auto_detect_epsg: true

@@ -1,15 +1,17 @@
 """
 Pipeline: orchestration only.
 Flow: _prepare_environment -> _run_sparse -> _run_dense -> _run_geospatial_stages -> _post_process.
-Project output structure:
-  sparse/
-  dense/
-  geospatial/
-    dtm.tif, dtm_epsg.tif
-    dsm.tif, dsm_epsg.tif
-    orthophoto.tif, orthophoto_epsg.tif
-Final sparse output: sparse_merged/0/ (chunked) or sparse/0/ (single). After run, also exported
-to final_results/ (sparse copy + sparse.ply) via final_results.export_final_results().
+
+Project output directories (each stage writes only into its folder):
+  project_output/
+    sparse/        <- sparse stage
+    dense/         <- dense stage
+    geospatial/    <- geospatial stage
+      dsm.tif
+      dtm.tif
+      orthophoto.tif
+Sparse final output: sparse_merged/0/ (chunked) or sparse/0/ (single). After run, also exported
+to final_results/ via final_results.export_final_results().
 Delegates: state (state.py), validation (validation.py), profile (profiles.py), detection (hardware.py).
 """
 from pathlib import Path
@@ -82,6 +84,7 @@ class Pipeline:
         self._hook("pipeline_start")
         self.emit("start", "Pipeline started", 0.0)
         self._bus("pipeline_started")
+        self._state_cleared = False
         try:
             self._prepare_environment()
             if self._abort:
@@ -105,7 +108,7 @@ class Pipeline:
                 self._bus("progress_updated", 80)
                 if self._config_enable_geospatial():
                     self._bus("stage_started", {"stage": "geospatial"})
-                    self._run_geospatial_stages()
+                    self._run_geospatial_stages(fused_ply)
                     self._bus("stage_completed", {"stage": "geospatial"})
                 else:
                     self._log.info("Geospatial stages disabled by config (enable_geospatial=false)")
@@ -127,7 +130,7 @@ class Pipeline:
         finally:
             if bus is not None:
                 bus.unsubscribe("pipeline_stop_requested", on_stop_requested)
-            if self._project_path is not None:
+            if self._project_path is not None and not getattr(self, "_state_cleared", False):
                 try:
                     save_state(self._project_path, load_state(self._project_path))
                 except Exception:
@@ -207,19 +210,32 @@ class Pipeline:
         self._hook("step_start", step_name="dense")
 
         if dense_engine == "openmvs":
-            openmvs_output = project_path / "openmvs" / "scene_textured.mvs"
-            if openmvs_output.exists():
-                self.emit("step", "[RESUME] Skipping dense (OpenMVS)", None)
-            else:
-                self.emit("step", "[RUNNING] OpenMVS pipeline", 0.6)
-                from mapfree.engines.openmvs_engine import OpenMVSEngine
-                openmvs_ctx = self.ctx
-                if getattr(openmvs_ctx, "logger", None) is None:
-                    openmvs_ctx.logger = self._log
-                OpenMVSEngine(openmvs_ctx).run()
-                mark_step_done(project_path, "dense")
-                self.emit("step", "[DONE] OpenMVS pipeline", None)
-        else:
+            from mapfree.engines.mvs_openmvs import OpenMVSEngine, openmvs_available
+            mvs_dir = project_path / "mvs"
+            if not openmvs_available():
+                self._log.warning("OpenMVS not found (InterfaceCOLMAP not in PATH); falling back to COLMAP dense")
+                self.emit("step", "OpenMVS not found, using COLMAP dense", None)
+                dense_engine = "colmap"
+            if dense_engine == "openmvs":
+                if is_step_done(project_path, "dense") and dense_valid(self.ctx.dense_path):
+                    self.emit("step", "[RESUME] Skipping dense (OpenMVS)", None)
+                elif (mvs_dir / "scene_dense.mvs").exists() and (Path(self.ctx.dense_path) / "fused.ply").exists():
+                    self.emit("step", "[RESUME] Skipping dense (OpenMVS already done)", None)
+                    mark_step_done(project_path, "dense")
+                else:
+                    self.emit("step", "[RUNNING] OpenMVS dense pipeline (quality=%s)" % self.quality, 0.6)
+                    openmvs_ctx = self.ctx
+                    if getattr(openmvs_ctx, "logger", None) is None:
+                        openmvs_ctx.logger = self._log
+                    try:
+                        OpenMVSEngine(openmvs_ctx, quality=self.quality).run_dense_pipeline()
+                    except RuntimeError as e:
+                        self._log.error("OpenMVS dense failed: %s", e)
+                        raise
+                    if dense_valid(self.ctx.dense_path):
+                        mark_step_done(project_path, "dense")
+                    self.emit("step", "[DONE] OpenMVS dense pipeline", None)
+        if dense_engine != "openmvs":
             if is_step_done(project_path, "dense") and dense_valid(self.ctx.dense_path):
                 self.emit("step", "[RESUME] Skipping dense", None)
             else:
@@ -255,6 +271,10 @@ class Pipeline:
         """Export final sparse to final_results/ (copy + PLY), then clear state if done; emit complete."""
         project_path = self._project_path
         sparse_dir = Path(self.ctx.sparse_path)
+        sparse_dir_0 = sparse_dir / "0"
+        if sparse_dir_0.exists():
+            sparse_dir = sparse_dir_0
+        dense_path = Path(self.ctx.dense_path)
         if sparse_valid(sparse_dir):
             try:
                 final_dir = final_results_module.export_final_results(project_path, sparse_dir)
@@ -272,26 +292,23 @@ class Pipeline:
                 self._log.warning("Could not export final results: %s", e)
                 self.emit("step", "Final results export skipped: %s" % e, None)
         state = load_state(project_path)
-        if all(state.get(s, False) for s in COMPLETION_STEPS):
+        all_steps_done = all(state.get(s, False) for s in COMPLETION_STEPS)
+        outputs_valid = sparse_valid(sparse_dir) and dense_valid(dense_path)
+        if all_steps_done or outputs_valid:
             reset_state(project_path)
+            self._state_cleared = True
             self.emit("step", "[RESUME] State file removed (all steps complete)", None)
         self._hook("pipeline_complete")
         self.emit("complete", "Pipeline finished", 1.0)
 
     def _config_enable_geospatial(self) -> bool:
-        """True if config.enable_geospatial is True."""
-        from mapfree.core.config import get_config
-        cfg = get_config()
-        return bool(cfg.get("enable_geospatial", True))
+        """True if config geospatial.enable (or enable_geospatial) is True."""
+        from mapfree.core.config import get_geospatial_config
+        return bool(get_geospatial_config().get("enable", True))
 
-    def _run_geospatial_stages(self):
-        """Run geospatial stages after dense: convert to LAS, ground classification, DSM, DTM, orthophoto."""
-        from mapfree.core.config import get_config
-        from mapfree.utils.dependency_check import check_geospatial_dependencies
-        from mapfree.geospatial.georef import convert_ply_to_las
-        from mapfree.geospatial.classification import classify_ground
-        from mapfree.geospatial.rasterizer import generate_dsm, generate_dtm
-        from mapfree.geospatial.orthomosaic import generate_orthophoto
+    def _run_geospatial_stages(self, dense_output: Path):
+        """Run geospatial pipeline after dense; emit geospatial_started, dtm_done, orthophoto_done."""
+        from mapfree.geospatial.pipeline_geospatial import run_geospatial
         from mapfree.geospatial.output_names import (
             DTM_TIF,
             DTM_EPSG_TIF,
@@ -302,122 +319,34 @@ class Pipeline:
         )
 
         try:
-            check_geospatial_dependencies()
+            run_geospatial(
+                project_path=self._project_path,
+                dense_ply_path=dense_output,
+                on_event=lambda name: self._bus(name),
+            )
         except RuntimeError as e:
             self._log.warning("Skipping geospatial stages: %s", e)
             return
 
-        cfg = get_config()
-        resolution = float(cfg.get("dtm_resolution", 0.05))
-
         project_path = Path(self._project_path)
-        dense_path = Path(self.ctx.dense_path)
-        image_path = self._image_path or project_path / "images"
         geo_dir = Path(self.ctx.geospatial_path)
-        geo_dir.mkdir(parents=True, exist_ok=True)
-
-        dense_las = geo_dir / "dense.las"
-        classified_las = geo_dir / "classified.las"
-        dsm_tif = geo_dir / DSM_TIF
+        image_path = self._image_path or project_path / "images"
         dtm_tif = geo_dir / DTM_TIF
+        dsm_tif = geo_dir / DSM_TIF
         ortho_tif = geo_dir / ORTHOPHOTO_TIF
-
-        # 1. Convert to LAS
-        stage = "geospatial_convert_las"
-        self._bus("stage_started", {"stage": stage})
-        self._bus("progress_updated", 81)
-        fused_ply = dense_path / "fused.ply"
-        if not fused_ply.exists():
-            self._log.warning("Skipping %s: dependency missing (fused.ply not found)", stage)
-            self._bus("stage_completed", {"stage": stage, "skipped": True})
-        else:
-            try:
-                convert_ply_to_las(fused_ply, dense_las, event_bus=None)
-                self._bus("stage_completed", {"stage": stage})
-            except Exception as e:
-                self._log.warning("Skipping %s: %s", stage, e)
-                self._bus("stage_completed", {"stage": stage, "skipped": True})
-
-        # 2. Ground Classification
-        stage = "geospatial_ground_classification"
-        self._bus("stage_started", {"stage": stage})
-        self._bus("progress_updated", 82)
-        if not dense_las.exists():
-            self._log.warning("Skipping %s: dependency missing (dense.las not found)", stage)
-            self._bus("stage_completed", {"stage": stage, "skipped": True})
-        else:
-            try:
-                classify_ground(dense_las, classified_las)
-                self._bus("stage_completed", {"stage": stage})
-            except Exception as e:
-                self._log.warning("Skipping %s: %s", stage, e)
-                self._bus("stage_completed", {"stage": stage, "skipped": True})
-
-        # 3. DSM Generation
-        stage = "geospatial_dsm"
-        self._bus("stage_started", {"stage": stage})
-        self._bus("progress_updated", 83)
-        if not dense_las.exists():
-            self._log.warning("Skipping %s: dependency missing (dense.las not found)", stage)
-            self._bus("stage_completed", {"stage": stage, "skipped": True})
-        else:
-            try:
-                generate_dsm(dense_las, dsm_tif, resolution=resolution)
-                self._bus("stage_completed", {"stage": stage})
-            except Exception as e:
-                self._log.warning("Skipping %s: %s", stage, e)
-                self._bus("stage_completed", {"stage": stage, "skipped": True})
-
-        # 4. DTM Generation
-        stage = "geospatial_dtm"
-        self._bus("stage_started", {"stage": stage})
-        self._bus("progress_updated", 84)
-        if not classified_las.exists():
-            self._log.warning("Skipping %s: dependency missing (classified.las not found)", stage)
-            self._bus("stage_completed", {"stage": stage, "skipped": True})
-        else:
-            try:
-                generate_dtm(classified_las, dtm_tif, resolution=resolution)
-                self._bus("stage_completed", {"stage": stage})
-            except Exception as e:
-                self._log.warning("Skipping %s: %s", stage, e)
-                self._bus("stage_completed", {"stage": stage, "skipped": True})
-
-        # 5. Orthophoto Generation (skip only if georeference missing)
-        stage = "geospatial_orthophoto"
-        self._bus("stage_started", {"stage": stage})
-        self._bus("progress_updated", 85)
-        if not dtm_tif.exists():
-            self._log.warning("Skipping %s: dependency missing (dtm.tif not found)", stage)
-            self._bus("stage_completed", {"stage": stage, "skipped": True})
-        else:
-            try:
-                generate_orthophoto(image_path, dtm_tif, ortho_tif)
-                self._bus("stage_completed", {"stage": stage})
-            except RuntimeError as e:
-                if "georeferenced" in str(e).lower():
-                    self._log.warning("Skipping %s: orthophoto requires georeferenced dataset.", stage)
-                    self._bus("stage_completed", {"stage": stage, "skipped": True})
-                else:
-                    raise
-            except Exception as e:
-                self._log.warning("Skipping %s: %s", stage, e)
-                self._bus("stage_completed", {"stage": stage, "skipped": True})
-
-        # After DTM + DSM + Orthophoto: detect CRS and optionally reproject to EPSG
         self._run_geospatial_crs_reproject(geo_dir, image_path, dtm_tif, dsm_tif, ortho_tif)
 
     def _run_geospatial_crs_reproject(self, geo_dir, image_path, dtm_tif, dsm_tif, ortho_tif):
         """
-        After geospatial stages: use config.target_epsg if set; else if auto_detect_epsg
-        detect CRS from images; else skip. Then reproject dtm/dsm/orthophoto to *_epsg.tif.
+        After geospatial stages: use geospatial.target_epsg if set; else if auto_detect_epsg
+        detect CRS from image EXIF (GPS) and assign EPSG; else skip. Then reproject to *_epsg.tif.
         """
-        from mapfree.core.config import get_config
+        from mapfree.core.config import get_geospatial_config
         from mapfree.geospatial.crs_manager import CRSManager
 
-        cfg = get_config()
-        target_epsg = cfg.get("target_epsg")
-        auto_detect_epsg = bool(cfg.get("auto_detect_epsg", True))
+        geo_cfg = get_geospatial_config()
+        target_epsg = geo_cfg.get("target_epsg")
+        auto_detect_epsg = bool(geo_cfg.get("auto_detect_epsg", True))
 
         if target_epsg is not None:
             try:

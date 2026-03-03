@@ -10,12 +10,15 @@ from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QSplitter,
+    QStackedWidget,
     QToolBar,
     QStatusBar,
     QMessageBox,
     QApplication,
     QFileDialog,
     QLabel,
+    QComboBox,
+    QStyle,
 )
 from PySide6.QtCore import Qt
 
@@ -27,6 +30,7 @@ from mapfree.gui.panels import (
     STATUS_DONE,
     STATUS_ERROR,
 )
+from mapfree.gui.map_widget import MapWidget
 from mapfree.gui.qt_controller import QtController
 from mapfree.gui.workers import PipelineWorker
 from mapfree.utils.file_utils import list_images
@@ -118,15 +122,16 @@ _STAGE_ORDER = [
 def _get_best_result_path(project_path: Path):
     """
     Return (path_str, is_mesh) for the best 3D result to show in viewer (WebODM/Metashape-style).
-    Priority: OpenMVS mesh > dense fused.ply > final_results/dense.ply > final_results/sparse.ply.
+    Priority: mvs/ mesh > openmvs/ mesh > dense fused.ply > final_results/dense.ply > final_results/sparse.ply.
     """
     proj = Path(project_path)
-    # OpenMVS mesh (prefer refined)
-    openmvs = proj / "openmvs"
-    for name in ("scene_mesh_refine.ply", "scene_mesh.ply"):
-        p = openmvs / name
-        if p.exists() and p.stat().st_size > 0:
-            return str(p), True
+    # OpenMVS mesh from mvs/ (new engine) or openmvs/ (legacy)
+    for mvs_dir in ("mvs", "openmvs"):
+        mvs = proj / mvs_dir
+        for name in ("scene_mesh_refine.ply", "scene_mesh.ply"):
+            p = mvs / name
+            if p.exists() and p.stat().st_size > 0:
+                return str(p), True
     # Dense point cloud
     fused = proj / "dense" / "fused.ply"
     if fused.exists() and fused.stat().st_size >= 1024:
@@ -188,10 +193,15 @@ class MainWindow(QMainWindow):
         file_menu.addAction("&New Project", self._on_new_job)
         file_menu.addAction("&Open Project", self._on_open)
         export_menu = file_menu.addMenu("&Export")
-        export_menu.addAction("Export &DTM", self._on_export_dtm)
-        export_menu.addAction("Export &DSM", self._on_export_dsm)
-        export_menu.addAction("Export &Orthophoto", self._on_export_orthophoto)
-        export_menu.addAction("Export &All", self._on_export_all)
+        self._export_actions = []
+        for label, slot in [
+            ("Export &DTM", self._on_export_dtm),
+            ("Export &DSM", self._on_export_dsm),
+            ("Export &Orthophoto", self._on_export_orthophoto),
+            ("Export &All", self._on_export_all),
+        ]:
+            a = export_menu.addAction(label, slot)
+            self._export_actions.append(a)
         file_menu.addSeparator()
         file_menu.addAction("E&xit", self.close)
 
@@ -205,7 +215,7 @@ class MainWindow(QMainWindow):
         view_menu.actions()[-1].setChecked(True)
         self._toggle_console_action = view_menu.addAction("Toggle &Console", self._toggle_console)
         self._toggle_console_action.setCheckable(True)
-        self._toggle_console_action.setChecked(True)
+        self._toggle_console_action.setChecked(False)
 
         help_menu = menubar.addMenu("&Help")
         help_menu.addAction("&About")
@@ -213,18 +223,38 @@ class MainWindow(QMainWindow):
     def _setup_toolbar(self):
         self._toolbar = QToolBar("Main")
         self._toolbar.setMovable(True)
+        self._toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         self.addToolBar(self._toolbar)
-        self._toolbar.addAction("New job", self._on_new_job)
-        self._toolbar.addAction("Import Photos", self._on_import_photos)
-        self._toolbar.addAction("Set output", self._on_set_output_folder)
+        style = QApplication.style()
+        self._run_action = self._toolbar.addAction(
+            style.standardIcon(QStyle.StandardPixmap.SP_MediaPlay), "Run", self._start_pipeline
+        )
+        self._stop_action = self._toolbar.addAction(
+            style.standardIcon(QStyle.StandardPixmap.SP_MediaStop), "Stop", self._on_stop_requested
+        )
+        self._stop_action.setEnabled(False)
         self._toolbar.addSeparator()
-        self._toolbar.addAction("Run", self._start_pipeline)
+        self._toolbar.addWidget(QLabel("View:"))
+        self._view_mode_combo = QComboBox()
+        self._view_mode_combo.addItems(["3D", "Map"])
+        self._view_mode_combo.currentIndexChanged.connect(self._on_view_mode_changed)
+        self._toolbar.addWidget(self._view_mode_combo)
         self._toolbar.addSeparator()
-        self._toolbar.addAction("Load Point Cloud", self._on_load_point_cloud)
-        self._toolbar.addAction("Load Mesh", self._on_load_mesh)
-        self._toolbar.addAction("Clear View", self._on_clear_view)
-        self._toolbar.addAction("Zoom Fit", self._on_zoom_fit)
-        self._toolbar.addAction("Toggle Axes", self._on_toggle_axes)
+        self._toolbar.addAction(
+            style.standardIcon(QStyle.StandardPixmap.SP_DialogOpenButton),
+            "Load Point Cloud",
+            self._on_load_point_cloud,
+        )
+        self._toolbar.addAction(
+            style.standardIcon(QStyle.StandardPixmap.SP_FileIcon),
+            "Load Mesh",
+            self._on_load_mesh,
+        )
+        self._toolbar.addSeparator()
+        self._toggle_console_action.setIcon(
+            style.standardIcon(QStyle.StandardPixmap.SP_ComputerIcon)
+        )
+        self._toolbar.addAction(self._toggle_console_action)
 
     def _setup_statusbar(self):
         self._statusbar = QStatusBar()
@@ -241,22 +271,27 @@ class MainWindow(QMainWindow):
         self._console_panel = ConsolePanel()
         self._progress_panel = ProgressPanel()
         self._viewer_panel = self._create_viewer_widget()
+        self.map_widget = MapWidget()
+
+        self._workspace = QStackedWidget()
+        self._workspace.addWidget(self._viewer_panel)   # index 0 = 3D
+        self._workspace.addWidget(self.map_widget)      # index 1 = Map
+        self._workspace.setCurrentIndex(0)  # default 3D until GPS available
 
         horizontal = QSplitter(Qt.Orientation.Horizontal)
         horizontal.addWidget(self._project_panel)
         self._vertical_splitter = QSplitter(Qt.Orientation.Vertical)
-        self._vertical_splitter.addWidget(self._viewer_panel)
+        self._vertical_splitter.addWidget(self._workspace)
         self._vertical_splitter.addWidget(self._console_panel)
-        # Viewer : Console = 4 : 1 (stretch and initial sizes)
-        self._vertical_splitter.setStretchFactor(0, 4)  # Viewer
-        self._vertical_splitter.setStretchFactor(1, 1)  # Console
-        _unit = 200
-        self._vertical_splitter.setSizes([4 * _unit, 1 * _unit])  # proportional 4:1
+        self._vertical_splitter.setStretchFactor(0, 1)
+        self._vertical_splitter.setStretchFactor(1, 0)
         self._vertical_splitter.setHandleWidth(6)
+        # Default: console collapsed (height 0); toggle via toolbar/menu
+        self._vertical_splitter.setSizes([1, 0])
         horizontal.addWidget(self._vertical_splitter)
         horizontal.setStretchFactor(0, 0)
         horizontal.setStretchFactor(1, 1)
-        horizontal.setSizes([320, 880])
+        horizontal.setSizes([300, 900])
 
         main_layout.addWidget(horizontal)
         main_layout.addWidget(self._progress_panel)
@@ -274,8 +309,18 @@ class MainWindow(QMainWindow):
 
     def _create_gl_viewer(self):
         from mapfree.viewer.gl_widget import ViewerWidget, set_default_opengl_format
+        from mapfree.gui.interaction import ToolManager
+        from mapfree.gui.controllers import MeasurementController
+        from mapfree.engines.inspection import MeasurementEngine
         set_default_opengl_format()
-        return ViewerWidget()
+        viewer = ViewerWidget()
+        engine = MeasurementEngine()
+        measurement_controller = MeasurementController(engine)
+        measurement_controller.set_ray_callback(viewer.compute_ray_from_screen)
+        tool_manager = ToolManager()
+        viewer.set_tool_manager(tool_manager)
+        viewer.measurement_controller = measurement_controller
+        return viewer
 
     def _replace_with_gl_viewer(self):
         """Open 3D viewer in a separate process so a segfault does not close MapFree."""
@@ -314,6 +359,8 @@ class MainWindow(QMainWindow):
 
     def _update_run_enabled(self):
         self._project_panel.set_run_enabled(self._can_run())
+        can_run = self._can_run() and (self._worker is None or not self._worker.isRunning())
+        self._run_action.setEnabled(can_run)
 
     def _refresh_project_panel(self):
         image_count = 0
@@ -410,8 +457,12 @@ class MainWindow(QMainWindow):
 
     def _on_export_started(self):
         self._statusbar.showMessage("Export in progress…")
+        for a in getattr(self, "_export_actions", []):
+            a.setEnabled(False)
 
     def _on_export_finished(self, result):
+        for a in getattr(self, "_export_actions", []):
+            a.setEnabled(True)
         self._statusbar.showMessage("Export completed.")
         if isinstance(result, dict):
             QMessageBox.information(
@@ -421,6 +472,8 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "Export", "Export completed successfully.")
 
     def _on_export_error(self, message: str):
+        for a in getattr(self, "_export_actions", []):
+            a.setEnabled(True)
         self._statusbar.showMessage("Export failed.")
         QMessageBox.critical(self, "Export Error", message or "Export failed.")
 
@@ -433,6 +486,9 @@ class MainWindow(QMainWindow):
         )
         if path:
             if self._viewer_panel.load_point_cloud(path):
+                mc = getattr(self._viewer_panel, "measurement_controller", None)
+                if mc:
+                    mc.set_geometry_from_file(path)
                 self._statusbar.showMessage("Loaded point cloud: %s" % path)
             else:
                 self._statusbar.showMessage("Failed to load point cloud.")
@@ -446,6 +502,9 @@ class MainWindow(QMainWindow):
         )
         if path:
             if self._viewer_panel.load_mesh(path):
+                mc = getattr(self._viewer_panel, "measurement_controller", None)
+                if mc:
+                    mc.set_geometry_from_file(path)
                 self._statusbar.showMessage("Loaded mesh: %s" % path)
             else:
                 self._statusbar.showMessage("Failed to load mesh.")
@@ -461,6 +520,14 @@ class MainWindow(QMainWindow):
     def _on_toggle_axes(self):
         self._viewer_panel.toggle_axes()
         self._statusbar.showMessage("Axes toggled.")
+
+    def _on_view_mode_changed(self, index: int):
+        self._workspace.setCurrentIndex(index)
+
+    def _switch_to_map_if_gps(self):
+        """Switch to Map view when GPS/cameras are available (default mode)."""
+        if self._view_mode_combo.currentIndex() == 0:
+            self._view_mode_combo.setCurrentIndex(1)
 
     def _on_open(self):
         """Buka folder proyek (penyimpanan). Jika ada subfolder 'images', dipakai sebagai folder foto. Auto-load 3D result di viewer."""
@@ -509,6 +576,20 @@ class MainWindow(QMainWindow):
         except (OSError, TypeError):
             n = 0
         self._statusbar.showMessage("Foto: %s (%d file)" % (image_folder, n))
+        try:
+            from mapfree.geospatial.exif_reader import extract_gps_from_images
+            from mapfree.geospatial.geojson_builder import build_geojson_points
+            points = extract_gps_from_images(image_folder)
+            if len(points) > 0:
+                geojson = build_geojson_points(points)
+                self._controller.camerasLoaded.emit(geojson)
+                # Switch to Map and load camera layer (queued if map not ready); auto zoom in addGeoJSONLayer
+                self._switch_to_map_if_gps()
+                self.map_widget.load_geojson_layer("Cameras", geojson)
+            else:
+                self._statusbar.showMessage("No GPS metadata found in selected images.")
+        except Exception:
+            pass
 
     def _connect_controller_signals(self):
         self._controller.progressChanged.connect(self._progress_panel.update_progress)
@@ -519,8 +600,27 @@ class MainWindow(QMainWindow):
         self._controller.exportStarted.connect(self._on_export_started)
         self._controller.exportFinished.connect(self._on_export_finished)
         self._controller.exportError.connect(self._on_export_error)
-        self._controller.pointCloudLoaded.connect(self._viewer_panel.load_point_cloud)
-        self._controller.meshLoaded.connect(self._viewer_panel.load_mesh)
+        def _on_point_cloud_loaded(path):
+            self._viewer_panel.load_point_cloud(path)
+            mc = getattr(self._viewer_panel, "measurement_controller", None)
+            if mc:
+                mc.set_geometry_from_file(path)
+        def _on_mesh_loaded(path):
+            self._viewer_panel.load_mesh(path)
+            mc = getattr(self._viewer_panel, "measurement_controller", None)
+            if mc:
+                mc.set_geometry_from_file(path)
+        self._controller.pointCloudLoaded.connect(_on_point_cloud_loaded)
+        self._controller.meshLoaded.connect(_on_mesh_loaded)
+        def on_cameras_loaded(geojson):
+            self._switch_to_map_if_gps()
+            self.map_widget.load_geojson_layer("Cameras", geojson)
+        self._controller.camerasLoaded.connect(on_cameras_loaded)
+        # Forward map JS console (log/warn/error) to app console panel
+        def on_map_js_console(level: int, message: str):
+            log_level = "error" if level == 2 else ("warning" if level == 1 else "info")
+            self._console_panel.append_log(message, log_level)
+        self.map_widget.jsConsoleMessage.connect(on_map_js_console)
 
     def _on_state_changed(self, state: str):
         self._statusbar.showMessage(state)
@@ -585,6 +685,8 @@ class MainWindow(QMainWindow):
         if self._current_stage:
             self._project_panel.set_stage_status(self._current_stage, STATUS_ERROR)
         self._project_panel.set_running(False)
+        self._stop_action.setEnabled(False)
+        self._update_run_enabled()
         QMessageBox.critical(
             self,
             "Pipeline Error",
@@ -623,11 +725,14 @@ class MainWindow(QMainWindow):
             quality=quality,
         )
         self._worker.finished.connect(self._on_worker_finished)
+        self._run_action.setEnabled(False)
+        self._stop_action.setEnabled(True)
         self._worker.start()
 
     def _on_worker_finished(self):
         self._worker = None
         self._project_panel.set_running(False)
+        self._stop_action.setEnabled(False)
         self._update_run_enabled()
         self._progress_panel.update_state("idle")
 
@@ -663,15 +768,25 @@ class MainWindow(QMainWindow):
         self._statusbar.setVisible(checked)
 
     def _toggle_console(self):
-        if self._console_panel.isVisible():
-            self._console_panel.hide()
-            self._toggle_console_action.setChecked(False)
-            # Give all vertical space to viewer
-            h = self._vertical_splitter.size().height()
+        h = self._vertical_splitter.size().height()
+        if h <= 0:
+            h = 400
+        if self._vertical_splitter.sizes()[1] > 0:
+            # Collapse: give all space to workspace
             self._vertical_splitter.setSizes([h, 0])
+            self._toggle_console_action.setChecked(False)
         else:
-            self._console_panel.show()
+            # Expand: console max 25% of splitter height
+            console_h = min(int(0.25 * h), max(120, h // 4))
+            self._vertical_splitter.setSizes([h - console_h, console_h])
+            self._console_panel.setMaximumHeight(int(0.25 * h))
             self._toggle_console_action.setChecked(True)
-            _unit = 200
-            self._vertical_splitter.setSizes([4 * _unit, 1 * _unit])
         self._vertical_splitter.updateGeometry()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        # Keep console at most 25% when visible
+        if self._vertical_splitter.sizes()[1] > 0:
+            h = self._vertical_splitter.size().height()
+            if h > 0:
+                self._console_panel.setMaximumHeight(int(0.25 * h))

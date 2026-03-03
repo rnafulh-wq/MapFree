@@ -15,8 +15,9 @@ from PySide6.QtOpenGL import (
     QOpenGLVersionFunctionsFactory,
     QOpenGLVersionProfile,
 )
-from PySide6.QtCore import Qt, QSize, QPoint
-from PySide6.QtGui import QWheelEvent, QMouseEvent
+from PySide6.QtCore import Qt, QSize, QPoint, QRect
+from PySide6.QtGui import QWheelEvent, QMouseEvent, QKeyEvent
+from PySide6.QtGui import QVector3D
 
 # OpenGL constants (not all exposed on QOpenGLFunctions_3_3_Core in PySide6)
 GL_COLOR_BUFFER_BIT = 0x00004000
@@ -26,13 +27,44 @@ GL_FLOAT = 0x1406
 GL_FALSE = 0
 GL_TRUE = 1
 GL_TRIANGLES = 0x0004
+GL_LINES = 0x0001
+GL_LINE_STRIP = 0x0003
 GL_POINTS = 0x0000
 GL_UNSIGNED_INT = 0x1405
 GL_DYNAMIC_DRAW = 0x88E8
 
+# Safe memory: cap vertex count per batch to avoid UI freeze / OOM
+MAX_VERTICES_RENDER = 2_000_000
+
 # -----------------------------------------------------------------------------
 # PLY loader (custom, no external deps)
 # -----------------------------------------------------------------------------
+
+def _simplify_for_render(vertices: list, normals: list | None, colors: list, indices: list | None):
+    """If vertex count > MAX_VERTICES_RENDER, subsample to a simplified view. In-place style; returns (v, n, c, ind)."""
+    n = len(vertices)
+    if n <= MAX_VERTICES_RENDER:
+        return vertices, normals, colors, indices
+    # Uniformly sample vertex indices to get at most MAX_VERTICES_RENDER
+    step = max(1, n // MAX_VERTICES_RENDER)
+    kept_idx = list(range(0, n, step))[:MAX_VERTICES_RENDER]
+    kept_set = set(kept_idx)
+    old_to_new = {old: i for i, old in enumerate(kept_idx)}
+    new_vertices = [vertices[i] for i in kept_idx]
+    new_normals = [normals[i] for i in kept_idx] if normals else None
+    new_colors = [colors[i] for i in kept_idx]
+    if indices and len(indices) >= 3:
+        new_indices = []
+        for i in range(0, len(indices), 3):
+            a, b, c = indices[i], indices[i + 1], indices[i + 2]
+            if a in kept_set and b in kept_set and c in kept_set:
+                new_indices.extend([old_to_new[a], old_to_new[b], old_to_new[c]])
+        if not new_indices:
+            new_indices = None
+    else:
+        new_indices = None
+    return new_vertices, new_normals, new_colors, new_indices
+
 
 def _load_ply(file_path: str) -> dict[str, Any] | None:
     """
@@ -280,6 +312,25 @@ void main() {
 }
 """
 
+# Overlay: lines (position only, uniform color)
+_LINE_VERTEX_SHADER = """
+#version 330 core
+layout(location = 0) in vec3 aPos;
+uniform mat4 uProjection;
+uniform mat4 uView;
+void main() {
+    gl_Position = uProjection * uView * vec4(aPos, 1.0);
+}
+"""
+_LINE_FRAGMENT_SHADER = """
+#version 330 core
+uniform vec3 uColor;
+out vec4 FragColor;
+void main() {
+    FragColor = vec4(uColor, 1.0);
+}
+"""
+
 
 # -----------------------------------------------------------------------------
 # ViewerWidget
@@ -303,6 +354,7 @@ class ViewerWidget(QOpenGLWidget):
         fmt.setSwapBehavior(QSurfaceFormat.SwapBehavior.DoubleBuffer)
         super().__init__(parent)
         self.setFormat(fmt)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         self._gl = None  # QOpenGLFunctions_3_3_Core from factory, set in initializeGL
         self._vao = None  # Created in initializeGL when context is current
@@ -317,6 +369,10 @@ class ViewerWidget(QOpenGLWidget):
         self._last_mouse = QPoint()
         self._mouse_button = Qt.MouseButton.NoButton
         self._show_axes = False
+        self._tool_manager = None  # set from outside: ToolManager
+        self._program_line = None
+        self._vao_line = None
+        self._vbo_line = None
 
     def _glf(self):
         """Return OpenGL functions; must be called with context current."""
@@ -357,6 +413,12 @@ class ViewerWidget(QOpenGLWidget):
         if not self._program_points.link():
             raise RuntimeError("Points shader link failed: " + self._program_points.log())
 
+        self._program_line = QOpenGLShaderProgram()
+        self._program_line.addShaderFromSourceCode(QOpenGLShader.Vertex, _LINE_VERTEX_SHADER)
+        self._program_line.addShaderFromSourceCode(QOpenGLShader.Fragment, _LINE_FRAGMENT_SHADER)
+        if not self._program_line.link():
+            raise RuntimeError("Line shader link failed: " + self._program_line.log())
+
     def _create_buffers(self) -> None:
         self._vao = QOpenGLVertexArrayObject()
         self._vbo = QOpenGLBuffer(QOpenGLBuffer.Type.VertexBuffer)
@@ -372,6 +434,12 @@ class ViewerWidget(QOpenGLWidget):
         self._vao.release()
         self._vbo.release()
         self._ebo.release()
+
+        self._vao_line = QOpenGLVertexArrayObject()
+        self._vbo_line = QOpenGLBuffer(QOpenGLBuffer.Type.VertexBuffer)
+        self._vao_line.create()
+        self._vbo_line.create()
+        self._vbo_line.setUsage(QOpenGLBuffer.UsagePattern.DynamicDraw)
 
     def resizeGL(self, w: int, h: int) -> None:
         self.makeCurrent()
@@ -391,34 +459,129 @@ class ViewerWidget(QOpenGLWidget):
         g.glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         g.glEnable(GL_DEPTH_TEST)
 
-        if self._num_vertices == 0 or not self._vao:
-            self.doneCurrent()
-            return
-
-        proj = self._camera.projection_matrix()
-        view = self._camera.view_matrix()
-        eye = self._camera.eye_position()
-        model = _identity()
-        self._vao.bind()
-        if self._num_indices > 0:
-            self._program_mesh.bind()
-            self._program_mesh.setUniformValue("uProjection", proj)
-            self._program_mesh.setUniformValue("uView", view)
-            self._program_mesh.setUniformValue("uModel", model)
-            self._program_mesh.setUniformValue("uCameraPosition", eye)
-            g.glDrawElements(GL_TRIANGLES, self._num_indices, GL_UNSIGNED_INT, None)
-        else:
-            self._program_points.bind()
-            self._program_points.setUniformValue("uProjection", proj)
-            self._program_points.setUniformValue("uView", view)
-            self._program_points.setUniformValue("uModel", model)
-            self._program_points.setUniformValue("uCameraPosition", eye)
-            g.glDrawArrays(GL_POINTS, 0, self._num_vertices)
-        self._vao.release()
+        if self._num_vertices > 0 and self._vao:
+            proj = self._camera.projection_matrix()
+            view = self._camera.view_matrix()
+            eye = self._camera.eye_position()
+            model = _identity()
+            self._vao.bind()
+            if self._num_indices > 0:
+                self._program_mesh.bind()
+                self._program_mesh.setUniformValue("uProjection", proj)
+                self._program_mesh.setUniformValue("uView", view)
+                self._program_mesh.setUniformValue("uModel", model)
+                self._program_mesh.setUniformValue("uCameraPosition", eye)
+                g.glDrawElements(GL_TRIANGLES, self._num_indices, GL_UNSIGNED_INT, None)
+            else:
+                self._program_points.bind()
+                self._program_points.setUniformValue("uProjection", proj)
+                self._program_points.setUniformValue("uView", view)
+                self._program_points.setUniformValue("uModel", model)
+                self._program_points.setUniformValue("uCameraPosition", eye)
+                g.glDrawArrays(GL_POINTS, 0, self._num_vertices)
+            self._vao.release()
+        if self._tool_manager is not None:
+            self._tool_manager.draw_overlay(self)
         self.doneCurrent()
 
+    def get_camera_matrices(self) -> dict:
+        """Return projection, view, and viewport for ray/overlay. No GL state change."""
+        w, h = max(1, self.width()), max(1, self.height())
+        return {
+            "projection": self._camera.projection_matrix(),
+            "view": self._camera.view_matrix(),
+            "viewport": (0, 0, w, h),
+            "width": w,
+            "height": h,
+        }
+
+    def compute_ray_from_screen(self, x: float, y: float) -> tuple:
+        """
+        Compute world-space ray from screen position. Returns (ray_origin, ray_direction) as lists of 3 floats.
+        """
+        w, h = max(1, self.width()), max(1, self.height())
+        view = self._camera.view_matrix()
+        proj = self._camera.projection_matrix()
+        viewport = QRect(0, 0, w, h)
+        # Qt window coords: origin top-left; OpenGL unproject often expects bottom-left y
+        wy = h - 1 - y
+        near_win = QVector3D(x, wy, 0.0)
+        far_win = QVector3D(x, wy, 1.0)
+        near_world = near_win.unproject(view, proj, viewport)
+        far_world = far_win.unproject(view, proj, viewport)
+        dx = far_world.x() - near_world.x()
+        dy = far_world.y() - near_world.y()
+        dz = far_world.z() - near_world.z()
+        L = (dx * dx + dy * dy + dz * dz) ** 0.5 or 1.0
+        return (
+            [near_world.x(), near_world.y(), near_world.z()],
+            [dx / L, dy / L, dz / L],
+        )
+
+    def set_tool_manager(self, tool_manager) -> None:
+        """Set the ToolManager for interaction and overlay. Call from UI layer."""
+        self._tool_manager = tool_manager
+
+    def draw_overlay_line_segments(self, segments: list, color: tuple) -> None:
+        """Draw line segments in world space. segments: list of ((x,y,z), (x,y,z)); color: (r,g,b) 0-1."""
+        if not self._gl or not self._program_line or not self._vao_line:
+            return
+        g = self._gl
+        verts = []
+        for a, b in segments:
+            verts.extend([a[0], a[1], a[2], b[0], b[1], b[2]])
+        if not verts:
+            return
+        import struct
+        data = struct.pack(f"{len(verts)}f", *verts)
+        self._vao_line.bind()
+        self._vbo_line.bind()
+        self._vbo_line.allocate(data, len(data))
+        g.glEnableVertexAttribArray(0)
+        g.glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 12, 0)
+        self._program_line.bind()
+        self._program_line.setUniformValue(
+            "uProjection", self._camera.projection_matrix()
+        )
+        self._program_line.setUniformValue("uView", self._camera.view_matrix())
+        self._program_line.setUniformValue("uColor", QVector3D(color[0], color[1], color[2]))
+        g.glDrawArrays(GL_LINES, 0, len(segments) * 2)
+        g.glDisableVertexAttribArray(0)
+        self._vbo_line.release()
+        self._vao_line.release()
+        self._program_line.release()
+
+    def draw_overlay_polygon(self, points: list, color: tuple) -> None:
+        """Draw polygon outline as line loop. points: list of (x,y,z)."""
+        if len(points) < 2 or not self._gl or not self._program_line:
+            return
+        segs = [(points[i], points[i + 1]) for i in range(len(points) - 1)]
+        segs.append((points[-1], points[0]))
+        self.draw_overlay_line_segments(segs, color)
+
+    def draw_overlay_label(self, world_pos: list, text: str) -> None:
+        """Minimal: draw a small marker at world position. No text texture; API for future."""
+        if not world_pos or len(world_pos) != 3:
+            return
+        # Draw a short segment as placeholder for label anchor
+        p = world_pos
+        segs = [([p[0], p[1], p[2]], [p[0], p[1] + 0.05, p[2]])]
+        self.draw_overlay_line_segments(segs, (1.0, 1.0, 0.0))
+
+    def draw_overlay_point(self, world_pos: list, value) -> None:
+        """Draw a point marker at world position."""
+        if not world_pos or len(world_pos) != 3:
+            return
+        p = world_pos
+        segs = [([p[0], p[1], p[2]], [p[0], p[1], p[2]])]
+        self.draw_overlay_line_segments(segs, (1.0, 0.5, 0.0))
+
+    def draw_overlay_profile_preview(self, profile_data: dict) -> None:
+        """Minimal 2D preview: no complex plotting; optional stub."""
+        pass
+
     def load_point_cloud(self, file_path: str) -> bool:
-        """Load a PLY point cloud. Returns True on success."""
+        """Load a PLY point cloud. Returns True on success. Auto simplified if over MAX_VERTICES_RENDER."""
         data = _load_ply(file_path)
         if data is None or not data["vertices"]:
             return False
@@ -429,6 +592,7 @@ class ViewerWidget(QOpenGLWidget):
             colors = [(0.7, 0.7, 0.7)] * len(vertices)
         if not normals:
             normals = [(0.0, 1.0, 0.0)] * len(vertices)
+        vertices, normals, colors, _ = _simplify_for_render(vertices, normals, colors, None)
         self._upload_geometry(vertices, normals, colors, indices=None)
         self._num_indices = 0
         self._num_vertices = len(vertices)
@@ -436,7 +600,7 @@ class ViewerWidget(QOpenGLWidget):
         return True
 
     def load_mesh(self, file_path: str) -> bool:
-        """Load a PLY mesh (vertices + faces). Returns True on success."""
+        """Load a PLY mesh (vertices + faces). Returns True on success. Auto simplified if over MAX_VERTICES_RENDER."""
         data = _load_ply(file_path)
         if data is None or not data["vertices"]:
             return False
@@ -448,6 +612,7 @@ class ViewerWidget(QOpenGLWidget):
             colors = [(0.7, 0.7, 0.7)] * len(vertices)
         if not normals:
             normals = [(0.0, 1.0, 0.0)] * len(vertices)
+        vertices, normals, colors, indices = _simplify_for_render(vertices, normals, colors, indices)
         if indices:
             self._upload_geometry(vertices, normals, colors, indices=indices)
             self._num_indices = len(indices)
@@ -533,10 +698,16 @@ class ViewerWidget(QOpenGLWidget):
         self.update()
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
+        if self._tool_manager is not None and self._tool_manager.handle_mouse_event("press", event):
+            self.update()
+            return
         self._last_mouse = event.position().toPoint()
         self._mouse_button = event.button()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
+        if self._tool_manager is not None and self._tool_manager.handle_mouse_event("move", event):
+            self.update()
+            return
         pos = event.position().toPoint()
         dx = pos.x() - self._last_mouse.x()
         dy = pos.y() - self._last_mouse.y()
@@ -549,7 +720,16 @@ class ViewerWidget(QOpenGLWidget):
             self.update()
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+        if self._tool_manager is not None and self._tool_manager.handle_mouse_event("release", event):
+            self.update()
+            return
         self._mouse_button = Qt.MouseButton.NoButton
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        if self._tool_manager is not None and self._tool_manager.handle_key_event(event):
+            self.update()
+            return
+        super().keyPressEvent(event)
 
     def wheelEvent(self, event: QWheelEvent) -> None:
         delta = event.angleDelta().y()

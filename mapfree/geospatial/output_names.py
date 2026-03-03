@@ -1,5 +1,6 @@
 """
 Geospatial output filenames under project_output/geospatial/.
+All geospatial stage outputs (dsm.tif, dtm.tif, orthophoto.tif) live in that folder only.
 Single source of truth for consistent naming.
 """
 

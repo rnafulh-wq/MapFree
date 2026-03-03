@@ -50,9 +50,10 @@ class CRSManager:
     @staticmethod
     def detect_crs_from_images(images_dir: Path) -> Optional[int]:
         """
-        Read EXIF GPS from the first image that has GPS. If found, detect UTM zone
-        and hemisphere and return the corresponding EPSG code (e.g. 32648 or 32748).
-        If no GPS is found in any image, return None.
+        Auto-detect EPSG from image EXIF. Reads GPS latitude/longitude from EXIF,
+        computes UTM zone and hemisphere, and returns the corresponding EPSG code
+        (e.g. 32648 for UTM 48N, 32748 for UTM 48S). Use when geospatial.target_epsg
+        is not set. If no GPS is found in any image, return None.
 
         images_dir: directory containing images (e.g. JPG, PNG).
         """
