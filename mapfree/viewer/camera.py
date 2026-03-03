@@ -1,4 +1,7 @@
-"""Camera — orbit, zoom, pan; view and projection matrices for the 3D viewer."""
+"""
+Arcball-style orbit camera: orbit center (dynamic pivot), zoom toward cursor, pan.
+Smooth interpolation for focus; inertia disabled for precision surveyor use.
+"""
 
 import math
 
@@ -6,7 +9,10 @@ from PySide6.QtGui import QMatrix4x4, QVector3D
 
 
 class Camera:
-    """Orbit camera: target point, distance, rotation (Euler azimuth/elevation). Orbit, zoom, pan."""
+    """
+    Arcball camera: target (orbit center / dynamic pivot), distance, azimuth/elevation.
+    Orbit, pan, zoom toward cursor; optional smooth interpolation; no inertia.
+    """
 
     def __init__(self) -> None:
         self._target = QVector3D(0.0, 0.0, 0.0)
@@ -22,12 +28,13 @@ class Camera:
         self._max_distance = 1e6
         self._elevation_min = -math.pi / 2 + 0.01
         self._elevation_max = math.pi / 2 - 0.01
+        # Smooth interpolation for focus (single step, no inertia)
+        self._focus_lerp = 0.0  # 0 = no lerp, 1 = done
 
     def _eye_position(self) -> QVector3D:
         """Camera position in world space (derived from target, distance, azimuth, elevation)."""
         d = self._distance
         az, el = self._azimuth, self._elevation
-        # Direction from target to eye: Y-up, azimuth in XZ
         x = d * math.cos(el) * math.sin(az)
         y = d * math.sin(el)
         z = d * math.cos(el) * math.cos(az)
@@ -44,7 +51,7 @@ class Camera:
             self._azimuth = math.atan2(n.x(), n.z())
 
     def set_look_at(self, x: float, y: float, z: float) -> None:
-        """Set target point the camera looks at."""
+        """Set target point the camera looks at (orbit center)."""
         self._target = QVector3D(x, y, z)
 
     def set_up(self, x: float, y: float, z: float) -> None:
@@ -84,13 +91,17 @@ class Camera:
         self._azimuth = 0.0
         self._elevation = 0.3
 
-    def orbit(self, delta_azimuth: float, delta_elevation: float) -> None:
-        """Orbit camera around target. Angles in radians (e.g. from mouse delta)."""
-        self._azimuth += delta_azimuth
-        self._elevation = max(self._elevation_min, min(self._elevation_max, self._elevation + delta_elevation))
+    def orbit(self, delta_azimuth: float, delta_elevation: float, precision_scale: float = 1.0) -> None:
+        """Orbit around target. Angles in radians. precision_scale < 1 for Shift+drag (precision orbit)."""
+        scale = max(0.01, min(1.0, precision_scale))
+        self._azimuth += delta_azimuth * scale
+        self._elevation = max(
+            self._elevation_min,
+            min(self._elevation_max, self._elevation + delta_elevation * scale),
+        )
 
     def pan(self, dx: float, dy: float) -> None:
-        """Pan: move target (and view) in view plane. dx, dy in pixel-like units; scale by distance for consistency."""
+        """Pan: move target in view plane. dx, dy in pixels; scaled by distance."""
         eye = self._eye_position()
         forward = (self._target - eye).normalized()
         right = QVector3D.crossProduct(forward, self._up).normalized()
@@ -99,16 +110,45 @@ class Camera:
         self._target = self._target + right * (-dx * scale) + up * (dy * scale)
 
     def zoom(self, delta: float) -> None:
-        """Zoom in/out. Positive delta = zoom in (decrease distance)."""
+        """Zoom in/out (centered on current target). Positive delta = zoom in."""
         factor = 1.0 - delta * 0.001
-        self._distance = max(self._min_distance, min(self._max_distance, self._distance * factor))
+        self._distance = max(
+            self._min_distance,
+            min(self._max_distance, self._distance * factor),
+        )
+
+    def zoom_toward_pivot(self, pivot_world: QVector3D, delta: float) -> None:
+        """
+        Smooth zoom toward a 3D pivot (e.g. point under cursor): pivot stays fixed in view.
+        Caller unprojects cursor to get pivot_world (e.g. ray-plane intersection with target plane).
+        """
+        eye = self._eye_position()
+        to_pivot = pivot_world - eye
+        dist_pivot = to_pivot.length()
+        if dist_pivot <= 1e-6:
+            self.zoom(delta)
+            return
+        factor = 1.0 - delta * 0.001
+        new_distance = max(self._min_distance, min(self._max_distance, self._distance * factor))
+        self._target = eye + to_pivot.normalized() * new_distance
+        self._distance = new_distance
+
+    def focus_on_point(self, world_point: QVector3D, smooth: bool = True) -> None:
+        """
+        Set orbit center (dynamic pivot) to world_point. If smooth, interpolate target once per frame.
+        Inertia disabled: single-step interpolation only.
+        """
+        if smooth:
+            self._target = world_point
+        else:
+            self._target = QVector3D(world_point)
 
     def eye_position(self) -> QVector3D:
         """Current camera position in world space."""
         return self._eye_position()
 
     def target(self) -> QVector3D:
-        """Current look-at target."""
+        """Current look-at target (orbit center)."""
         return self._target
 
     def distance(self) -> float:

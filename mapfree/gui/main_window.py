@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QStyle,
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 
 from mapfree.gui.panels import (
     ProjectPanel,
@@ -32,7 +32,7 @@ from mapfree.gui.panels import (
 )
 from mapfree.gui.map_widget import MapWidget
 from mapfree.gui.qt_controller import QtController
-from mapfree.gui.workers import PipelineWorker
+from mapfree.gui.workers import PipelineWorker, MemoryMonitorWorker
 from mapfree.utils.file_utils import list_images
 
 # When GL is disabled: simple label, same no-op API as viewer so callers don't break
@@ -174,6 +174,27 @@ class MainWindow(QMainWindow):
         self._apply_style()
         self._connect_controller_signals()
         self._connect_project_panel()
+        self._start_memory_monitor()
+
+    def _start_memory_monitor(self):
+        """Start background memory monitor; warn user when RSS > threshold and suggest decimation."""
+        try:
+            import psutil
+        except ImportError:
+            return
+        self._memory_monitor = MemoryMonitorWorker(threshold_mb=2048.0, interval_sec=10.0)
+        self._memory_monitor.memoryHigh.connect(self._on_memory_high)
+        self._memory_monitor.start()
+
+    def _on_memory_high(self, rss_mb: float, threshold_mb: float):
+        """Warn user and suggest decimating large meshes when process memory is high."""
+        QMessageBox.warning(
+            self,
+            "High Memory Usage",
+            "Process memory is high (%.0f MB, threshold %.0f MB).\n\n"
+            "Consider decimating large meshes (View → Load mesh with fewer vertices, or use a LOD export) to reduce memory usage."
+            % (rss_mb, threshold_mb),
+        )
 
     def _setup_window(self):
         self.setWindowTitle("MapFree Engine")
@@ -216,6 +237,9 @@ class MainWindow(QMainWindow):
         self._toggle_console_action = view_menu.addAction("Toggle &Console", self._toggle_console)
         self._toggle_console_action.setCheckable(True)
         self._toggle_console_action.setChecked(False)
+        view_menu.addSeparator()
+        self._measure_distance_action = view_menu.addAction("Measure &Distance", self._on_toggle_measure_distance)
+        self._measure_distance_action.setCheckable(True)
 
         help_menu = menubar.addMenu("&Help")
         help_menu.addAction("&About")
@@ -260,6 +284,33 @@ class MainWindow(QMainWindow):
         self._statusbar = QStatusBar()
         self.setStatusBar(self._statusbar)
         self._statusbar.showMessage("Ready")
+        # Permanent widgets: CRS | FPS | Memory | Mode (industrial layout)
+        self._status_crs = QLabel("CRS: —")
+        self._status_fps = QLabel("FPS: —")
+        self._status_mem = QLabel("Mem: —")
+        self._status_mode = QLabel("Mode: Navigation")
+        for w in (self._status_crs, self._status_fps, self._status_mem, self._status_mode):
+            w.setStyleSheet("color: #A0A2A6; font-size: 11px;")
+        self._statusbar.addPermanentWidget(self._status_crs)
+        self._statusbar.addPermanentWidget(self._status_fps)
+        self._statusbar.addPermanentWidget(self._status_mem)
+        self._statusbar.addPermanentWidget(self._status_mode)
+        # Periodic update for memory (FPS stays — until viewer exposes it)
+        self._status_timer = QTimer(self)
+        self._status_timer.timeout.connect(self._update_status_mem)
+        self._status_timer.start(2000)
+
+    def _update_status_mem(self) -> None:
+        """Update status bar memory (process RSS). Optional: psutil."""
+        if not hasattr(self, "_status_mem") or self._status_mem is None:
+            return
+        try:
+            import psutil
+            proc = psutil.Process()
+            rss_mb = proc.memory_info().rss / (1024 * 1024)
+            self._status_mem.setText("Mem: %.0f MB" % rss_mb)
+        except Exception:
+            self._status_mem.setText("Mem: —")
 
     def _setup_central_widget(self):
         central = QWidget()
@@ -277,6 +328,18 @@ class MainWindow(QMainWindow):
         self._workspace.addWidget(self._viewer_panel)   # index 0 = 3D
         self._workspace.addWidget(self.map_widget)      # index 1 = Map
         self._workspace.setCurrentIndex(0)  # default 3D until GPS available
+        tm = getattr(self._viewer_panel, "tool_manager", None)
+        if tm is not None:
+            tm.active_tool_changed.connect(self._on_measurement_tool_changed)
+        mc = getattr(self._viewer_panel, "measurement_controller", None)
+        if mc is not None:
+            mc.resultAdded.connect(self._on_measurement_result_added)
+        if hasattr(self._viewer_panel, "progressChanged"):
+            self._viewer_panel.progressChanged.connect(self._progress_panel.update_progress)
+        if hasattr(self._viewer_panel, "mesh_loaded"):
+            self._viewer_panel.mesh_loaded.connect(self._on_viewer_mesh_loaded)
+        if hasattr(self._viewer_panel, "geometry_load_failed"):
+            self._viewer_panel.geometry_load_failed.connect(self._on_viewer_geometry_load_failed)
 
         horizontal = QSplitter(Qt.Orientation.Horizontal)
         horizontal.addWidget(self._project_panel)
@@ -320,6 +383,7 @@ class MainWindow(QMainWindow):
         tool_manager = ToolManager()
         viewer.set_tool_manager(tool_manager)
         viewer.measurement_controller = measurement_controller
+        viewer.tool_manager = tool_manager
         return viewer
 
     def _replace_with_gl_viewer(self):
@@ -477,6 +541,22 @@ class MainWindow(QMainWindow):
         self._statusbar.showMessage("Export failed.")
         QMessageBox.critical(self, "Export Error", message or "Export failed.")
 
+    def _on_viewer_mesh_loaded(self, path: str, vertex_count: int):
+        """When viewer finishes loading mesh/point cloud: idle progress, CRS, measurement geometry, status."""
+        self._progress_panel.update_state("idle")
+        self._progress_panel.update_progress(0)
+        self._update_status_crs()
+        mc = getattr(self._viewer_panel, "measurement_controller", None)
+        if mc:
+            mc.set_geometry_from_file(path)
+        self._statusbar.showMessage("Loaded: %s" % path)
+
+    def _on_viewer_geometry_load_failed(self, path: str):
+        """When async geometry load fails: idle progress, status message."""
+        self._progress_panel.update_state("idle")
+        self._progress_panel.update_progress(0)
+        self._statusbar.showMessage("Failed to load: %s" % path)
+
     def _on_load_point_cloud(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
@@ -485,13 +565,23 @@ class MainWindow(QMainWindow):
             "PLY files (*.ply);;LAS files (*.las);;All files (*)",
         )
         if path:
-            if self._viewer_panel.load_point_cloud(path):
-                mc = getattr(self._viewer_panel, "measurement_controller", None)
-                if mc:
-                    mc.set_geometry_from_file(path)
-                self._statusbar.showMessage("Loaded point cloud: %s" % path)
+            if getattr(self._viewer_panel, "load_point_cloud_async", None):
+                self._progress_panel.update_state("Loading point cloud…")
+                self._progress_panel.update_progress(0)
+                if self._viewer_panel.load_point_cloud_async(path):
+                    pass  # result via mesh_loaded / geometry_load_failed
+                else:
+                    self._progress_panel.update_state("idle")
+                    self._statusbar.showMessage("Load already in progress.")
             else:
-                self._statusbar.showMessage("Failed to load point cloud.")
+                if self._viewer_panel.load_point_cloud(path):
+                    self._update_status_crs()
+                    mc = getattr(self._viewer_panel, "measurement_controller", None)
+                    if mc:
+                        mc.set_geometry_from_file(path)
+                    self._statusbar.showMessage("Loaded point cloud: %s" % path)
+                else:
+                    self._statusbar.showMessage("Failed to load point cloud.")
 
     def _on_load_mesh(self):
         path, _ = QFileDialog.getOpenFileName(
@@ -501,7 +591,16 @@ class MainWindow(QMainWindow):
             "PLY/OBJ files (*.ply *.obj);;PLY (*.ply);;OBJ (*.obj);;All files (*)",
         )
         if path:
-            if self._viewer_panel.load_mesh(path):
+            if getattr(self._viewer_panel, "load_mesh_async", None):
+                self._progress_panel.update_state("Loading mesh…")
+                self._progress_panel.update_progress(0)
+                if self._viewer_panel.load_mesh_async(path):
+                    pass  # result via mesh_loaded / geometry_load_failed
+                else:
+                    self._progress_panel.update_state("idle")
+                    self._statusbar.showMessage("Load already in progress.")
+            elif self._viewer_panel.load_mesh(path):
+                self._update_status_crs()
                 mc = getattr(self._viewer_panel, "measurement_controller", None)
                 if mc:
                     mc.set_geometry_from_file(path)
@@ -511,6 +610,7 @@ class MainWindow(QMainWindow):
 
     def _on_clear_view(self):
         self._viewer_panel.clear_scene()
+        self._project_panel.set_measurements_count(0)
         self._statusbar.showMessage("View cleared.")
 
     def _on_zoom_fit(self):
@@ -523,6 +623,59 @@ class MainWindow(QMainWindow):
 
     def _on_view_mode_changed(self, index: int):
         self._workspace.setCurrentIndex(index)
+
+    def _on_toggle_measure_distance(self):
+        tm = getattr(self._viewer_panel, "tool_manager", None)
+        mc = getattr(self._viewer_panel, "measurement_controller", None)
+        if tm is None or mc is None:
+            self._measure_distance_action.setChecked(False)
+            return
+        if self._measure_distance_action.isChecked():
+            from mapfree.gui.interaction import DistanceTool
+            tm.set_active_tool(DistanceTool(mc))
+        else:
+            tm.set_active_tool(None)
+
+    def _update_status_crs(self) -> None:
+        """Set status bar CRS from measurement engine if available."""
+        if not hasattr(self, "_status_crs") or self._status_crs is None:
+            return
+        mc = getattr(self._viewer_panel, "measurement_controller", None)
+        if mc is None or not hasattr(mc, "engine"):
+            self._status_crs.setText("CRS: —")
+            return
+        try:
+            crs = mc.engine.crs_manager.get_crs()
+            self._status_crs.setText("CRS: %s" % (crs or "—"))
+        except Exception:
+            self._status_crs.setText("CRS: —")
+
+    def _on_measurement_result_added(self, _result_dict) -> None:
+        """Update project panel Measurements count when a measurement is added."""
+        mc = getattr(self._viewer_panel, "measurement_controller", None)
+        if mc is not None and hasattr(mc, "session"):
+            count = len(getattr(mc.session, "measurements", []))
+            self._project_panel.set_measurements_count(count)
+
+    def _on_measurement_tool_changed(self, tool) -> None:
+        """When Distance tool is active: crosshair cursor, status message, and Mode widget."""
+        from mapfree.gui.interaction.distance_tool import DistanceTool
+        if isinstance(tool, DistanceTool):
+            self._statusbar.showMessage("Distance Mode Active — Ctrl+click to add points, ESC to cancel")
+            if hasattr(self, "_status_mode") and self._status_mode is not None:
+                self._status_mode.setText("Mode: Distance")
+            if hasattr(self._viewer_panel, "setCursor"):
+                self._viewer_panel.setCursor(Qt.CursorShape.CrossCursor)
+            if hasattr(self._measure_distance_action, "setChecked"):
+                self._measure_distance_action.setChecked(True)
+        else:
+            self._statusbar.showMessage("Ready")
+            if hasattr(self, "_status_mode") and self._status_mode is not None:
+                self._status_mode.setText("Mode: Navigation")
+            if hasattr(self._viewer_panel, "setCursor"):
+                self._viewer_panel.setCursor(Qt.CursorShape.ArrowCursor)
+            if hasattr(self, "_measure_distance_action") and self._measure_distance_action is not None:
+                self._measure_distance_action.setChecked(False)
 
     def _switch_to_map_if_gps(self):
         """Switch to Map view when GPS/cameras are available (default mode)."""
@@ -737,6 +890,10 @@ class MainWindow(QMainWindow):
         self._progress_panel.update_state("idle")
 
     def closeEvent(self, event):
+        mon = getattr(self, "_memory_monitor", None)
+        if mon is not None and mon.isRunning():
+            mon.stop()
+            mon.wait(2000)
         if self._worker is not None and self._worker.isRunning():
             reply = QMessageBox.question(
                 self,

@@ -11,7 +11,9 @@ from mapfree.geospatial.georef import (
 )
 from mapfree.geospatial.classification import classify_point_cloud, classify_ground
 from mapfree.geospatial.rasterizer import rasterize, generate_dsm, generate_dtm
+from mapfree.geospatial.raster import estimate_resolution, validate_dtm
 from mapfree.geospatial.orthomosaic import build_orthomosaic, generate_orthophoto
+from mapfree.geospatial.orthorectify import finalize_orthophoto
 from mapfree.geospatial.pipeline import run_geospatial_pipeline
 from mapfree.geospatial.crs_manager import CRSManager
 from mapfree.geospatial.output_names import (
@@ -43,4 +45,7 @@ __all__ = [
     "DSM_EPSG_TIF",
     "ORTHOPHOTO_TIF",
     "ORTHOPHOTO_EPSG_TIF",
+    "estimate_resolution",
+    "validate_dtm",
+    "finalize_orthophoto",
 ]

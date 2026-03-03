@@ -4,7 +4,7 @@ Viewer delegates events here; no computation.
 """
 from typing import Optional
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QMouseEvent, QKeyEvent
 
 from mapfree.gui.interaction.base_tool import BaseTool
@@ -34,19 +34,23 @@ def _key_event_dict(event: QKeyEvent) -> dict:
 class ToolManager:
     """
     Manages the active interaction tool. Viewer calls handle_* and draw_overlay.
+    Emits active_tool_changed for UI (cursor, status bar) when measurement mode toggles.
     """
+
+    active_tool_changed = Signal(object)  # BaseTool | None
 
     def __init__(self) -> None:
         self._active_tool: Optional[BaseTool] = None
-        self._navigation_tool: Optional[BaseTool] = None  # for NAVIGATION mode (e.g. orbit/pan)
+        self._navigation_tool: Optional[BaseTool] = None
 
     def set_active_tool(self, tool: Optional[BaseTool]) -> None:
-        """Set the active tool. Call deactivate on previous, activate on new."""
+        """Set the active tool. Call deactivate on previous, activate on new. Emit active_tool_changed."""
         if self._active_tool is not None:
             self._active_tool.deactivate()
         self._active_tool = tool
         if self._active_tool is not None:
             self._active_tool.activate()
+        self.active_tool_changed.emit(self._active_tool)
 
     def get_active_tool(self) -> Optional[BaseTool]:
         return self._active_tool

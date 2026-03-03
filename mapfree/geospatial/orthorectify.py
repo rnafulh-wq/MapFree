@@ -7,7 +7,9 @@ Pure backend; no GUI.
 """
 
 import logging
+import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import List, Optional
 
@@ -17,6 +19,7 @@ from mapfree.geospatial.orthomosaic import (
     _raster_info,
     build_orthomosaic,
 )
+from mapfree.geospatial.raster import validate_dtm
 
 log = logging.getLogger(__name__)
 
@@ -120,7 +123,95 @@ def generate_orthophoto(
     return output_ortho
 
 
+def finalize_orthophoto(
+    path: Path | str,
+    target_epsg: int,
+    output_path: Optional[Path | str] = None,
+    timeout: int = 3600,
+) -> Path:
+    """
+    Reproject orthophoto to target_epsg, apply tiling + compression, add overviews,
+    then validate. Uses gdalwarp (reprojection), gdal_translate (tiling, compression),
+    gdaladdo (overviews). Returns path to finalized raster.
+
+    If output_path is None, writes to a file in the same directory with suffix
+    _epsg<target_epsg>.tif and returns that path.
+    """
+    path = Path(path)
+    if not path.exists():
+        raise RuntimeError("finalize_orthophoto: file does not exist: %s" % path)
+    if output_path is None:
+        output_path = path.parent / ("%s_epsg%d.tif" % (path.stem, target_epsg))
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with tempfile.TemporaryDirectory(prefix="mapfree_ortho_") as tmp:
+        tmp_dir = Path(tmp)
+        warped = tmp_dir / "warped.tif"
+        cmd_warp = [
+            "gdalwarp",
+            "-t_srs", "EPSG:%d" % target_epsg,
+            "-r", "near",
+            "-of", "GTiff",
+            "-co", "TILED=YES",
+            "-co", "BIGTIFF=IF_SAFER",
+            "-overwrite",
+            str(path.resolve()),
+            str(warped),
+        ]
+        result = subprocess.run(
+            cmd_warp,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+        if result.returncode != 0:
+            msg = result.stderr or result.stdout or "gdalwarp failed"
+            raise RuntimeError("finalize_orthophoto gdalwarp failed: %s" % msg.strip())
+        if not warped.exists():
+            raise RuntimeError("finalize_orthophoto: warped output was not created")
+
+        translated = tmp_dir / "translated.tif"
+        cmd_translate = [
+            "gdal_translate",
+            "-q",
+            "-co", "TILED=YES",
+            "-co", "COMPRESS=LZW",
+            "-co", "BIGTIFF=IF_SAFER",
+            str(warped),
+            str(translated),
+        ]
+        r2 = subprocess.run(
+            cmd_translate,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+        if r2.returncode != 0:
+            msg = r2.stderr or r2.stdout or "gdal_translate failed"
+            raise RuntimeError("finalize_orthophoto gdal_translate failed: %s" % msg.strip())
+
+        subprocess.run(
+            ["gdaladdo", "-q", "-r", "average", str(translated), "2", "4", "8", "16"],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+
+        shutil.copy2(translated, output_path)
+
+    v = validate_dtm(output_path)
+    if not v.get("valid", True):
+        log.warning("finalize_orthophoto: validation reported: %s", v.get("message", v))
+    log.info(
+        "finalize_orthophoto: %s -> %s (EPSG:%d)",
+        path, output_path, target_epsg,
+    )
+    return output_path
+
+
 __all__ = [
     "build_orthomosaic",
     "generate_orthophoto",
+    "finalize_orthophoto",
 ]

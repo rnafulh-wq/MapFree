@@ -36,3 +36,9 @@ mapfree = "mapfree.application.cli.main:main"
 
 [tool.setuptools.packages.find]
 include = ["mapfree*"]
+
+[tool.pytest.ini_options]
+markers = [
+    "gui: GUI tests (require DISPLAY on Linux; run with: xvfb-run pytest tests/gui)",
+]
+testpaths = ["tests"]

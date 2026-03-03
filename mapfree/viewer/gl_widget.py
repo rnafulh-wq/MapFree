@@ -1,4 +1,16 @@
-"""OpenGL widget — QOpenGLWidget-based 3D viewport with PLY loading."""
+"""
+OpenGL widget — GL Viewer Wrapper (Safe Layer).
+
+Architecture:
+  GUI Layer (PySide6) → GL Viewer Wrapper (this widget) → Render Core (decoupled from UI thread).
+
+Viewer responsibilities only:
+  - Load mesh / point cloud (PLY)
+  - Render geometry
+  - Emit signals (e.g. mesh_loaded)
+
+Viewer does NOT: process PDAL, DTM, measurement logic — all in backend engine.
+"""
 
 import struct
 from pathlib import Path
@@ -15,7 +27,7 @@ from PySide6.QtOpenGL import (
     QOpenGLVersionFunctionsFactory,
     QOpenGLVersionProfile,
 )
-from PySide6.QtCore import Qt, QSize, QPoint, QRect
+from PySide6.QtCore import Qt, QSize, QPoint, QRect, Signal
 from PySide6.QtGui import QWheelEvent, QMouseEvent, QKeyEvent
 from PySide6.QtGui import QVector3D
 
@@ -35,19 +47,34 @@ GL_DYNAMIC_DRAW = 0x88E8
 
 # Safe memory: cap vertex count per batch to avoid UI freeze / OOM
 MAX_VERTICES_RENDER = 2_000_000
+# Before uploading to GPU: if vertex_count > MAX_SAFE_VERTICES, auto_decimate (Mesh Buffer Guard)
+MAX_SAFE_VERTICES = 2_000_000
+# Above this count we auto-downsample for preview; full resolution only for export
+LARGE_MESH_VERTEX_THRESHOLD = 10_000_000
 
 # -----------------------------------------------------------------------------
 # PLY loader (custom, no external deps)
 # -----------------------------------------------------------------------------
 
-def _simplify_for_render(vertices: list, normals: list | None, colors: list, indices: list | None):
-    """If vertex count > MAX_VERTICES_RENDER, subsample to a simplified view. In-place style; returns (v, n, c, ind)."""
+def _simplify_for_render(
+    vertices: list,
+    normals: list | None,
+    colors: list,
+    indices: list | None,
+    max_vertices: int | None = None,
+):
+    """
+    Auto-downsample for large meshes: when vertex count > max_vertices, subsample to LOD preview.
+    Default max_vertices = MAX_VERTICES_RENDER. Used for render LOD and for Mesh Buffer Guard (MAX_SAFE_VERTICES).
+    Returns (v, n, c, ind).
+    """
+    cap = max_vertices if max_vertices is not None else MAX_VERTICES_RENDER
     n = len(vertices)
-    if n <= MAX_VERTICES_RENDER:
+    if n <= cap:
         return vertices, normals, colors, indices
-    # Uniformly sample vertex indices to get at most MAX_VERTICES_RENDER
-    step = max(1, n // MAX_VERTICES_RENDER)
-    kept_idx = list(range(0, n, step))[:MAX_VERTICES_RENDER]
+    # Uniformly sample to at most cap (LOD preview; full res only for export)
+    step = max(1, n // cap)
+    kept_idx = list(range(0, n, step))[:cap]
     kept_set = set(kept_idx)
     old_to_new = {old: i for i, old in enumerate(kept_idx)}
     new_vertices = [vertices[i] for i in kept_idx]
@@ -237,18 +264,35 @@ def _parse_ply(data: bytes) -> dict[str, Any]:
 
 
 # -----------------------------------------------------------------------------
-# OpenGL surface format (Windows & Linux)
+# OpenGL surface format (Windows & Linux) — Safe initialization
 # -----------------------------------------------------------------------------
 
 def set_default_opengl_format() -> None:
-    """Set default OpenGL surface format for context creation. Call before creating any GL widget."""
+    """
+    Set default OpenGL surface format for context creation. Call before creating any GL widget.
+    Prefer 3.3 Core, depth 24, 4x MSAA. If context creation or init fails in the widget,
+    it falls back to 2.1 compatibility (see ViewerWidget.initializeGL / _fallback_mode).
+    """
     fmt = QSurfaceFormat()
-    fmt.setDepthBufferSize(24)
-    fmt.setStencilBufferSize(8)
     fmt.setVersion(3, 3)
     fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CoreProfile)
+    fmt.setDepthBufferSize(24)
+    fmt.setSamples(4)
+    fmt.setStencilBufferSize(8)
     fmt.setSwapBehavior(QSurfaceFormat.SwapBehavior.DoubleBuffer)
     QSurfaceFormat.setDefaultFormat(fmt)
+
+
+def _format_fallback_21() -> QSurfaceFormat:
+    """Fallback format: OpenGL 2.1 Compatibility when 3.3 Core fails."""
+    fmt = QSurfaceFormat()
+    fmt.setVersion(2, 1)
+    fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
+    fmt.setDepthBufferSize(24)
+    fmt.setSamples(4)
+    fmt.setStencilBufferSize(8)
+    fmt.setSwapBehavior(QSurfaceFormat.SwapBehavior.DoubleBuffer)
+    return fmt
 
 
 # -----------------------------------------------------------------------------
@@ -338,26 +382,29 @@ void main() {
 
 class ViewerWidget(QOpenGLWidget):
     """
-    QOpenGLWidget that provides a 3D viewport with basic shader,
-    empty point cloud/mesh buffers, and API: load_point_cloud, load_mesh, clear_scene.
-    Uses custom PLY loader; stores vertices, normals, colors.
-    GL functions obtained via QOpenGLVersionFunctionsFactory for reliable context on Windows & Linux.
+    GL Viewer Wrapper (Safe Layer): 3D viewport, PLY load, render, signals only.
+    No PDAL/DTM/measurement logic — all in backend engine.
+    API: load_point_cloud, load_mesh, clear_scene; emits mesh_loaded.
     """
 
+    mesh_loaded = Signal(str, int)  # (path, vertex_count) when mesh/point cloud loaded
+    geometry_load_failed = Signal(str)  # path when async load failed
+    progressChanged = Signal(int)  # 0-100 during async geometry load (for progress bar)
+
     def __init__(self, parent=None):
-        # Set format so context is created correctly on Windows & Linux
         fmt = QSurfaceFormat()
-        fmt.setDepthBufferSize(24)
-        fmt.setStencilBufferSize(8)
         fmt.setVersion(3, 3)
         fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CoreProfile)
+        fmt.setDepthBufferSize(24)
+        fmt.setSamples(4)
+        fmt.setStencilBufferSize(8)
         fmt.setSwapBehavior(QSurfaceFormat.SwapBehavior.DoubleBuffer)
         super().__init__(parent)
         self.setFormat(fmt)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
-        self._gl = None  # QOpenGLFunctions_3_3_Core from factory, set in initializeGL
-        self._vao = None  # Created in initializeGL when context is current
+        self._gl = None  # QOpenGLFunctions_3_3_Core or None when fallback
+        self._vao = None
         self._vbo = None
         self._ebo = None
         self._program_mesh = None
@@ -365,40 +412,68 @@ class ViewerWidget(QOpenGLWidget):
         self._num_vertices = 0
         self._num_indices = 0
         self._initialized = False
+        self._use_fallback = False  # True when 3.3 Core failed → 2.1 compat path
         self._camera = Camera()
         self._last_mouse = QPoint()
         self._mouse_button = Qt.MouseButton.NoButton
         self._show_axes = False
-        self._tool_manager = None  # set from outside: ToolManager
+        self._tool_manager = None
         self._program_line = None
         self._vao_line = None
         self._vbo_line = None
+        self._geometry_load_worker = None
 
     def _glf(self):
         """Return OpenGL functions; must be called with context current."""
         return self._gl
 
     def initializeGL(self) -> None:
+        """Guard against context loss: try init_renderer (3.3 Core), else fallback_mode (2.1 compat)."""
         self.makeCurrent()
-        if not self._initialized:
-            profile = QOpenGLVersionProfile()
-            profile.setVersion(3, 3)
-            profile.setProfile(QSurfaceFormat.OpenGLContextProfile.CoreProfile)
+        if self._initialized:
+            self.doneCurrent()
+            return
+        try:
+            self._init_renderer()
+        except Exception as e:
+            try:
+                self._fallback_mode(e)
+            except Exception:
+                self._fallback_mode(None)
+        self._initialized = True
+        self.doneCurrent()
+
+    def _init_renderer(self) -> None:
+        """Initialize 3.3 Core: shaders, buffers. Raises on failure."""
+        profile = QOpenGLVersionProfile()
+        profile.setVersion(3, 3)
+        profile.setProfile(QSurfaceFormat.OpenGLContextProfile.CoreProfile)
+        ctx = QOpenGLContext.currentContext()
+        if not ctx:
+            raise RuntimeError("No OpenGL context")
+        self._gl = QOpenGLVersionFunctionsFactory.get(profile, ctx)
+        if not self._gl or not self._gl.initializeOpenGLFunctions():
+            self._gl = None
+            raise RuntimeError("OpenGL 3.3 Core not available")
+        self._create_shaders()
+        self._create_buffers()
+
+    def _fallback_mode(self, exc: Exception | None) -> None:
+        """Downgrade to minimal render (2.1 compat): clear only, no geometry. No crash."""
+        self._use_fallback = True
+        self._gl = None
+        self._vao = self._vbo = self._ebo = None
+        self._program_mesh = self._program_points = self._program_line = None
+        self._vao_line = self._vbo_line = None
+        try:
+            from PySide6.QtOpenGL import QOpenGLFunctions
             ctx = QOpenGLContext.currentContext()
             if ctx:
-                self._gl = QOpenGLVersionFunctionsFactory.get(profile, ctx)
-                if self._gl and self._gl.initializeOpenGLFunctions():
-                    try:
-                        self._create_shaders()
-                        self._create_buffers()
-                    except Exception:
-                        self._gl = None
-                        self._vao = self._vbo = self._ebo = None
-                        self._program_mesh = self._program_points = None
-                else:
-                    self._gl = None
-            self._initialized = True
-        self.doneCurrent()
+                self._gl = QOpenGLFunctions(ctx)
+                if self._gl:
+                    self._gl.initializeOpenGLFunctions()
+        except Exception:
+            pass
 
     def _create_shaders(self) -> None:
         self._program_mesh = QOpenGLShaderProgram()
@@ -457,6 +532,9 @@ class ViewerWidget(QOpenGLWidget):
         g = self._gl
         g.glClearColor(0.15, 0.15, 0.15, 1.0)
         g.glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        if self._use_fallback:
+            self.doneCurrent()
+            return
         g.glEnable(GL_DEPTH_TEST)
 
         if self._num_vertices > 0 and self._vao:
@@ -503,7 +581,6 @@ class ViewerWidget(QOpenGLWidget):
         view = self._camera.view_matrix()
         proj = self._camera.projection_matrix()
         viewport = QRect(0, 0, w, h)
-        # Qt window coords: origin top-left; OpenGL unproject often expects bottom-left y
         wy = h - 1 - y
         near_win = QVector3D(x, wy, 0.0)
         far_win = QVector3D(x, wy, 1.0)
@@ -517,6 +594,25 @@ class ViewerWidget(QOpenGLWidget):
             [near_world.x(), near_world.y(), near_world.z()],
             [dx / L, dy / L, dz / L],
         )
+
+    def _cursor_to_plane_point(self, x: float, y: float) -> QVector3D | None:
+        """Intersect ray at cursor with plane through camera target (for zoom toward cursor)."""
+        try:
+            ray_origin, ray_dir = self.compute_ray_from_screen(x, y)
+            eye = self._camera.eye_position()
+            target = self._camera.target()
+            n = (target - eye).normalized()
+            o = QVector3D(ray_origin[0], ray_origin[1], ray_origin[2])
+            d = QVector3D(ray_dir[0], ray_dir[1], ray_dir[2])
+            denom = QVector3D.dotProduct(d, n)
+            if abs(denom) < 1e-6:
+                return None
+            t = QVector3D.dotProduct(target - o, n) / denom
+            if t < 0:
+                return None
+            return o + d * t
+        except Exception:
+            return None
 
     def set_tool_manager(self, tool_manager) -> None:
         """Set the ToolManager for interaction and overlay. Call from UI layer."""
@@ -580,8 +676,69 @@ class ViewerWidget(QOpenGLWidget):
         """Minimal 2D preview: no complex plotting; optional stub."""
         pass
 
+    def _on_geometry_load_done(
+        self,
+        vertices: list,
+        normals: list,
+        colors: list,
+        indices: list | None,
+        path: str,
+        is_point_cloud: bool,
+        num_vertices: int,
+        num_indices: int,
+    ) -> None:
+        """Called from main thread when GeometryLoadWorker finishes. Upload to GPU and update."""
+        self._geometry_load_worker = None
+        self.progressChanged.emit(100)
+        if self._use_fallback:
+            self._num_vertices = num_vertices
+            self._num_indices = num_indices
+            self.update()
+            self.mesh_loaded.emit(path, num_vertices)
+            return
+        if indices:
+            self._upload_geometry(vertices, normals, colors, indices=indices)
+            self._num_indices = num_indices
+        else:
+            self._upload_geometry(vertices, normals, colors, indices=None)
+            self._num_indices = 0
+        self._num_vertices = num_vertices
+        self.update()
+        self.mesh_loaded.emit(path, num_vertices)
+
+    def _on_geometry_load_failed(self, path: str) -> None:
+        self._geometry_load_worker = None
+        self.progressChanged.emit(0)
+        self.geometry_load_failed.emit(path)
+
+    def load_mesh_async(self, file_path: str) -> bool:
+        """Start loading a PLY mesh in background thread; progress via progressChanged; result via mesh_loaded/geometry_load_failed. Returns True if worker started."""
+        if self._geometry_load_worker is not None and self._geometry_load_worker.isRunning():
+            return False
+        from mapfree.gui.workers import GeometryLoadWorker
+
+        self._geometry_load_worker = GeometryLoadWorker(str(file_path), is_point_cloud=False)
+        self._geometry_load_worker.progress.connect(self.progressChanged.emit)
+        self._geometry_load_worker.loadDone.connect(self._on_geometry_load_done)
+        self._geometry_load_worker.loadFailed.connect(self._on_geometry_load_failed)
+        self._geometry_load_worker.start()
+        return True
+
+    def load_point_cloud_async(self, file_path: str) -> bool:
+        """Start loading a PLY point cloud in background thread; progress via progressChanged. Returns True if worker started."""
+        if self._geometry_load_worker is not None and self._geometry_load_worker.isRunning():
+            return False
+        from mapfree.gui.workers import GeometryLoadWorker
+
+        self._geometry_load_worker = GeometryLoadWorker(str(file_path), is_point_cloud=True)
+        self._geometry_load_worker.progress.connect(self.progressChanged.emit)
+        self._geometry_load_worker.loadDone.connect(self._on_geometry_load_done)
+        self._geometry_load_worker.loadFailed.connect(self._on_geometry_load_failed)
+        self._geometry_load_worker.start()
+        return True
+
     def load_point_cloud(self, file_path: str) -> bool:
-        """Load a PLY point cloud. Returns True on success. Auto simplified if over MAX_VERTICES_RENDER."""
+        """Load a PLY point cloud (synchronous). Returns True on success. Prefer load_point_cloud_async for large files."""
         data = _load_ply(file_path)
         if data is None or not data["vertices"]:
             return False
@@ -593,14 +750,16 @@ class ViewerWidget(QOpenGLWidget):
         if not normals:
             normals = [(0.0, 1.0, 0.0)] * len(vertices)
         vertices, normals, colors, _ = _simplify_for_render(vertices, normals, colors, None)
-        self._upload_geometry(vertices, normals, colors, indices=None)
+        if not self._use_fallback:
+            self._upload_geometry(vertices, normals, colors, indices=None)
         self._num_indices = 0
         self._num_vertices = len(vertices)
         self.update()
+        self.mesh_loaded.emit(str(file_path), self._num_vertices)
         return True
 
     def load_mesh(self, file_path: str) -> bool:
-        """Load a PLY mesh (vertices + faces). Returns True on success. Auto simplified if over MAX_VERTICES_RENDER."""
+        """Load a PLY mesh (synchronous). Returns True on success. Prefer load_mesh_async for large files."""
         data = _load_ply(file_path)
         if data is None or not data["vertices"]:
             return False
@@ -613,14 +772,16 @@ class ViewerWidget(QOpenGLWidget):
         if not normals:
             normals = [(0.0, 1.0, 0.0)] * len(vertices)
         vertices, normals, colors, indices = _simplify_for_render(vertices, normals, colors, indices)
-        if indices:
-            self._upload_geometry(vertices, normals, colors, indices=indices)
-            self._num_indices = len(indices)
-        else:
-            self._upload_geometry(vertices, normals, colors, indices=None)
-            self._num_indices = 0
+        if not self._use_fallback:
+            if indices:
+                self._upload_geometry(vertices, normals, colors, indices=indices)
+                self._num_indices = len(indices)
+            else:
+                self._upload_geometry(vertices, normals, colors, indices=None)
+                self._num_indices = 0
         self._num_vertices = len(vertices)
         self.update()
+        self.mesh_loaded.emit(str(file_path), self._num_vertices)
         return True
 
     def _upload_geometry(
@@ -630,8 +791,13 @@ class ViewerWidget(QOpenGLWidget):
         colors: list[tuple[float, float, float]],
         indices: list[int] | None,
     ) -> None:
-        """Upload interleaved vertex data (pos, color, normal) and optional EBO."""
+        """Upload interleaved vertex data (pos, color, normal) and optional EBO. Mesh Buffer Guard: auto-decimate if over MAX_SAFE_VERTICES."""
         import struct
+        # Mesh Buffer Guard: before uploading to GPU, cap vertex count to avoid OOM
+        if len(vertices) > MAX_SAFE_VERTICES:
+            vertices, normals, colors, indices = _simplify_for_render(
+                vertices, normals, colors, indices, max_vertices=MAX_SAFE_VERTICES
+            )
         buf = []
         for i in range(len(vertices)):
             buf.append(vertices[i][0])
@@ -698,42 +864,86 @@ class ViewerWidget(QOpenGLWidget):
         self.update()
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
-        if self._tool_manager is not None and self._tool_manager.handle_mouse_event("press", event):
-            self.update()
+        pos = event.position().toPoint()
+        self._last_mouse = pos
+        mods = event.modifiers()
+        btn = event.button()
+        # Ctrl+click → add measurement point (forward to tool only for press)
+        if btn == Qt.MouseButton.LeftButton and (mods & Qt.KeyboardModifier.ControlModifier):
+            if self._tool_manager is not None and self._tool_manager.handle_mouse_event("press", event):
+                self.update()
             return
-        self._last_mouse = event.position().toPoint()
-        self._mouse_button = event.button()
+        # Middle → pan; Left → orbit (no tool consumption)
+        if btn == Qt.MouseButton.MiddleButton or btn == Qt.MouseButton.RightButton:
+            self._mouse_button = Qt.MouseButton.MiddleButton
+            return
+        if btn == Qt.MouseButton.LeftButton:
+            self._mouse_button = Qt.MouseButton.LeftButton
+
+    def _pick_for_focus(self, x: float, y: float) -> QVector3D | None:
+        """Ray pick for double-click focus; returns world point or None."""
+        if self._tool_manager is None:
+            return None
+        mc = getattr(self, "measurement_controller", None)
+        if mc is None:
+            return None
+        hit = mc.ray_pick(x, y)
+        if not hit or "point" not in hit:
+            return None
+        p = hit["point"]
+        return QVector3D(p[0], p[1], p[2])
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        if self._tool_manager is not None and self._tool_manager.handle_mouse_event("move", event):
-            self.update()
-            return
         pos = event.position().toPoint()
         dx = pos.x() - self._last_mouse.x()
         dy = pos.y() - self._last_mouse.y()
-        self._last_mouse = pos
-        if self._mouse_button == Qt.MouseButton.LeftButton:
-            self._camera.orbit(dx * 0.01, -dy * 0.01)
-        elif self._mouse_button in (Qt.MouseButton.MiddleButton, Qt.MouseButton.RightButton):
-            self._camera.pan(dx, dy)
+        # If dragging: orbit (left) or pan (middle). Shift = precision orbit.
         if self._mouse_button != Qt.MouseButton.NoButton:
-            self.update()
-
-    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
-        if self._tool_manager is not None and self._tool_manager.handle_mouse_event("release", event):
+            precision = 0.25 if (event.modifiers() & Qt.KeyboardModifier.ShiftModifier) else 1.0
+            if self._mouse_button == Qt.MouseButton.LeftButton:
+                self._camera.orbit(dx * 0.01, -dy * 0.01, precision_scale=precision)
+            elif self._mouse_button == Qt.MouseButton.MiddleButton:
+                self._camera.pan(dx, dy)
+            self._last_mouse = pos
             self.update()
             return
+        # No button: forward move to tool (e.g. dynamic preview line)
+        if self._tool_manager is not None:
+            self._tool_manager.handle_mouse_event("move", event)
+        self._last_mouse = pos
+        self.update()
+
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+        if self._mouse_button != Qt.MouseButton.NoButton:
+            if self._tool_manager is not None:
+                self._tool_manager.handle_mouse_event("release", event)
         self._mouse_button = Qt.MouseButton.NoButton
+        self.update()
+
+    def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
+        """Double-click → focus object (set orbit center to hit point)."""
+        if event.button() == Qt.MouseButton.LeftButton:
+            pos = event.position().toPoint()
+            hit = self._pick_for_focus(pos.x(), pos.y())
+            if hit is not None:
+                self._camera.focus_on_point(hit, smooth=False)
+            self.update()
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
-        if self._tool_manager is not None and self._tool_manager.handle_key_event(event):
-            self.update()
+        if event.key() == Qt.Key.Key_Escape:
+            if self._tool_manager is not None and self._tool_manager.handle_key_event(event):
+                self.update()
             return
         super().keyPressEvent(event)
 
     def wheelEvent(self, event: QWheelEvent) -> None:
         delta = event.angleDelta().y()
-        self._camera.zoom(delta)
+        pos = event.position()
+        pivot = self._cursor_to_plane_point(pos.x(), pos.y()) if pos else None
+        if pivot is not None:
+            self._camera.zoom_toward_pivot(pivot, delta)
+        else:
+            self._camera.zoom_toward_pivot(self._camera.target(), delta)
         self.update()
 
     def minimumSizeHint(self) -> QSize:

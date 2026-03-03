@@ -1,6 +1,6 @@
 """
-Viewer load_mesh tests. Require headless Qt/OpenGL (conftest sets
-QT_QPA_PLATFORM=offscreen on Linux; or run with: xvfb-run -a pytest ...).
+Viewer load_point_cloud tests. Require DISPLAY on Linux (run with: xvfb-run pytest tests/gui).
+Skipped automatically when headless (no DISPLAY).
 """
 from pathlib import Path
 
@@ -10,8 +10,8 @@ from PySide6.QtWidgets import QApplication
 from mapfree.viewer.gl_widget import set_default_opengl_format, ViewerWidget
 
 
-FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
-MESH_PLY = FIXTURES_DIR / "mesh.ply"
+FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures"
+POINT_CLOUD_PLY = FIXTURES_DIR / "point_cloud.ply"
 
 
 @pytest.fixture(scope="module")
@@ -34,16 +34,15 @@ def viewer_widget(qapp):
     widget.close()
 
 
-def test_load_mesh_success(viewer_widget):
-    """load_mesh returns True and widget has vertices and indices for valid PLY mesh."""
-    assert MESH_PLY.exists(), "fixture mesh.ply missing"
-    ok = viewer_widget.load_mesh(str(MESH_PLY))
+def test_load_point_cloud_success(viewer_widget):
+    """load_point_cloud returns True and widget has geometry for valid PLY."""
+    assert POINT_CLOUD_PLY.exists(), "fixture point_cloud.ply missing"
+    ok = viewer_widget.load_point_cloud(str(POINT_CLOUD_PLY))
     assert ok is True
     assert viewer_widget._num_vertices == 3
-    assert viewer_widget._num_indices == 3
 
 
-def test_load_mesh_invalid_path(viewer_widget):
-    """load_mesh returns False for non-existent file."""
-    ok = viewer_widget.load_mesh("/nonexistent/mesh.ply")
+def test_load_point_cloud_invalid_path(viewer_widget):
+    """load_point_cloud returns False for non-existent file."""
+    ok = viewer_widget.load_point_cloud("/nonexistent/path.ply")
     assert ok is False

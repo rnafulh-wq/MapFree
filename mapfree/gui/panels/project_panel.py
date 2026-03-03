@@ -53,9 +53,9 @@ class ProjectPanel(QWidget):
         layout.setContentsMargins(6, 6, 6, 6)
         layout.setSpacing(6)
 
-        # --- Project Settings (group) ---
-        project_grp = QGroupBox("Project")
-        project_grp.setObjectName("projectGroup")
+        # --- Dataset (group) ---
+        project_grp = QGroupBox("Dataset")
+        project_grp.setObjectName("datasetGroup")
         pl = QVBoxLayout(project_grp)
         pl.setContentsMargins(8, 10, 8, 8)
         pl.setSpacing(4)
@@ -100,9 +100,9 @@ class ProjectPanel(QWidget):
 
         layout.addWidget(project_grp)
 
-        # --- Pipeline Stages (group) ---
-        pipeline_grp = QGroupBox("Pipeline")
-        pipeline_grp.setObjectName("pipelineGroup")
+        # --- Outputs (group) ---
+        pipeline_grp = QGroupBox("Outputs")
+        pipeline_grp.setObjectName("outputsGroup")
         pl2 = QVBoxLayout(pipeline_grp)
         pl2.setContentsMargins(8, 10, 8, 8)
         pl2.setSpacing(4)
@@ -136,6 +136,20 @@ class ProjectPanel(QWidget):
         pl2.addLayout(btn_layout)
 
         layout.addWidget(pipeline_grp)
+
+        # --- Measurements (group) ---
+        meas_grp = QGroupBox("Measurements")
+        meas_grp.setObjectName("measurementsGroup")
+        ml = QVBoxLayout(meas_grp)
+        ml.setContentsMargins(8, 10, 8, 8)
+        ml.setSpacing(4)
+        self._measurements_label = QLabel("—")
+        self._measurements_label.setProperty("class", "muted")
+        self._measurements_label.setWordWrap(True)
+        self._measurements_label.setToolTip("Measurement count (updated when distance/area is added)")
+        ml.addWidget(self._measurements_label)
+        layout.addWidget(meas_grp)
+
         layout.addStretch()
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
 
@@ -178,19 +192,19 @@ class ProjectPanel(QWidget):
             return
         if status == STATUS_PENDING:
             item.setText(1, "Pending")
-            item.setForeground(1, QColor("#8a8a8a"))
+            item.setForeground(1, QColor("#A0A2A6"))
         elif status == STATUS_RUNNING:
             item.setText(1, "Running")
-            item.setForeground(1, QColor("#5b9bd5"))
+            item.setForeground(1, QColor("#2F6FED"))
         elif status == STATUS_DONE:
             item.setText(1, "Done")
-            item.setForeground(1, QColor("#70ad47"))
+            item.setForeground(1, QColor("#4CAF50"))
         elif status == STATUS_ERROR:
             item.setText(1, "Error")
-            item.setForeground(1, QColor("#e74c3c"))
+            item.setForeground(1, QColor("#D94F4F"))
         else:
             item.setText(1, status)
-            item.setForeground(1, QColor("#e0e0e0"))
+            item.setForeground(1, QColor("#E6E6E6"))
 
     def set_all_pending(self):
         for key in self._items:
@@ -208,6 +222,15 @@ class ProjectPanel(QWidget):
         """Enable Run only when all 4 steps are done and not running."""
         if not self._stop_btn.isEnabled():
             self._start_btn.setEnabled(enabled)
+
+    def set_measurements_count(self, count: int) -> None:
+        """Update Measurements section (e.g. '3 measurements' or '—')."""
+        if getattr(self, "_measurements_label", None) is None:
+            return
+        if count <= 0:
+            self._measurements_label.setText("—")
+        else:
+            self._measurements_label.setText("%d measurement%s" % (count, "s" if count != 1 else ""))
 
     @property
     def start_button(self):
