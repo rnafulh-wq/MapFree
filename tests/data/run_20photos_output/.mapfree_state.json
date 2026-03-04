@@ -1,8 +1,0 @@
-{
-  "feature_extraction": true,
-  "matching": true,
-  "sparse": false,
-  "dense": false,
-  "mesh": false,
-  "chunks": {}
-}

@@ -1,6 +1,16 @@
 """
 OpenGL widget — GL Viewer Wrapper (Safe Layer).
 
+.. warning:: **EXPERIMENTAL**
+    The OpenGL 3D viewer is experimental and may crash or produce visual artefacts depending
+    on the host GPU driver and platform (software OpenGL is forced to reduce segfaults).
+    It is intentionally run in a separate process so a crash does not affect the main
+    MapFree window.  Enable it only if needed:
+
+    - GUI button "Enable 3D viewer"
+    - Environment variable ``MAPFREE_OPENGL=1``
+    - Disable entirely: ``MAPFREE_NO_OPENGL=1``
+
 Architecture:
   GUI Layer (PySide6) → GL Viewer Wrapper (this widget) → Render Core (decoupled from UI thread).
 
