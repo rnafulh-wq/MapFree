@@ -24,9 +24,9 @@ Lakukan hal berikut:
    git rm --cached .mapfree_state.json
 4. Buat commit: "chore(git): remove state file from tracking, add to .gitignore"
 ```
-- [ ] .gitignore diupdate
-- [ ] File di-untrack dari Git
-- [ ] Commit dibuat
+- [x] .gitignore diupdate (entri .mapfree_state.json dan /colmap ditambahkan)
+- [x] File di-untrack dari Git (git rm --cached dijalankan untuk root dan tests/data/)
+- [x] Commit dibuat ("chore: repo hygiene, CI, Windows installer, and experimental viewer docs")
 
 ---
 
