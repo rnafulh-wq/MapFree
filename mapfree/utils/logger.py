@@ -14,6 +14,7 @@ from mapfree.core.logger import (
     get_chunk_logger,
     setup_logging as _setup_logging,
     set_log_file_for_project,
+    write_crash_report,
 )
 
 __all__ = [
@@ -21,6 +22,7 @@ __all__ = [
     "get_logger",
     "get_chunk_logger",
     "set_log_file_for_project",
+    "write_crash_report",
 ]
 
 
