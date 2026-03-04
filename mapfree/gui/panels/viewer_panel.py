@@ -1,28 +1,69 @@
-"""Viewer panel — placeholder and raster image display (no 3D engine)."""
+"""Viewer panel — 2D raster display, 3D point-cloud viewer, and placeholder.
 
+Layout managed by QStackedWidget with three pages:
+
+    0  Placeholder  — shown when nothing is loaded
+    1  PointCloudViewer — 3D point cloud / mesh (pyqtgraph.opengl)
+    2  Raster label — orthophoto / image (QLabel with scaled QPixmap)
+"""
 from pathlib import Path
 
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QAction, QPixmap
 from PySide6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
     QLabel,
     QSizePolicy,
+    QStackedWidget,
     QToolBar,
+    QVBoxLayout,
+    QWidget,
 )
-from PySide6.QtGui import QPixmap, QAction
-from PySide6.QtCore import Qt
+
+from mapfree.gui.panels.viewer_3d import PointCloudViewer
+
+_PAGE_PLACEHOLDER = 0
+_PAGE_3D = 1
+_PAGE_RASTER = 2
 
 
 class ViewerPanel(QWidget):
-    """Central viewer area: placeholder message and raster image display via QLabel."""
+    """Central viewer area with three display modes: placeholder, 3D point cloud, raster image.
 
-    def __init__(self, parent=None):
+    The 3D viewer is provided by :class:`PointCloudViewer` and automatically
+    falls back to a placeholder when pyqtgraph is unavailable or
+    ``MAPFREE_NO_OPENGL=1``.
+
+    Public API (unchanged from previous version):
+        * :meth:`load_point_cloud` — load a PLY file into the 3D viewer
+        * :meth:`load_mesh`        — alias; delegates to :meth:`load_point_cloud`
+        * :meth:`load_raster`      — display a raster image (QLabel)
+        * :meth:`clear_scene`      — return to placeholder
+        * :meth:`get_visualizer`   — return the underlying PointCloudViewer
+    """
+
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(0, 0, 0, 0)
-        self._fallback_label = None
+        self._layout.setSpacing(0)
+
         self._viewer_toolbar = self._create_viewer_toolbar()
         self._layout.addWidget(self._viewer_toolbar)
+
+        self._stack = QStackedWidget(self)
+        self._stack.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self._layout.addWidget(self._stack)
+
+        # Page 0 — placeholder
+        self._placeholder = self._create_placeholder()
+        self._stack.addWidget(self._placeholder)
+
+        # Page 1 — 3D point cloud viewer
+        self._pc_viewer = PointCloudViewer(self)
+        self._pc_viewer.pointsLoaded.connect(self._on_points_loaded)
+        self._stack.addWidget(self._pc_viewer)
+
+        # Page 2 — raster image label
         self._raster_label = QLabel(self)
         self._raster_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._raster_label.setSizePolicy(
@@ -31,54 +72,144 @@ class ViewerPanel(QWidget):
         )
         self._raster_label.setStyleSheet("background-color: #252525;")
         self._raster_label.setScaledContents(False)
-        self._raster_label.hide()
-        self._raster_pixmap_path = None
-        self._layout.addWidget(self._raster_label)
+        self._stack.addWidget(self._raster_label)
+
+        self._raster_pixmap_path: str | None = None
+
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setMinimumHeight(400)
         self.setStyleSheet("background-color: #252525;")
-        self._show_placeholder()
 
-    def showEvent(self, event):
-        super().showEvent(event)
-        if self._fallback_label is not None and self._raster_label.isHidden():
-            self._fallback_label.show()
-
-    def _show_placeholder(self):
-        """Show placeholder message when no raster is loaded."""
-        if self._fallback_label is not None:
-            return
-        self._fallback_label = QLabel("Viewer\n\n(No 3D engine)")
-        self._fallback_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._fallback_label.setStyleSheet("""
-            QLabel {
-                color: #6a6a6a;
-                font-size: 13px;
-                background-color: #252525;
-                border: 1px dashed #3d3d3d;
-                border-radius: 8px;
-            }
-        """)
-        self._fallback_label.setSizePolicy(
-            QSizePolicy.Policy.Expanding,
-            QSizePolicy.Policy.Expanding,
-        )
-        self._layout.addWidget(self._fallback_label)
+        # Start on placeholder
+        self._stack.setCurrentIndex(_PAGE_PLACEHOLDER)
         self._viewer_toolbar.setEnabled(False)
 
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    def load_point_cloud(self, file_path: str) -> bool:
+        """Load a PLY file into the 3D point cloud viewer.
+
+        Args:
+            file_path: Path to the .ply file.
+
+        Returns:
+            ``True`` on success; ``False`` if the file could not be loaded or
+            pyqtgraph / OpenGL is unavailable.
+        """
+        file_path = str(file_path).strip()
+        if not file_path or not Path(file_path).exists():
+            return False
+
+        ok = self._pc_viewer.load_ply(file_path)
+        if ok:
+            self._stack.setCurrentIndex(_PAGE_3D)
+            self._sync_toolbar_to_3d()
+        return ok
+
+    def load_mesh(self, file_path: str) -> bool:
+        """Load a mesh PLY/OBJ file (currently delegates to point-cloud view).
+
+        Args:
+            file_path: Path to the mesh file.
+
+        Returns:
+            ``True`` on success; ``False`` otherwise.
+        """
+        return self.load_point_cloud(file_path)
+
+    def load_raster(self, file_path: str) -> bool:
+        """Display a raster image (orthophoto, etc.) in the 2D label.
+
+        Args:
+            file_path: Path to an image file.
+
+        Returns:
+            ``True`` on success; ``False`` if the image cannot be loaded.
+        """
+        file_path = str(file_path).strip()
+        if not file_path or not Path(file_path).exists():
+            return False
+        pix = QPixmap(file_path)
+        if pix.isNull():
+            return False
+        self._raster_pixmap_path = file_path
+        self._stack.setCurrentIndex(_PAGE_RASTER)
+        self._update_raster_pixmap()
+        self._viewer_toolbar.setEnabled(False)
+        return True
+
+    def clear_scene(self) -> None:
+        """Return to the placeholder page."""
+        self._pc_viewer.clear()
+        self._raster_pixmap_path = None
+        self._stack.setCurrentIndex(_PAGE_PLACEHOLDER)
+        self._viewer_toolbar.setEnabled(False)
+
+    def get_visualizer(self) -> PointCloudViewer:
+        """Return the underlying PointCloudViewer widget.
+
+        Returns:
+            The :class:`PointCloudViewer` instance (always present; may be
+            in fallback mode if OpenGL is unavailable).
+        """
+        return self._pc_viewer
+
+    # ------------------------------------------------------------------
+    # Event handlers
+    # ------------------------------------------------------------------
+
+    def resizeEvent(self, event) -> None:
+        """Re-scale raster image on resize."""
+        super().resizeEvent(event)
+        if (
+            self._stack.currentIndex() == _PAGE_RASTER
+            and self._raster_pixmap_path
+        ):
+            self._update_raster_pixmap()
+
+    def showEvent(self, event) -> None:
+        """Ensure correct page is shown after widget becomes visible."""
+        super().showEvent(event)
+
+    # ------------------------------------------------------------------
+    # Private helpers
+    # ------------------------------------------------------------------
+
+    def _create_placeholder(self) -> QLabel:
+        """Create the dark placeholder label shown when nothing is loaded."""
+        label = QLabel("Viewer\n\n(Load a PLY point cloud or image)")
+        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        label.setStyleSheet(
+            "QLabel {"
+            "  color: #6a6a6a;"
+            "  font-size: 13px;"
+            "  background-color: #252525;"
+            "  border: 1px dashed #3d3d3d;"
+            "  border-radius: 8px;"
+            "}"
+        )
+        label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        return label
+
     def _create_viewer_toolbar(self) -> QToolBar:
-        """Toolbar: Points/Mesh, Reset Camera, Top View, Side View, Wireframe (no-op without 3D)."""
+        """Build the viewer toolbar (Points/Mesh, Reset Camera, wireframe, etc.)."""
         bar = QToolBar(self)
         bar.setObjectName("ViewerToolbar")
-        bar.setStyleSheet("""
-            QToolBar { background-color: #2d2d2d; border: none; padding: 4px; spacing: 4px; }
-            QToolButton { color: #e0e0e0; padding: 6px 10px; }
-            QToolButton:hover { background-color: #404040; }
-            QToolButton:checked { background-color: #3d6fa8; }
-        """)
+        bar.setStyleSheet(
+            "QToolBar { background-color: #2d2d2d; border: none; padding: 4px; spacing: 4px; }"
+            "QToolButton { color: #e0e0e0; padding: 6px 10px; }"
+            "QToolButton:hover { background-color: #404040; }"
+            "QToolButton:checked { background-color: #3d6fa8; }"
+        )
         bar.addAction(QAction("Points / Mesh", self))
         bar.addSeparator()
-        bar.addAction(QAction("Reset Camera", self))
+
+        reset_action = QAction("Reset Camera", self)
+        reset_action.triggered.connect(self._on_reset_camera)
+        bar.addAction(reset_action)
+
         bar.addAction(QAction("Top View", self))
         bar.addAction(QAction("Side View", self))
         bar.addSeparator()
@@ -86,28 +217,20 @@ class ViewerPanel(QWidget):
         bar.setEnabled(False)
         return bar
 
-    def get_visualizer(self):
-        """Return None (no 3D visualizer). Kept for API compatibility."""
-        return None
+    def _on_reset_camera(self) -> None:
+        """Delegate Reset Camera action to the 3D viewer."""
+        self._pc_viewer._reset_camera()  # noqa: SLF001 — intentional friend access
 
-    def _show_raster_label(self, file_path: str) -> bool:
-        """Display image in QLabel. Returns True on success."""
-        path = Path(file_path)
-        if not path.exists():
-            return False
-        pix = QPixmap(str(path))
-        if pix.isNull():
-            return False
-        self._raster_pixmap_path = str(path)
-        self._update_raster_pixmap()
-        self._raster_label.show()
-        if self._fallback_label is not None:
-            self._fallback_label.hide()
-        self._viewer_toolbar.setEnabled(False)
-        return True
+    def _on_points_loaded(self, count: int) -> None:
+        """Called when PointCloudViewer finishes loading data."""
+        self._sync_toolbar_to_3d()
 
-    def _update_raster_pixmap(self):
-        """Scale and set pixmap on _raster_label from _raster_pixmap_path."""
+    def _sync_toolbar_to_3d(self) -> None:
+        """Enable toolbar actions relevant to the 3D view."""
+        self._viewer_toolbar.setEnabled(True)
+
+    def _update_raster_pixmap(self) -> None:
+        """Scale and display the raster pixmap to fill the label."""
         if not self._raster_pixmap_path:
             return
         pix = QPixmap(self._raster_pixmap_path)
@@ -122,40 +245,3 @@ class ViewerPanel(QWidget):
                     Qt.TransformationMode.SmoothTransformation,
                 )
             )
-
-    def _hide_raster_label(self):
-        """Switch back from raster QLabel to placeholder."""
-        self._raster_pixmap_path = None
-        self._raster_label.hide()
-        if self._fallback_label is not None:
-            self._fallback_label.show()
-        self._viewer_toolbar.setEnabled(False)
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        if self._raster_pixmap_path and self._raster_label.isVisible():
-            self._update_raster_pixmap()
-
-    def load_raster(self, file_path: str) -> bool:
-        """Load a raster image (e.g. orthophoto) and display in QLabel. Returns True on success."""
-        file_path = str(file_path).strip()
-        if not file_path or not Path(file_path).exists():
-            return False
-        return self._show_raster_label(file_path)
-
-    def load_point_cloud(self, file_path: str) -> bool:
-        """No 3D engine; point cloud cannot be displayed. Returns False."""
-        self._hide_raster_label()
-        return False
-
-    def load_mesh(self, file_path: str) -> bool:
-        """No 3D engine; mesh cannot be displayed. Returns False."""
-        self._hide_raster_label()
-        return False
-
-    def clear_scene(self) -> None:
-        """Hide raster image and show placeholder."""
-        self._raster_label.hide()
-        if self._fallback_label is not None:
-            self._fallback_label.show()
-        self._viewer_toolbar.setEnabled(False)

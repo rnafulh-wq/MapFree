@@ -35,12 +35,12 @@ Tulis tests/gui/test_viewer_3d.py:
 
 Buat commit: "feat(gui): implement point cloud viewer with PyQtGraph"
 ```
-- [ ] pyqtgraph ditambahkan ke dependencies
-- [ ] PointCloudViewer class dibuat
-- [ ] PLY parser diimplementasi
-- [ ] Kontrol kamera berfungsi
-- [ ] Fallback berjalan
-- [ ] Unit test ditulis
+- [x] pyqtgraph ditambahkan ke dependencies
+- [x] PointCloudViewer class dibuat
+- [x] PLY parser diimplementasi
+- [x] Kontrol kamera berfungsi
+- [x] Fallback berjalan
+- [x] Unit test ditulis
 
 ---
 

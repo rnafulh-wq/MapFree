@@ -4,3 +4,4 @@ opencv-python
 tqdm
 PyYAML>=6.0
 psutil>=5.9
+pyqtgraph>=0.13.0

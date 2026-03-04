@@ -35,12 +35,21 @@ dev = [
     "pytest-mock>=3.10",
     "pytest-cov>=4.0",
 ]
+viewer = [
+    "pyqtgraph>=0.13.0",
+]
 
 [project.scripts]
 mapfree = "mapfree.__main__:main"
 
 [tool.setuptools.packages.find]
 include = ["mapfree*"]
+
+[tool.coverage.run]
+omit = [
+    "mapfree/gui/*",
+    "mapfree/viewer/*",
+]
 
 [tool.pytest.ini_options]
 markers = [
