@@ -18,7 +18,7 @@ class Camera:
         self._target = QVector3D(0.0, 0.0, 0.0)
         self._distance = 10.0
         self._azimuth = 0.0   # radians, rotation around world Y
-        self._elevation = 0.3 # radians, angle from XZ plane
+        self._elevation = 0.3  # radians, angle from XZ plane
         self._up = QVector3D(0.0, 1.0, 0.0)
         self._fov_deg = 45.0
         self._aspect = 1.0

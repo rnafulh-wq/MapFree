@@ -12,8 +12,6 @@ Test cases:
 """
 import threading
 
-import pytest
-
 from mapfree.core.event_bus import EventBus
 
 

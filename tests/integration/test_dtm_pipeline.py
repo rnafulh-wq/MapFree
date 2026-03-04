@@ -22,7 +22,7 @@ def _pdal_available():
 
 def _gdal_available():
     try:
-        from osgeo import gdal
+        from osgeo import gdal  # noqa: F401
         return True
     except ImportError:
         return False
@@ -35,7 +35,7 @@ def test_dtm_pipeline_ply_to_las_to_dtm(tmp_path):
     import sys
     sys.path.insert(0, str(ROOT))
     from mapfree.geospatial.classification import convert_ply_to_las, classify_ground
-    from mapfree.geospatial.raster import generate_dtm, validate_dtm, estimate_resolution
+    from mapfree.geospatial.raster import generate_dtm, validate_dtm
 
     if not POINT_CLOUD_PLY.exists():
         pytest.skip("fixture point_cloud.ply not found")
@@ -66,7 +66,7 @@ def test_estimate_resolution(tmp_path):
     """estimate_resolution returns value in [min_res, max_res] from point density."""
     import sys
     sys.path.insert(0, str(ROOT))
-    from mapfree.geospatial.classification import convert_ply_to_las, classify_ground
+    from mapfree.geospatial.classification import convert_ply_to_las
     from mapfree.geospatial.raster import estimate_resolution
 
     if not POINT_CLOUD_PLY.exists():

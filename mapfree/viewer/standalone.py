@@ -16,8 +16,7 @@ os.environ.setdefault("LIBGL_ALWAYS_SOFTWARE", "1")
 
 from pathlib import Path
 
-from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QFileDialog, QMessageBox
-from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QMessageBox
 
 from mapfree.viewer.gl_widget import ViewerWidget, set_default_opengl_format
 
@@ -66,11 +65,13 @@ def main():
 
     # Toolbar: Load / Open project folder
     toolbar = window.addToolBar("File")
+
     def on_load_ply():
         path, _ = QFileDialog.getOpenFileName(window, "Load PLY", "", "PLY (*.ply);;All (*)")
         if path:
             if viewer.load_point_cloud(path) or viewer.load_mesh(path):
                 viewer.zoom_fit()
+
     def on_open_project():
         folder = QFileDialog.getExistingDirectory(window, "Open project folder", "")
         if folder:

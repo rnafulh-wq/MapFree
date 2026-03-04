@@ -70,6 +70,7 @@ LARGE_MESH_VERTEX_THRESHOLD = 10_000_000
 # PLY loader (custom, no external deps)
 # -----------------------------------------------------------------------------
 
+
 def _simplify_for_render(
     vertices: list,
     normals: list | None,
@@ -149,7 +150,7 @@ def _parse_ply(data: bytes) -> dict[str, Any]:
                 fmt = "ascii"
             else:
                 fmt = "binary"
-                binary_fmt = "little" if (len(parts) > 2 and "little" in line.lower()) else "big"
+                binary_fmt = "little" if (len(parts) > 2 and "little" in line.lower()) else "big"  # noqa: F841
         elif line.startswith("element vertex "):
             num_vertices = int(line.split()[-1])
         elif line.startswith("element face "):

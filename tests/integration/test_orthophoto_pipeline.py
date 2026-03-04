@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 
 def _gdal_available():
     try:
-        from osgeo import gdal
+        from osgeo import gdal  # noqa: F401
         return True
     except ImportError:
         return False

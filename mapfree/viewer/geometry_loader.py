@@ -325,7 +325,6 @@ def load_obj(file_path: str) -> dict[str, Any] | None:
         elif parts[0] == "f":
             # f v1/vt1/vn1 v2/vt2/vn2 v3/vt3/vn3 [v4/...]
             face_verts = []
-            face_norms = []
             for i in range(1, len(parts)):
                 segs = parts[i].split("/")
                 vi = int(segs[0]) - 1 if (segs and segs[0].strip()) else -1

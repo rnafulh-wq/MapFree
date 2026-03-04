@@ -1,5 +1,6 @@
 """
-Unit tests for mapfree.core.logger (structured file logging with rotation).
+Unit tests for mapfree.core.logger (structured file logging with rotation) and
+mapfree.utils.logger (configure_logging wrapper).
 
 Tests:
 - setup_logging creates RotatingFileHandler when log_dir is given
@@ -11,7 +12,6 @@ Tests:
 """
 import logging
 import logging.handlers
-import os
 from pathlib import Path
 
 import pytest
@@ -199,3 +199,25 @@ def test_log_level_from_env(monkeypatch, tmp_path):
 
     root = logging.getLogger("mapfree")
     assert root.level == logging.DEBUG
+
+
+# ---------------------------------------------------------------------------
+# Test 8 — configure_logging wrapper from mapfree.utils.logger
+# ---------------------------------------------------------------------------
+
+def test_configure_logging_wrapper(tmp_path, reset_logging):
+    """mapfree.utils.logger.configure_logging sets up logging without error."""
+    from mapfree.utils.logger import configure_logging
+
+    configure_logging(level="WARNING", log_dir=tmp_path, use_console=False)
+    root = logging.getLogger("mapfree")
+    assert root.level == logging.WARNING
+
+
+def test_configure_logging_default_level(tmp_path, reset_logging):
+    """configure_logging with no level defaults to INFO."""
+    from mapfree.utils.logger import configure_logging
+
+    configure_logging(log_dir=tmp_path, use_console=False)
+    root = logging.getLogger("mapfree")
+    assert root.level == logging.INFO

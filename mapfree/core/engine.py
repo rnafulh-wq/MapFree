@@ -34,5 +34,4 @@ def create_engine(engine_type: str = "colmap") -> BaseEngine:
     if engine_type == "colmap":
         from mapfree.engines.colmap_engine import ColmapEngine
         return ColmapEngine()
-    from mapfree.core.exceptions import EngineError
     raise EngineError("factory", f"Unknown engine type: {engine_type}")

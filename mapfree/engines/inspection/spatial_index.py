@@ -3,7 +3,7 @@ Spatial indices: KDTree for point cloud, SimpleBVH (grid buckets) for mesh.
 No heavy dependencies; scipy.spatial.KDTree optional.
 """
 import logging
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import numpy as np
 

@@ -3,7 +3,7 @@ Profile extraction along a polyline: sample elevation from mesh at regular steps
 Returns distances along line and elevations. All float64.
 """
 import logging
-from typing import List, Union
+from typing import Union
 
 import numpy as np
 

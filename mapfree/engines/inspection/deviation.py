@@ -180,8 +180,8 @@ class SurfaceDeviationEngine:
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     # Ref: z=0 plane; target: z=0.1 plane
-    vref = np.array([[0,0,0],[2,0,0],[1,1,0],[0,2,0],[2,2,0]], dtype=np.float64)
-    fref = np.array([[0,1,2],[0,2,3],[2,1,4],[2,4,3]], dtype=np.intp)
+    vref = np.array([[0, 0, 0], [2, 0, 0], [1, 1, 0], [0, 2, 0], [2, 2, 0]], dtype=np.float64)
+    fref = np.array([[0, 1, 2], [0, 2, 3], [2, 1, 4], [2, 4, 3]], dtype=np.intp)
     vtar = vref + np.array([0, 0, 0.1])
     ftar = fref.copy()
     engine = SurfaceDeviationEngine(use_parallel=False)

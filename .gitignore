@@ -40,6 +40,12 @@ images/
 # Runtime state
 .mapfree_state.json
 
+# Test / coverage artifacts
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
 # Colmap venv symlink artifact (not a project file)
 /colmap
 

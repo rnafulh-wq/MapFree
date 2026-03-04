@@ -14,6 +14,7 @@ import traceback
 from pathlib import Path
 from typing import Callable
 
+
 def get_process_env(env: dict | None = None) -> dict:
     """Return env dict. On non-Windows, optionally prepend LD_LIBRARY_PATH from MAPFREE_VENV_LIB if set."""
     base = dict(env if env is not None else os.environ)

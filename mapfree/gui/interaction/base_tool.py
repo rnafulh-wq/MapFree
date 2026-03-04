@@ -1,8 +1,8 @@
 """
 Abstract base tool. No computation; only event and overlay hooks.
 """
-from abc import ABC, abstractmethod
-from typing import Any, Optional
+from abc import ABC
+from typing import Any
 
 
 class BaseTool(ABC):

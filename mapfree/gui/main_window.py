@@ -35,6 +35,7 @@ from mapfree.gui.qt_controller import QtController
 from mapfree.gui.workers import PipelineWorker, MemoryMonitorWorker
 from mapfree.utils.file_utils import list_images
 
+
 # When GL is disabled: simple label, same no-op API as viewer so callers don't break
 class _ViewerDisabledWidget(QWidget):
     def __init__(self, parent=None):
@@ -194,7 +195,7 @@ class MainWindow(QMainWindow):
     def _start_memory_monitor(self):
         """Start background memory monitor; warn user when RSS > threshold and suggest decimation."""
         try:
-            import psutil
+            import psutil  # noqa: F401
         except ImportError:
             return
         self._memory_monitor = MemoryMonitorWorker(threshold_mb=2048.0, interval_sec=10.0)
@@ -768,26 +769,33 @@ class MainWindow(QMainWindow):
         self._controller.exportStarted.connect(self._on_export_started)
         self._controller.exportFinished.connect(self._on_export_finished)
         self._controller.exportError.connect(self._on_export_error)
+
         def _on_point_cloud_loaded(path):
             self._viewer_panel.load_point_cloud(path)
             mc = getattr(self._viewer_panel, "measurement_controller", None)
             if mc:
                 mc.set_geometry_from_file(path)
+
         def _on_mesh_loaded(path):
             self._viewer_panel.load_mesh(path)
             mc = getattr(self._viewer_panel, "measurement_controller", None)
             if mc:
                 mc.set_geometry_from_file(path)
+
         self._controller.pointCloudLoaded.connect(_on_point_cloud_loaded)
         self._controller.meshLoaded.connect(_on_mesh_loaded)
+
         def on_cameras_loaded(geojson):
             self._switch_to_map_if_gps()
             self.map_widget.load_geojson_layer("Cameras", geojson)
+
         self._controller.camerasLoaded.connect(on_cameras_loaded)
         # Forward map JS console (log/warn/error) to app console panel
+
         def on_map_js_console(level: int, message: str):
             log_level = "error" if level == 2 else ("warning" if level == 1 else "info")
             self._console_panel.append_log(message, log_level)
+
         self.map_widget.jsConsoleMessage.connect(on_map_js_console)
 
     def _on_state_changed(self, state: str):

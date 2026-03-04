@@ -27,7 +27,6 @@ def deviation_to_vertex_colors(
         return np.zeros((0, 3), dtype=np.float32)
     if dev.ndim != 1:
         dev = dev.ravel()
-    n = len(dev)
     if max_abs is None or max_abs <= 0:
         max_abs = float(np.nanmax(np.abs(dev))) if np.any(np.isfinite(dev)) else 1.0
         if max_abs <= 0:

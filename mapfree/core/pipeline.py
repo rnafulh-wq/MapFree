@@ -309,14 +309,7 @@ class Pipeline:
     def _run_geospatial_stages(self, dense_output: Path):
         """Run geospatial pipeline after dense; emit geospatial_started, dtm_done, orthophoto_done."""
         from mapfree.geospatial.pipeline_geospatial import run_geospatial
-        from mapfree.geospatial.output_names import (
-            DTM_TIF,
-            DTM_EPSG_TIF,
-            DSM_TIF,
-            DSM_EPSG_TIF,
-            ORTHOPHOTO_TIF,
-            ORTHOPHOTO_EPSG_TIF,
-        )
+        from mapfree.geospatial.output_names import DTM_TIF, DSM_TIF, ORTHOPHOTO_TIF
 
         try:
             run_geospatial(
@@ -343,6 +336,11 @@ class Pipeline:
         """
         from mapfree.core.config import get_geospatial_config
         from mapfree.geospatial.crs_manager import CRSManager
+        from mapfree.geospatial.output_names import (
+            DTM_EPSG_TIF,
+            DSM_EPSG_TIF,
+            ORTHOPHOTO_EPSG_TIF,
+        )
 
         geo_cfg = get_geospatial_config()
         target_epsg = geo_cfg.get("target_epsg")

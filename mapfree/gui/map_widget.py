@@ -8,7 +8,7 @@ import logging
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal, QUrl
-from PySide6.QtWidgets import QMessageBox, QWidget, QLabel, QVBoxLayout
+from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout
 
 try:
     from PySide6.QtWebEngineWidgets import QWebEngineView

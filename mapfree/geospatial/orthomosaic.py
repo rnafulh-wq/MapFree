@@ -6,7 +6,7 @@ Simplified gdalwarp-based orthophoto. Pure backend; no GUI.
 import json
 import subprocess
 from pathlib import Path
-from typing import Optional, List, Tuple
+from typing import Optional, List
 
 import logging
 

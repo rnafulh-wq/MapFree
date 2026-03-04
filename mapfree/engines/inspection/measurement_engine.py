@@ -4,14 +4,13 @@ Stage 2: volume, profile, optional spatial index. Headless; no UI.
 """
 import logging
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, Optional, Tuple, Union
 
 import numpy as np
 
 from mapfree.engines.inspection.models import MeasurementResult
 from mapfree.engines.inspection.geometry_utils import (
     distance_3d,
-    distance_2d,
     polyline_length,
     polygon_area_2d,
     polygon_area_3d,

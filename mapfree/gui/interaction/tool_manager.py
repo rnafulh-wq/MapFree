@@ -4,7 +4,7 @@ Viewer delegates events here; no computation.
 """
 from typing import Optional
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Signal
 from PySide6.QtGui import QMouseEvent, QKeyEvent
 
 from mapfree.gui.interaction.base_tool import BaseTool

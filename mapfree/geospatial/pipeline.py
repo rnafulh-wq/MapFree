@@ -4,7 +4,7 @@ Pure backend; callable from main mapfree pipeline. No GUI.
 """
 
 from pathlib import Path
-from typing import Optional, Callable, Any
+from typing import Optional, Callable
 
 import logging
 

@@ -13,7 +13,6 @@ All COLMAP/OpenMVS calls are mocked — no real binaries are invoked.
 import os
 import sys
 import subprocess
-import threading
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
@@ -194,8 +193,6 @@ def test_cli_open_results_flag(dummy_image_dir, tmp_project_dir):
     --open-results flag must be accepted by the argument parser without error.
     The actual OS open is mocked so no file manager is launched.
     """
-    from mapfree.application.cli import main as cli_module
-
     # Capture the parsed args to verify --open-results is recognized
     import argparse
 

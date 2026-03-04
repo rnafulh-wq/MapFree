@@ -1,7 +1,6 @@
 """
 Build GeoJSON from camera/GPS points (e.g. from exif_reader).
 """
-from typing import Any
 
 
 def build_geojson_points(camera_points: list[dict]) -> dict:

@@ -1,6 +1,27 @@
 [flake8]
 max-line-length = 100
 extend-ignore = E203, W503, E501
-exclude = .git,__pycache__,build,dist,venv,.venv,*.egg-info
+exclude =
+    .git,
+    __pycache__,
+    build,
+    dist,
+    venv,
+    .venv,
+    *.egg-info,
+    tests/test_engine_wrapper.py,
+    tests/test_fresh_run.py,
+    tests/test_resume_engine.py,
+    tests/test_progress_tracking.py,
+    tests/data/make_20_photos.py
 per-file-ignores =
     __init__.py:F401
+    mapfree/application/cli/main.py:E402
+    mapfree/viewer/gl_widget.py:E402,E701
+    mapfree/viewer/standalone.py:E402
+    mapfree/viewer/geometry_loader.py:E701
+    tests/test_chunking_logic.py:E402,F401,E302
+    tests/test_chunking_regression.py:E402,F401,E302
+    tests/test_colmap_params.py:E402,F401,E302,E306,F541
+    tests/test_profiles.py:E402,E302,E261
+    tests/gui/test_viewer_panel.py:F401
