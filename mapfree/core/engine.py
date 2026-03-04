@@ -2,6 +2,7 @@
 Abstract engine interface. Pipeline only interacts with BaseEngine.
 Use create_engine() to get a concrete implementation without knowing engine details.
 """
+from mapfree.core.exceptions import EngineError  # noqa: F401 (re-export for consumers)
 
 
 class VramWatchdogError(RuntimeError):
@@ -33,4 +34,5 @@ def create_engine(engine_type: str = "colmap") -> BaseEngine:
     if engine_type == "colmap":
         from mapfree.engines.colmap_engine import ColmapEngine
         return ColmapEngine()
-    raise ValueError(f"Unknown engine type: {engine_type}")
+    from mapfree.core.exceptions import EngineError
+    raise EngineError("factory", f"Unknown engine type: {engine_type}")

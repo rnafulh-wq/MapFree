@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 from mapfree.core.engine import BaseEngine
+from mapfree.core.exceptions import DependencyMissingError, EngineError
 from mapfree.core.wrapper import EngineExecutionError, run_command
 from mapfree.core.config import IMAGE_EXTENSIONS
 from mapfree.utils.exif_order import write_image_list_for_colmap
@@ -61,8 +62,10 @@ def resolve_colmap_executable() -> str:
             return str(p)
         if shutil.which(env_path):
             return os.path.abspath(shutil.which(env_path))
-        raise RuntimeError(
-            "COLMAP executable not found. Configure MAPFREE_COLMAP or config colmap_path."
+        raise DependencyMissingError(
+            "colmap",
+            "Set MAPFREE_COLMAP env var or config colmap_path. "
+            "See: https://colmap.github.io/install.html",
         )
 
     # 2. Config
@@ -89,8 +92,10 @@ def resolve_colmap_executable() -> str:
     if found:
         return os.path.abspath(found)
 
-    raise RuntimeError(
-        "COLMAP executable not found. Configure MAPFREE_COLMAP or config colmap_path in Settings."
+    raise DependencyMissingError(
+        "colmap",
+        "Konfigurasi MAPFREE_COLMAP atau colmap_path di Settings. "
+        "Install: https://colmap.github.io/install.html atau scripts/install_colmap_windows.md",
     )
 
 
@@ -166,7 +171,7 @@ def _run_stage(ctx, command, stage_name, timeout=3600):
     except EngineExecutionError as e:
         if bus is not None:
             bus.emit("engine_stage_completed", {"engine": "colmap", "stage": stage_name})
-        raise RuntimeError(f"Engine failed: {e}") from e
+        raise EngineError("COLMAP", str(e), returncode=getattr(e, "returncode", -1)) from e
     if bus is not None:
         bus.emit("engine_stage_completed", {"engine": "colmap", "stage": stage_name})
 

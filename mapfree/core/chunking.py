@@ -8,6 +8,7 @@ from pathlib import Path
 
 from . import hardware
 from .config import IMAGE_EXTENSIONS
+from .exceptions import EngineError
 from .profiles import resolve_chunk_size as _profiles_resolve
 from .wrapper import get_process_env
 
@@ -124,8 +125,10 @@ def merge_sparse_models(project_path: Path, sparse_dirs: list[Path]) -> Path:
             env=get_process_env(),
         )
         if r.returncode != 0:
-            raise RuntimeError(
-                f"COLMAP model_merger failed: {r.stderr or r.stdout or 'unknown'}"
+            raise EngineError(
+                "COLMAP",
+                f"model_merger failed: {r.stderr or r.stdout or 'unknown'}",
+                returncode=r.returncode,
             )
         current = out
     return out_merged
