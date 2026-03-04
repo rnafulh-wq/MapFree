@@ -1,10 +1,11 @@
 """
 COLMAP engine: runs colmap via subprocess wrapper.
 Pipeline never calls COLMAP directly — only through this engine.
-Colmap binary: MAPFREE_COLMAP_BIN env, or config colmap.colmap_bin, else PATH, else venv fallback.
+Executable: MAPFREE_COLMAP env > config colmap_path/colmap_bin > default Windows path > shutil.which (Linux).
 """
 import os
 import shutil
+import sys
 from pathlib import Path
 
 from mapfree.core.engine import BaseEngine
@@ -13,6 +14,10 @@ from mapfree.core.config import IMAGE_EXTENSIONS
 from mapfree.utils.exif_order import write_image_list_for_colmap
 
 os.environ.setdefault("OMP_NUM_THREADS", "4")
+
+# Default Windows location (no Linux path hardcoded)
+_DEFAULT_WINDOWS_COLMAP = "C:/tools/COLMAP/COLMAP.bat"
+_DEFAULT_WINDOWS_COLMAP_EXE = "C:/tools/COLMAP/colmap.exe"
 
 # DJI sensor width (mm) for focal length in pixels: focal_px = (width_px * focal_mm) / sensor_mm
 DJI_SENSOR_WIDTH_MM = {
@@ -24,31 +29,104 @@ DJI_SENSOR_WIDTH_MM = {
     "DEFAULT_DJI": 6.3,
 }
 
-# Absolute path fallback when PATH is not passed to subprocess (avoids "No such file or directory").
-COLMAP_VENV_BIN = "/media/pop_mangto/E/dev/MapFree/venv/bin/colmap"
-
 
 def _get_cfg():
     from mapfree.core.config import get_config
     return get_config()
 
 
-def get_colmap_bin() -> str:
-    """Resolve colmap executable: env MAPFREE_COLMAP_BIN > config colmap.colmap_bin > which colmap > venv fallback > 'colmap'."""
-    env_bin = os.environ.get("MAPFREE_COLMAP_BIN", "").strip()
-    if env_bin:
-        return os.path.abspath(env_bin) if os.path.sep in env_bin else env_bin
+def _is_executable(path: str) -> bool:
+    p = Path(path)
+    if not p.exists():
+        return False
+    if p.is_file():
+        return os.access(p, os.X_OK) or p.suffix.lower() in (".bat", ".cmd", ".exe")
+    return False
+
+
+def resolve_colmap_executable() -> str:
+    """
+    Resolve COLMAP executable path in order:
+    1. MAPFREE_COLMAP env var
+    2. config colmap_path (or colmap.colmap_bin)
+    3. Default Windows location C:/tools/COLMAP/COLMAP.bat or colmap.exe
+    4. shutil.which("colmap") (Linux / PATH)
+    Returns absolute path. Raises RuntimeError if not found.
+    """
+    # 1. Environment
+    env_path = os.environ.get("MAPFREE_COLMAP", "").strip()
+    if env_path:
+        p = Path(env_path).resolve()
+        if _is_executable(str(p)):
+            return str(p)
+        if shutil.which(env_path):
+            return os.path.abspath(shutil.which(env_path))
+        raise RuntimeError(
+            "COLMAP executable not found. Configure MAPFREE_COLMAP or config colmap_path."
+        )
+
+    # 2. Config
     cfg = _get_cfg()
-    cfg_bin = (cfg.get("colmap") or {}).get("colmap_bin")
-    if cfg_bin:
-        p = str(cfg_bin).strip()
-        return os.path.abspath(p) if os.path.sep in p else p
+    for key in ("colmap_path", "colmap_bin"):
+        val = cfg.get(key) if key == "colmap_path" else (cfg.get("colmap") or {}).get(key)
+        if val and str(val).strip():
+            path_str = str(val).strip()
+            p = Path(path_str).resolve()
+            if _is_executable(str(p)):
+                return str(p)
+            if os.path.sep not in path_str and shutil.which(path_str):
+                return os.path.abspath(shutil.which(path_str))
+
+    # 3. Default Windows path (no Linux path hardcoded)
+    if sys.platform == "win32":
+        for default in (_DEFAULT_WINDOWS_COLMAP, _DEFAULT_WINDOWS_COLMAP_EXE):
+            p = Path(default).resolve()
+            if _is_executable(str(p)):
+                return str(p)
+
+    # 4. PATH
     found = shutil.which("colmap")
-    if found and os.path.sep in found:
+    if found:
         return os.path.abspath(found)
-    if os.path.isfile(COLMAP_VENV_BIN) and os.access(COLMAP_VENV_BIN, os.X_OK):
-        return COLMAP_VENV_BIN
-    return found or "colmap"
+
+    raise RuntimeError(
+        "COLMAP executable not found. Configure MAPFREE_COLMAP or config colmap_path in Settings."
+    )
+
+
+def get_colmap_bin() -> str:
+    """Return absolute path to COLMAP executable. Raises RuntimeError if not found."""
+    return resolve_colmap_executable()
+
+
+def verify_colmap_installation() -> bool:
+    """
+    Run COLMAP -h and return True if it succeeds.
+    Use at GUI startup to warn if COLMAP is not configured.
+    On Windows, .bat is run via cmd /c so shell=False works.
+    """
+    try:
+        colmap_bin = resolve_colmap_executable()
+    except RuntimeError:
+        return False
+    try:
+        import subprocess
+        cmd = [colmap_bin, "-h"]
+        if sys.platform == "win32" and colmap_bin.lower().endswith(".bat"):
+            cmd = ["cmd", "/c", colmap_bin, "-h"]
+        creationflags = 0
+        if sys.platform == "win32":
+            creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        r = subprocess.run(
+            cmd,
+            capture_output=True,
+            timeout=15,
+            shell=False,
+            creationflags=creationflags,
+        )
+        return r.returncode == 0
+    except (OSError, subprocess.TimeoutExpired, FileNotFoundError):
+        return False
 
 
 def _profile(ctx, key, default):
@@ -60,6 +138,10 @@ def _run_stage(ctx, command, stage_name, timeout=3600):
     workspace = Path(ctx.project_path)
     logger = getattr(ctx, "logger", None)
     bus = getattr(ctx, "event_bus", None)
+
+    # Windows: .bat must be run via cmd /c (shell=False)
+    if sys.platform == "win32" and command and str(command[0]).lower().endswith(".bat"):
+        command = ["cmd", "/c", command[0]] + list(command[1:])
 
     if bus is not None:
         bus.emit("engine_stage_started", {"engine": "colmap", "stage": stage_name})

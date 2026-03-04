@@ -7,20 +7,20 @@ All subprocess calls use an env with LD_LIBRARY_PATH including venv/lib so COLMA
 import logging
 import os
 import subprocess
+import sys
 import threading
 import time
 import traceback
 from pathlib import Path
 from typing import Callable
 
-# Prepend to LD_LIBRARY_PATH so COLMAP/model_merger etc. find venv libs (e.g. libonnxruntime.so.1).
-VENV_LIB = "/media/pop_mangto/E/dev/MapFree/venv/lib"
-
-
 def get_process_env(env: dict | None = None) -> dict:
-    """Return env dict with VENV_LIB prepended to LD_LIBRARY_PATH. Use for any COLMAP subprocess."""
+    """Return env dict. On non-Windows, optionally prepend LD_LIBRARY_PATH from MAPFREE_VENV_LIB if set."""
     base = dict(env if env is not None else os.environ)
-    base["LD_LIBRARY_PATH"] = VENV_LIB + ":" + base.get("LD_LIBRARY_PATH", "")
+    if sys.platform != "win32":
+        venv_lib = os.environ.get("MAPFREE_VENV_LIB", "").strip()
+        if venv_lib and Path(venv_lib).is_dir():
+            base["LD_LIBRARY_PATH"] = venv_lib + os.pathsep + base.get("LD_LIBRARY_PATH", "")
     return base
 
 
@@ -42,11 +42,22 @@ def run_process_streaming(
     stop_event: threading.Event | None = None,
 ) -> int:
     """
-    Run command with Popen; stream stdout/stderr (combined) line-by-line to logger, log_file, and/or line_callback.
-    If stop_event is set, a watcher thread will terminate the process; no zombie left.
-    Returns exit code. Raises subprocess.TimeoutExpired on timeout, EngineExecutionError on spawn failure.
+    Run command with Popen (shell=False, list args). Stream stdout/stderr to logger/log_file/line_callback.
+    If stop_event is set, a watcher thread will terminate the process.
+    Returns exit code. Raises EngineExecutionError on spawn failure (e.g. executable not found).
     """
+    if logger:
+        logger.info("Running: %s", " ".join(str(c) for c in command))
+    if log_file:
+        try:
+            Path(log_file).parent.mkdir(parents=True, exist_ok=True)
+            with open(log_file, "a") as f:
+                f.write("\n--- CMD ---\n%s\n" % " ".join(str(c) for c in command))
+        except Exception:
+            pass
+
     run_env = get_process_env(env)
+    run_cwd = str(Path(cwd).resolve()) if cwd else None
     log_fp = None
     try:
         proc = subprocess.Popen(
@@ -54,9 +65,25 @@ def run_process_streaming(
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
-            cwd=cwd,
+            cwd=run_cwd,
             env=run_env,
+            shell=False,
         )
+    except FileNotFoundError as e:
+        msg = (
+            "COLMAP executable not found. Please configure path in Settings or set MAPFREE_COLMAP. "
+            "Details: %s" % (e,)
+        )
+        if logger:
+            logger.error(msg)
+        if log_file:
+            try:
+                Path(log_file).parent.mkdir(parents=True, exist_ok=True)
+                with open(log_file, "a") as f:
+                    f.write("\n--- SPAWN FAILED ---\n%s\n" % msg)
+            except Exception:
+                pass
+        raise EngineExecutionError(msg) from e
     except OSError as e:
         msg = "Subprocess failed to start: %s" % (e,)
         if logger:
