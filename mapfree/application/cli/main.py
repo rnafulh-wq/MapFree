@@ -98,8 +98,7 @@ def main() -> None:
 
     if args.command == "gui":
         from mapfree.app import main as app_main
-        app_main()
-        return
+        sys.exit(app_main())
 
     if args.command != "run":
         parser.print_help()

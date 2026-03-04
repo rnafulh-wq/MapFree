@@ -78,6 +78,9 @@ target_epsg: null
 # ---------------------------------------------------------------------------
 # COLMAP
 # ---------------------------------------------------------------------------
+# Path to COLMAP executable (empty = use resolver: env, then default Windows/Linux path, then PATH)
+colmap_path: ""
+
 colmap:
   colmap_bin: null
   num_threads: -1

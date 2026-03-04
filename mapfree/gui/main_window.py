@@ -175,6 +175,21 @@ class MainWindow(QMainWindow):
         self._connect_controller_signals()
         self._connect_project_panel()
         self._start_memory_monitor()
+        QTimer.singleShot(500, self._check_colmap_installation)
+
+    def _check_colmap_installation(self):
+        """Optional: warn once at startup if COLMAP is not configured (no layout change)."""
+        try:
+            from mapfree.engines.colmap_engine import verify_colmap_installation
+            if not verify_colmap_installation():
+                QMessageBox.warning(
+                    self,
+                    "COLMAP Not Configured",
+                    "COLMAP executable not found. Please set path in Settings or MAPFREE_COLMAP. "
+                    "Pipeline will fail until configured.",
+                )
+        except Exception:
+            pass
 
     def _start_memory_monitor(self):
         """Start background memory monitor; warn user when RSS > threshold and suggest decimation."""
@@ -877,7 +892,9 @@ class MainWindow(QMainWindow):
             project_path,
             quality=quality,
         )
+        self._worker.started.connect(lambda: self._progress_panel.update_state("running"))
         self._worker.finished.connect(self._on_worker_finished)
+        self._worker.error.connect(self._on_pipeline_error)
         self._run_action.setEnabled(False)
         self._stop_action.setEnabled(True)
         self._worker.start()
