@@ -1,5 +1,10 @@
 """
 Standalone 3D viewer window — run in a separate process so a segfault does not close MapFree.
+
+.. warning:: **EXPERIMENTAL** — The OpenGL viewer is experimental.  It may crash or
+    produce visual artefacts on some GPU drivers.  Software OpenGL is forced to
+    reduce segfault risk.  Use ``MAPFREE_NO_OPENGL=1`` to disable entirely.
+
 Usage: python -m mapfree.viewer.standalone [project_path]
 """
 import os

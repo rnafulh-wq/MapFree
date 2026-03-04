@@ -3,7 +3,7 @@
 ## Development setup
 
 ```bash
-git clone https://github.com/your-org/MapFree.git
+git clone https://github.com/rnafulh-wq/MapFree.git
 cd MapFree
 python3 -m venv venv
 source venv/bin/activate   # Windows: venv\Scripts\activate

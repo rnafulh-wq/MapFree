@@ -1,6 +1,16 @@
 """
 OpenGL widget — GL Viewer Wrapper (Safe Layer).
 
+.. warning:: **EXPERIMENTAL**
+    The OpenGL 3D viewer is experimental and may crash or produce visual artefacts depending
+    on the host GPU driver and platform (software OpenGL is forced to reduce segfaults).
+    It is intentionally run in a separate process so a crash does not affect the main
+    MapFree window.  Enable it only if needed:
+
+    - GUI button "Enable 3D viewer"
+    - Environment variable ``MAPFREE_OPENGL=1``
+    - Disable entirely: ``MAPFREE_NO_OPENGL=1``
+
 Architecture:
   GUI Layer (PySide6) → GL Viewer Wrapper (this widget) → Render Core (decoupled from UI thread).
 
@@ -12,11 +22,15 @@ Viewer responsibilities only:
 Viewer does NOT: process PDAL, DTM, measurement logic — all in backend engine.
 """
 
+import logging
+import os
 import struct
 from pathlib import Path
 from typing import Any
 
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
+
+_log = logging.getLogger("mapfree.viewer.gl_widget")
 from mapfree.viewer.camera import Camera
 from PySide6.QtGui import QSurfaceFormat, QOpenGLContext, QMatrix4x4
 from PySide6.QtOpenGL import (
@@ -429,6 +443,11 @@ class ViewerWidget(QOpenGLWidget):
 
     def initializeGL(self) -> None:
         """Guard against context loss: try init_renderer (3.3 Core), else fallback_mode (2.1 compat)."""
+        if os.environ.get("MAPFREE_NO_OPENGL") == "1":
+            _log.warning("MAPFREE_NO_OPENGL=1: skipping OpenGL initialization.")
+            self._use_fallback = True
+            self._initialized = True
+            return
         self.makeCurrent()
         if self._initialized:
             self.doneCurrent()
@@ -436,6 +455,10 @@ class ViewerWidget(QOpenGLWidget):
         try:
             self._init_renderer()
         except Exception as e:
+            _log.warning(
+                "OpenGL 3.3 Core init failed (%s); falling back to 2.1 compatibility mode.",
+                e,
+            )
             try:
                 self._fallback_mode(e)
             except Exception:
@@ -465,6 +488,12 @@ class ViewerWidget(QOpenGLWidget):
         self._vao = self._vbo = self._ebo = None
         self._program_mesh = self._program_points = self._program_line = None
         self._vao_line = self._vbo_line = None
+        if exc is not None:
+            _log.warning(
+                "OpenGL viewer entered fallback mode (no 3D rendering). "
+                "Cause: %s. Use MAPFREE_NO_OPENGL=1 to suppress.",
+                exc,
+            )
         try:
             from PySide6.QtOpenGL import QOpenGLFunctions
             ctx = QOpenGLContext.currentContext()
@@ -472,8 +501,8 @@ class ViewerWidget(QOpenGLWidget):
                 self._gl = QOpenGLFunctions(ctx)
                 if self._gl:
                     self._gl.initializeOpenGLFunctions()
-        except Exception:
-            pass
+        except Exception as inner:
+            _log.warning("QOpenGLFunctions init failed in fallback mode: %s", inner)
 
     def _create_shaders(self) -> None:
         self._program_mesh = QOpenGLShaderProgram()

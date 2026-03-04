@@ -4,7 +4,7 @@
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/status-alpha-orange.svg)](https://github.com/your-org/MapFree)
+[![Status](https://img.shields.io/badge/status-alpha-orange.svg)](https://github.com/rnafulh-wq/MapFree)
 
 ## Overview
 
@@ -87,7 +87,7 @@ To disable geospatial stages without installing PDAL/GDAL, set in config: `enabl
 Use a virtual environment so dependencies do not affect the system Python:
 
 ```bash
-git clone https://github.com/your-org/MapFree.git
+git clone https://github.com/rnafulh-wq/MapFree.git
 cd MapFree
 python3 -m venv venv
 source venv/bin/activate   # Windows: venv\Scripts\activate
@@ -111,6 +111,8 @@ python -m mapfree.app
 ```
 
 The app **opens with a placeholder** by default so it never crashes on startup. Click **"Enable 3D viewer"** in the window to turn on the OpenGL 3D viewer (software OpenGL is forced to reduce segfaults). Or run with 3D from start: `MAPFREE_OPENGL=1 mapfree gui`. To disable 3D entirely: `MAPFREE_NO_OPENGL=1 mapfree gui`
+
+> **Note — 3D Viewer (Experimental):** The OpenGL viewer is experimental. It may crash or produce visual artefacts depending on GPU driver and platform. It runs in a separate process to protect the main window. If you experience instability, use `MAPFREE_NO_OPENGL=1` to keep it disabled.
 
 **CLI (headless pipeline):**
 

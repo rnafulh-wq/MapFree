@@ -37,6 +37,12 @@ images/
 *.zip
 *.tar.gz
 
+# Runtime state
+.mapfree_state.json
+
+# Colmap venv symlink artifact (not a project file)
+/colmap
+
 # OS
 .DS_Store
 Thumbs.db
