@@ -123,11 +123,11 @@ MapFree harus update PATH-nya sendiri saat startup agar deps terdeteksi.
 
 Commit: "feat(utils): dependency resolver based on hardware profile"
 ```
-- [ ] DependencyResolver class dibuat
-- [ ] DependencyPackage dataclass lengkap
-- [ ] URL COLMAP (cuda & no-cuda) dikonfigurasi
-- [ ] Logic pemilihan package berdasarkan GPU
-- [ ] Unit test ditulis
+- [x] DependencyResolver class dibuat
+- [x] DependencyPackage dataclass lengkap
+- [x] URL COLMAP (cuda & no-cuda) dikonfigurasi
+- [x] Logic pemilihan package berdasarkan GPU
+- [x] Unit test ditulis
 
 ---
 
