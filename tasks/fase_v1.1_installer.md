@@ -259,7 +259,7 @@ Commit: "build: add Inno Setup Windows installer with hardware detection page"
 - [x] COLMAP variant otomatis dipilih berdasarkan GPU
 - [x] Shortcut Desktop dan Start Menu dibuat
 - [x] Build CI menghasilkan .exe installer
-- [ ] Installer berjalan di Windows 10/11 fresh
+- [ ] Installer berjalan di Windows 10/11 fresh (verifikasi manual saat release)
 
 ---
 
@@ -334,11 +334,11 @@ Buat scripts/installer/create_desktop_entry.sh:
 
 Commit: "build: add Linux shell installer with hardware detection"
 ```
-- [ ] install_linux.sh dibuat
-- [ ] Hardware detection (GPU, RAM, distro)
-- [ ] COLMAP install sesuai GPU
-- [ ] .desktop file dibuat (app muncul di app launcher)
-- [ ] First-run setup di AppImage diimplementasi
+- [x] install_linux.sh dibuat
+- [x] Hardware detection (GPU, RAM, distro)
+- [x] COLMAP install sesuai GPU
+- [x] .desktop file dibuat (app muncul di app launcher)
+- [ ] First-run setup di AppImage diimplementasi (TASK 1.6 — first_run_wizard)
 
 ---
 
