@@ -155,8 +155,19 @@ def _check_binary(
     install_hint: str,
     critical: bool,
 ) -> DependencyStatus:
-    """Check a single binary and return its :class:`DependencyStatus`."""
-    found_path = shutil.which(name)
+    """Check a single binary and return its :class:`DependencyStatus`.
+
+    Prefer PathManager registry (MapFree-installed deps) over system PATH.
+    """
+    try:
+        from mapfree.utils.path_manager import PathManager
+        reg_path = PathManager.get_dep_path(name)
+    except Exception:
+        reg_path = None
+    if reg_path is not None:
+        found_path = str(reg_path)
+    else:
+        found_path = shutil.which(name)
     if not found_path:
         return DependencyStatus(
             available=False,
@@ -164,7 +175,7 @@ def _check_binary(
             critical=critical,
         )
 
-    ok, version = _run_version(name, version_args)
+    ok, version = _run_version(found_path, version_args)
     return DependencyStatus(
         available=ok,
         version=version if ok else None,

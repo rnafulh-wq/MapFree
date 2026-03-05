@@ -156,8 +156,9 @@ jobs:
           elif [ -n "$(ls -A windows-installer/*.exe 2>/dev/null)" ]; then
             cp windows-installer/*.exe ./MapFree-Setup-1.1.0.exe
           fi
+          cp MapFree-windows.zip MapFree-windows-portable.zip
           touch checksums.txt
-          sha256sum MapFree-windows.zip MapFree-x86_64.AppImage >> checksums.txt
+          sha256sum MapFree-windows.zip MapFree-windows-portable.zip MapFree-x86_64.AppImage >> checksums.txt
           [ -f MapFree-Setup-1.1.0.exe ] && sha256sum MapFree-Setup-1.1.0.exe >> checksums.txt
           cat checksums.txt
 
@@ -195,7 +196,7 @@ jobs:
           body: ${{ steps.notes.outputs.body }}
           files: |
             MapFree-Setup-1.1.0.exe
-            MapFree-windows.zip
+            MapFree-windows-portable.zip
             MapFree-x86_64.AppImage
             checksums.txt
           draft: false

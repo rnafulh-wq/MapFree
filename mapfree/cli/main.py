@@ -7,11 +7,15 @@ import logging
 import sys
 from pathlib import Path
 
-from mapfree.application.controller import MapFreeController
-from mapfree.core.config import load_config
-from mapfree.core.events import Event
-from mapfree.core.logger import setup_logging
-from mapfree.core.state import PipelineState
+from mapfree.utils.path_manager import PathManager
+
+PathManager.inject_to_env()
+
+from mapfree.application.controller import MapFreeController  # noqa: E402
+from mapfree.core.config import load_config  # noqa: E402
+from mapfree.core.events import Event  # noqa: E402
+from mapfree.core.logger import setup_logging  # noqa: E402
+from mapfree.core.state import PipelineState  # noqa: E402
 
 logger = logging.getLogger(__name__)
 

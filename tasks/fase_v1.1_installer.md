@@ -393,12 +393,12 @@ Integrasi ke main_window.py:
 
 Commit: "feat(gui): first run setup wizard with hardware detection and auto-download"
 ```
-- [ ] FirstRunWizard QWizard dibuat (4 halaman)
-- [ ] Hardware detection page berjalan async
-- [ ] Component selection dengan checkbox dan size calculation
-- [ ] Download + install page dengan dual progress bar
-- [ ] setup_complete.json tersimpan setelah wizard selesai
-- [ ] Main window skip wizard jika sudah setup
+- [x] FirstRunWizard QWizard dibuat (4 halaman)
+- [x] Hardware detection page berjalan async
+- [x] Component selection dengan checkbox dan size calculation
+- [x] Download + install page dengan dual progress bar
+- [x] setup_complete.json tersimpan setelah wizard selesai
+- [x] Main window skip wizard jika sudah setup
 
 ---
 
@@ -451,11 +451,11 @@ Update dependency_check.py:
 
 Commit: "feat(utils): path manager for MapFree-managed dependencies"
 ```
-- [ ] PathManager class dibuat
-- [ ] deps_registry.json persistence
-- [ ] inject_to_env() dipanggil di app.py dan cli
-- [ ] System PATH update untuk Windows
-- [ ] dependency_check.py diupdate untuk cek registry dulu
+- [x] PathManager class dibuat
+- [x] deps_registry.json persistence
+- [x] inject_to_env() dipanggil di app.py dan cli
+- [x] System PATH update untuk Windows
+- [x] dependency_check.py diupdate untuk cek registry dulu
 
 ---
 
@@ -497,10 +497,10 @@ Update CHANGELOG.md untuk v1.1.0 saat semua task selesai.
 
 Commit: "ci: add Inno Setup installer build to release workflow"
 ```
-- [ ] build-windows-installer job ditambahkan
-- [ ] Inno Setup berjalan di CI
-- [ ] Installer .exe ter-upload ke GitHub Releases
-- [ ] Release notes mencantumkan semua format download
+- [x] build-windows-installer job ditambahkan
+- [x] Inno Setup berjalan di CI
+- [x] Installer .exe ter-upload ke GitHub Releases
+- [x] Release notes mencantumkan semua format download
 
 ---
 
@@ -521,13 +521,13 @@ Commit: "ci: add Inno Setup installer build to release workflow"
 - [ ] COLMAP terinstall otomatis
 
 ### First Run Wizard
-- [ ] 4 halaman wizard tampil dengan benar
-- [ ] Hardware detection akurat (CPU, RAM, GPU, CUDA)
-- [ ] Download progress real-time
-- [ ] setup_complete.json tersimpan
-- [ ] Wizard tidak muncul lagi setelah setup selesai
+- [x] 4 halaman wizard tampil dengan benar
+- [x] Hardware detection akurat (CPU, RAM, GPU, CUDA)
+- [x] Download progress real-time
+- [x] setup_complete.json tersimpan
+- [x] Wizard tidak muncul lagi setelah setup selesai
 
 ### PATH Management
-- [ ] deps di-inject ke PATH saat MapFree startup
-- [ ] dependency_check.py mendeteksi deps dari registry
-- [ ] Pipeline bisa jalan tanpa user setup PATH manual
+- [x] deps di-inject ke PATH saat MapFree startup
+- [x] dependency_check.py mendeteksi deps dari registry
+- [x] Pipeline bisa jalan tanpa user setup PATH manual

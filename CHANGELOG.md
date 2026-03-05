@@ -6,6 +6,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-03-05
+
+### Added
+
+- **Smart installer & first-run wizard**
+  - Hardware detection module (CPU, RAM, GPU, CUDA) for Windows/Linux/macOS
+  - Dependency resolver: COLMAP (CUDA/no-CUDA), optional OpenMVS, PDAL, GDAL
+  - Dependency downloader with progress, retry, and install (zip/exe/choco/apt)
+  - First-run setup wizard (4 pages): Welcome, Hardware, Components, Install
+  - `~/.mapfree/setup_complete.json` to skip wizard after setup
+- **PATH management**
+  - `PathManager`: deps registry (`~/.mapfree/deps_registry.json`), `inject_to_env()` at startup
+  - `app.py` and CLI call `PathManager.inject_to_env()` before other imports
+  - `dependency_check` prefers MapFree-registered binaries over system PATH
+  - Wizard registers installed COLMAP/OpenMVS binaries after install
+- **Windows installer**
+  - Inno Setup script (`scripts/installer/mapfree_setup.iss`) with hardware/components pages
+  - Release workflow: build Windows installer + portable zip, upload to GitHub Release
+- **Linux installer**
+  - `install_linux.sh`: distro detection, GPU, RAM, install COLMAP, copy AppImage
+  - `create_desktop_entry.sh`: mapfree.desktop and icon, update-desktop-database
+
+### Changed
+
+- Release assets: MapFree-Setup-1.1.0.exe (recommended), MapFree-windows-portable.zip, AppImage
+
 ## [1.0.0] - 2026-03-05
 
 ### Added
@@ -50,6 +76,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Modular engine layer (COLMAP, OpenMVS); CLI and GUI entry points.
 - Structured logging, production-style layout (core, application, gui, utils).
 
-[Unreleased]: https://github.com/rnafulh-wq/MapFree/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/rnafulh-wq/MapFree/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/rnafulh-wq/MapFree/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/rnafulh-wq/MapFree/releases/tag/v1.0.0
 [0.1.0]: https://github.com/rnafulh-wq/MapFree/releases/tag/v0.1.0
