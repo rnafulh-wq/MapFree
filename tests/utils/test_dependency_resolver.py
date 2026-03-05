@@ -1,5 +1,8 @@
 """Tests for mapfree.utils.dependency_resolver."""
+import os
 from unittest.mock import patch
+
+import pytest
 
 from mapfree.utils.dependency_resolver import (
     DependencyPackage,
@@ -122,11 +125,11 @@ def test_required_package_path_to_add_contains_deps_and_colmap():
     assert "colmap" in path
 
 
+@pytest.mark.skipif(os.name != "nt", reason="Windows-only path test")
 def test_deps_root_env_override():
     """MAPFREE_DEPS_ROOT overrides default Windows deps root."""
-    with patch("os.name", "nt"):
-        with patch.dict("os.environ", {"MAPFREE_DEPS_ROOT": "D:\\Custom"}):
-            from mapfree.utils.dependency_resolver import _deps_root
-            root = _deps_root()
+    with patch.dict("os.environ", {"MAPFREE_DEPS_ROOT": "D:\\Custom"}):
+        from mapfree.utils.dependency_resolver import _deps_root
+        root = _deps_root()
     assert "Custom" in str(root)
     assert "deps" in str(root)
