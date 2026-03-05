@@ -52,6 +52,11 @@ var
   WantOpenMVS: Boolean;
   WantPDAL: Boolean;
 
+function MyBoolToStr(b: Boolean): String;
+begin
+  if b then Result := 'true' else Result := 'false';
+end;
+
 procedure CurPageChanged(CurPageID: Integer);
 var
   TotalMB: Integer;
@@ -132,8 +137,8 @@ begin
   if CurStep = ssPostInstall then
   begin
     JsonPath := ExpandConstant('{app}\components.json');
-    JsonContent := '{"colmap":true,"openmvs":' + LowerCase(BoolToStr(WantOpenMVS, True)) +
-      ',"pdal_gdal":' + LowerCase(BoolToStr(WantPDAL, True)) + '}';
+    JsonContent := '{"colmap":true,"openmvs":' + MyBoolToStr(WantOpenMVS) +
+      ',"pdal_gdal":' + MyBoolToStr(WantPDAL) + '}';
     SaveStringToFile(JsonPath, JsonContent, False);
   end;
 end;
