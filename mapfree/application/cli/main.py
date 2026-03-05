@@ -107,9 +107,8 @@ def main() -> None:
 
     load_config(override_path=args.config)
 
-    base = Path.home().resolve()
-    image_folder = validate_path_allowed(args.image_folder, base, "image_folder")
-    project_path = validate_path_allowed(args.output, base, "project_path")
+    image_folder = validate_path_allowed(args.image_folder, kind="image_folder")
+    project_path = validate_path_allowed(args.output, kind="project_path")
     if not image_folder.is_dir():
         logger.error("image_folder is not a directory: %s", image_folder)
         sys.exit(1)
