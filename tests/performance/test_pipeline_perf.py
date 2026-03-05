@@ -137,7 +137,7 @@ def test_pipeline_memory_no_leak(dummy_image_dir_50, tmp_path):
     proj3.mkdir()
 
     rss1 = run_once(proj1)
-    rss2 = run_once(proj2)
+    _ = run_once(proj2)
     rss3 = run_once(proj3)
 
     delta_3_vs_1_mb = (rss3 - rss1) / (1024 * 1024)

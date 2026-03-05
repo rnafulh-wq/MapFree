@@ -57,7 +57,7 @@ class MatplotlibPointCloudViewer(QWidget):
         try:
             from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
             from matplotlib.figure import Figure
-            from mpl_toolkits.mplot3d import Axes3D
+            from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
         except ImportError:
             lab = QLabel("Matplotlib not installed.\npip install matplotlib")
             lab.setAlignment(Qt.AlignmentFlag.AlignCenter)
