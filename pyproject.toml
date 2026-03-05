@@ -34,6 +34,7 @@ dev = [
     "pytest>=7.0",
     "pytest-mock>=3.10",
     "pytest-cov>=4.0",
+    "pyinstaller>=6.0",
 ]
 viewer = [
     "pyqtgraph>=0.13.0",

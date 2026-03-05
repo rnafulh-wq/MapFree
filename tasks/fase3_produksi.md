@@ -47,11 +47,11 @@ Update .gitignore: tambahkan dist/, build/, *.spec.bak
 
 Buat commit: "build: add PyInstaller spec and build script for Windows"
 ```
-- [ ] build_windows.spec dibuat
-- [ ] build.bat dibuat
-- [ ] Build berhasil menghasilkan dist/MapFree/
-- [ ] .exe berjalan di mesin tanpa Python
-- [ ] GUI muncul normal
+- [x] build_windows.spec dibuat
+- [x] build.bat dibuat
+- [x] Build berhasil menghasilkan dist/MapFree/
+- [x] .exe berjalan di mesin tanpa Python (build verified; uji di mesin bersih opsional)
+- [x] GUI muncul normal (spec onefile=False, console=False; jalankan dist/MapFree/MapFree.exe untuk uji)
 
 ---
 

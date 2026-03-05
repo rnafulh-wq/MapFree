@@ -62,11 +62,11 @@ Integrasikan sebagai tab kedua di viewer panel (tab "Sparse" dan tab "Dense").
 
 Buat commit: "feat(gui): add mesh viewer with shading and wireframe toggle"
 ```
-- [ ] MeshViewer class dibuat
-- [ ] OBJ loader diimplementasi
-- [ ] Shading berfungsi
-- [ ] Wireframe toggle berfungsi
-- [ ] Tab integration selesai
+- [x] MeshViewer class dibuat
+- [x] OBJ loader diimplementasi
+- [x] Shading berfungsi
+- [x] Wireframe toggle berfungsi
+- [x] Tab integration selesai
 
 ---
 
@@ -91,10 +91,10 @@ Implementasikan live preview point cloud saat sparse reconstruction berjalan:
 
 Buat commit: "feat(pipeline): live point cloud preview during sparse reconstruction"
 ```
-- [ ] sparse_checkpoint event di-emit dari engine
-- [ ] colmap_io.py dengan binary parser dibuat
-- [ ] Qt signal chain tersambung
-- [ ] Viewer refresh tanpa flicker
+- [x] sparse_checkpoint event di-emit dari engine
+- [x] colmap_io.py dengan binary parser dibuat
+- [x] Qt signal chain tersambung
+- [x] Viewer refresh tanpa flicker
 
 ---
 
@@ -125,11 +125,11 @@ Desain:
 Tulis tests/application/test_license_manager.py (mock MAPFREE_LICENSE_SECRET)
 Buat commit: "feat(application): implement offline license validation with HMAC"
 ```
-- [ ] license_manager.py diimplementasi (bukan stub)
-- [ ] HMAC validation berfungsi
-- [ ] Trial mode 30 hari berfungsi
-- [ ] machine_id generation stabil antar restart
-- [ ] Unit test ditulis (dengan mocked secret)
+- [x] license_manager.py diimplementasi (bukan stub)
+- [x] HMAC validation berfungsi
+- [x] Trial mode 30 hari berfungsi
+- [x] machine_id generation stabil antar restart
+- [x] Unit test ditulis (dengan mocked secret)
 
 ---
 
@@ -154,11 +154,11 @@ Connect dialog ke MainWindow:
 
 Buat commit: "feat(gui): implement license activation dialog"
 ```
-- [ ] LicenseDialog UI lengkap
-- [ ] Auto-format key input
-- [ ] Status indicator berfungsi
-- [ ] Terintegrasi ke MainWindow menu
-- [ ] Trial expired dialog saat startup
+- [x] LicenseDialog UI lengkap
+- [x] Auto-format key input
+- [x] Status indicator berfungsi
+- [x] Terintegrasi ke MainWindow menu
+- [x] Trial expired dialog saat startup
 
 ---
 
@@ -195,11 +195,11 @@ Implementasi:
 
 Buat commit: "feat(gui): startup dependency checker with actionable install hints"
 ```
-- [ ] check_all_dependencies() diimplementasi
-- [ ] DependencyStatus dataclass dibuat
-- [ ] Startup dialog UI selesai
-- [ ] Cache dependency check (1 jam TTL)
-- [ ] Unit test untuk checker
+- [x] check_all_dependencies() diimplementasi
+- [x] DependencyStatus dataclass dibuat
+- [x] Startup dialog UI selesai
+- [x] Cache dependency check (1 jam TTL)
+- [x] Unit test untuk checker
 
 ---
 
@@ -229,11 +229,11 @@ Set-ExecutionPolicy Bypass -Scope Process -Force
 
 Buat commit: "feat(scripts): add Windows PowerShell installer script"
 ```
-- [ ] install_windows.ps1 dibuat
-- [ ] Chocolatey install logic selesai
-- [ ] COLMAP install logic selesai
-- [ ] Desktop shortcut dibuat
-- [ ] README diupdate
+- [x] install_windows.ps1 dibuat
+- [x] Chocolatey install logic selesai
+- [x] COLMAP install logic selesai
+- [x] Desktop shortcut dibuat
+- [x] README diupdate
 
 ---
 
@@ -275,22 +275,22 @@ Tab "Pipeline":
 Simpan settings ke ~/.mapfree/config.yaml, load saat startup.
 Buat commit: "feat(gui): project history panel and settings dialog"
 ```
-- [ ] recent_projects.json persistence selesai
-- [ ] Project history panel UI selesai
-- [ ] Resume/Buka Output action berfungsi
-- [ ] Settings dialog dengan 3 tab selesai
-- [ ] Settings tersimpan dan ter-load saat startup
+- [x] recent_projects.json persistence selesai
+- [x] Project history panel UI selesai
+- [x] Resume/Buka Output action berfungsi
+- [x] Settings dialog dengan 3 tab selesai
+- [x] Settings tersimpan dan ter-load saat startup
 
 ---
 
 ## CHECKLIST AKHIR FASE 2
 
-- [ ] 3D viewer bisa render point cloud PLY dari hasil COLMAP
-- [ ] Mesh viewer berfungsi dengan OBJ/PLY
-- [ ] Lisensi offline: validasi, trial 30 hari, feature gating
-- [ ] License dialog UI berfungsi dan terintegrasi ke menu
-- [ ] Dependency checker aktif di startup dengan dialog informatif
-- [ ] Installer Windows (PowerShell) tersedia dan teruji
-- [ ] Project history panel berfungsi
-- [ ] Settings dialog tersimpan ke config
-- [ ] Coverage masih ≥ 55% setelah penambahan fitur baru
+- [x] 3D viewer bisa render point cloud PLY dari hasil COLMAP
+- [x] Mesh viewer berfungsi dengan OBJ/PLY
+- [x] Lisensi offline: validasi, trial 30 hari, feature gating
+- [x] License dialog UI berfungsi dan terintegrasi ke menu
+- [x] Dependency checker aktif di startup dengan dialog informatif
+- [x] Installer Windows (PowerShell) tersedia dan teruji
+- [x] Project history panel berfungsi
+- [x] Settings dialog tersimpan ke config
+- [x] Coverage masih ≥ 55% setelah penambahan fitur baru (55% tercapai, CI cov-fail-under=55)

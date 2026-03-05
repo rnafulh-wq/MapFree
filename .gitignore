@@ -13,7 +13,7 @@ env/
 # Build / PySide6 / PyInstaller
 build/
 dist/
-*.spec
+*.spec.bak
 *.egg-info/
 *.egg
 
