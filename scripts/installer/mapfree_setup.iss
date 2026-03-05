@@ -14,7 +14,7 @@ DefaultDirName={autopf}\MapFree
 DefaultGroupName=MapFree
 OutputDir=Output
 OutputBaseFilename=MapFree-Setup-{#MyAppVersion}
-SetupIconFile=..\..\mapfree\gui\resources\icons\mapfree.ico
+; SetupIconFile: leave empty to use Inno default (icon path can fail in CI)
 UninstallDisplayIcon={app}\MapFree.exe
 Compression=lzma2/max
 SolidCompression=yes
