@@ -3,7 +3,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import mapfree.core.chunking as chunking_mod
-from mapfree.core.chunking import count_images, _list_images, split_dataset
+from mapfree.core.chunking import count_images, _list_images, merge_sparse_models, split_dataset
 
 
 # ─── helpers ──────────────────────────────────────────────────────────────────
@@ -108,3 +108,44 @@ class TestSplitDataset:
         assert len(result) == 2
         chunk1_files = [p.name for p in result[0].iterdir()]
         assert "a.jpg" in chunk1_files or "b.jpg" in chunk1_files
+
+
+# ─── merge_sparse_models (single dir: copy, no subprocess) ───────────────────
+
+class TestMergeSparseModelsSingle:
+    """merge_sparse_models with one valid sparse dir copies files (no colmap)."""
+
+    def test_single_dir_copies_to_sparse_merged(self, tmp_path):
+        project_path = tmp_path / "project"
+        project_path.mkdir()
+        sparse_one = tmp_path / "sparse0"
+        sparse_one.mkdir()
+        for name in ("cameras.bin", "images.bin", "points3D.bin"):
+            (sparse_one / name).write_bytes(b"data")
+        out = merge_sparse_models(project_path, [sparse_one])
+        assert out == project_path / "sparse_merged" / "0"
+        assert (out / "cameras.bin").read_bytes() == b"data"
+        assert (out / "images.bin").read_bytes() == b"data"
+        assert (out / "points3D.bin").read_bytes() == b"data"
+
+    def test_single_dir_with_subdir_0(self, tmp_path):
+        """Sparse dir has subdir 0/ with cameras.bin etc."""
+        project_path = tmp_path / "project"
+        project_path.mkdir()
+        sparse_one = tmp_path / "chunk" / "sparse" / "0"
+        sparse_one.mkdir(parents=True)
+        for name in ("cameras.bin", "images.bin", "points3D.bin"):
+            (sparse_one / name).write_bytes(b"x")
+        out = merge_sparse_models(project_path, [sparse_one.parent.parent.parent / "chunk" / "sparse"])
+        assert out == project_path / "sparse_merged" / "0"
+        assert (out / "cameras.bin").exists()
+
+    def test_no_valid_sparse_dirs_raises(self, tmp_path):
+        import pytest
+        from mapfree.core.chunking import merge_sparse_models
+        project_path = tmp_path / "project"
+        project_path.mkdir()
+        empty_dir = tmp_path / "empty"
+        empty_dir.mkdir()
+        with pytest.raises(FileNotFoundError, match="No valid sparse"):
+            merge_sparse_models(project_path, [empty_dir])

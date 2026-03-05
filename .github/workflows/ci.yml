@@ -34,7 +34,7 @@ jobs:
             --ignore=tests/integration \
             --cov=mapfree \
             --cov-report=term-missing \
-            --cov-fail-under=55
+            --cov-fail-under=58
         env:
           MAPFREE_NO_OPENGL: "1"
           MAPFREE_LOG_LEVEL: "WARNING"
