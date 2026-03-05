@@ -113,10 +113,10 @@ Jobs:
 
 Buat commit: "ci: add automated release workflow for Windows and Linux"
 ```
-- [ ] release.yml dibuat
-- [ ] Windows build job berjalan
-- [ ] Linux build job berjalan
-- [ ] GitHub Release dibuat otomatis saat tag
+- [x] release.yml dibuat
+- [x] Windows build job berjalan
+- [x] Linux build job berjalan
+- [x] GitHub Release dibuat otomatis saat tag
 
 ---
 
