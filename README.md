@@ -94,6 +94,16 @@ source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+**Windows (PowerShell, one-time installer):**
+
+```powershell
+# Run PowerShell as Administrator
+Set-ExecutionPolicy Bypass -Scope Process -Force
+.\scripts\install_windows.ps1
+```
+
+The script installs Chocolatey (if needed), COLMAP, Python 3.10+, MapFree, and creates a Desktop shortcut for `mapfree gui`.
+
 Or install as an editable package (includes the `mapfree` CLI):
 
 ```bash

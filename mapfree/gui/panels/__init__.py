@@ -11,7 +11,7 @@ from mapfree.gui.panels.project_panel import (
 from mapfree.gui.panels.console_panel import ConsolePanel
 from mapfree.gui.panels.progress_panel import ProgressPanel
 from mapfree.gui.panels.viewer_panel import ViewerPanel
-from mapfree.gui.panels.viewer_3d import PointCloudViewer
+from mapfree.gui.panels.viewer_3d import MeshViewer, PointCloudViewer
 
 __all__ = [
     "ProjectPanel",
@@ -19,6 +19,7 @@ __all__ = [
     "ProgressPanel",
     "ViewerPanel",
     "PointCloudViewer",
+    "MeshViewer",
     "STAGE_ITEMS",
     "STATUS_PENDING",
     "STATUS_RUNNING",

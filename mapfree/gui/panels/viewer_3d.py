@@ -1,12 +1,17 @@
-"""Point Cloud Viewer using PyQtGraph OpenGL.
+"""Point Cloud and Mesh Viewers using PyQtGraph OpenGL.
 
-Provides :class:`PointCloudViewer` which loads and renders PLY point clouds
-using ``pyqtgraph.opengl.GLScatterPlotItem``.  Falls back to a styled
-placeholder widget when pyqtgraph is not installed or ``MAPFREE_NO_OPENGL=1``
-is set.
+Provides:
 
-PLY parsing is delegated to :mod:`mapfree.utils.ply_parser` (pure numpy,
-no Qt dependency).
+* :class:`PointCloudViewer` — renders PLY point clouds via
+  ``pyqtgraph.opengl.GLScatterPlotItem``.
+* :class:`MeshViewer` — renders OBJ/PLY meshes via
+  ``pyqtgraph.opengl.GLMeshItem`` with solid/wireframe/points toggle.
+
+Both fall back to a styled placeholder when pyqtgraph is not installed or
+``MAPFREE_NO_OPENGL=1`` is set.
+
+Parsing is delegated to pure-numpy utility modules:
+:mod:`mapfree.utils.ply_parser` and :mod:`mapfree.utils.mesh_loader`.
 """
 import logging
 import os
@@ -16,8 +21,10 @@ from typing import Any, Optional
 import numpy as np
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
+    QApplication,
     QHBoxLayout,
     QLabel,
+    QProgressDialog,
     QPushButton,
     QSizePolicy,
     QVBoxLayout,
@@ -29,7 +36,7 @@ from mapfree.utils.ply_parser import parse_ply_file  # re-export for API compat
 logger = logging.getLogger("mapfree.viewer_3d")
 
 # Public re-export so callers can do `from mapfree.gui.panels.viewer_3d import parse_ply_file`
-__all__ = ["PointCloudViewer", "parse_ply_file"]
+__all__ = ["PointCloudViewer", "MeshViewer", "parse_ply_file"]
 
 # ---------------------------------------------------------------------------
 # Availability guards — checked once at import time
@@ -311,3 +318,337 @@ class PointCloudViewer(QWidget):
             self._scatter.setData(pos=self._xyz, color=color)
 
         self._reset_camera()
+
+
+# ---------------------------------------------------------------------------
+# MeshViewer
+# ---------------------------------------------------------------------------
+
+class MeshViewer(QWidget):
+    """Widget that renders OBJ or PLY meshes using pyqtgraph.opengl.GLMeshItem.
+
+    Display modes (toggle via toolbar or ``W`` key):
+
+    * ``"solid"``     — filled triangles, no edges (default)
+    * ``"wireframe"`` — edges only
+    * ``"solid+wire"``— filled triangles + edges
+    * ``"points"``    — vertex scatter plot
+
+    Falls back to a styled placeholder when pyqtgraph is unavailable or
+    ``MAPFREE_NO_OPENGL=1``.  A :class:`~PySide6.QtWidgets.QProgressDialog`
+    is shown for meshes with more than 100 000 faces.
+
+    Signals:
+        meshLoaded (int): Emitted with face count on success.
+        loadError (str): Emitted with an error message on failure.
+    """
+
+    meshLoaded: Signal = Signal(int)
+    loadError: Signal = Signal(str)
+
+    _LARGE_MESH_THRESHOLD = 100_000
+
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
+        super().__init__(parent)
+        self._verts: Optional[np.ndarray] = None
+        self._faces: Optional[np.ndarray] = None
+        self._colors: Optional[np.ndarray] = None
+        self._mesh_item: Any = None       # GLMeshItem
+        self._scatter_item: Any = None    # GLScatterPlotItem for points mode
+        self._gl_view: Any = None
+        self._status_label: Optional[QLabel] = None
+        self._centroid: np.ndarray = np.zeros(3, dtype=np.float32)
+        self._fit_distance: float = 5.0
+        self._display_mode: str = "solid"
+        self._setup_ui()
+
+    # ------------------------------------------------------------------
+    # UI setup
+    # ------------------------------------------------------------------
+
+    def _setup_ui(self) -> None:
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        if _PYQTGRAPH_AVAILABLE:
+            self._setup_gl_view(layout)
+        else:
+            self._setup_placeholder(layout)
+
+    def _setup_placeholder(self, layout: QVBoxLayout) -> None:
+        if _OPENGL_DISABLED:
+            detail = "(OpenGL disabled — set MAPFREE_NO_OPENGL=0 to enable)"
+        else:
+            detail = "(pyqtgraph not installed)\npip install pyqtgraph"
+        placeholder = QLabel(f"Mesh Viewer\n\n{detail}")
+        placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        placeholder.setStyleSheet(
+            "QLabel {"
+            "  color: #6a6a6a; font-size: 13px;"
+            "  background-color: #1e1e1e;"
+            "  border: 1px dashed #3d3d3d; border-radius: 8px;"
+            "}"
+        )
+        placeholder.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        layout.addWidget(placeholder)
+
+        self._status_label = QLabel("No mesh loaded")
+        self._status_label.setAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
+        self._status_label.setStyleSheet(
+            "QLabel { color: #888; font-size: 11px; padding: 4px 8px; background: #252525; }"
+        )
+        layout.addWidget(self._status_label)
+
+    def _setup_gl_view(self, layout: QVBoxLayout) -> None:
+        self._gl_view = _gl.GLViewWidget()
+        self._gl_view.setBackgroundColor("#1a1a1a")
+        self._gl_view.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
+        # Enable key events for wireframe toggle
+        self._gl_view.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self._gl_view.installEventFilter(self)
+        layout.addWidget(self._gl_view)
+
+        # Controls bar
+        controls = QWidget()
+        controls.setStyleSheet("background-color: #2a2a2a;")
+        ctrl_layout = QHBoxLayout(controls)
+        ctrl_layout.setContentsMargins(6, 4, 6, 4)
+        ctrl_layout.setSpacing(4)
+
+        for label, mode in [
+            ("Solid", "solid"),
+            ("Wire", "wireframe"),
+            ("Solid+Wire", "solid+wire"),
+            ("Points", "points"),
+        ]:
+            btn = QPushButton(label)
+            btn.setFixedHeight(26)
+            btn.setStyleSheet(
+                "QPushButton { color:#ddd; background:#3a3a3a; border:1px solid #555;"
+                "  border-radius:3px; padding:2px 8px; font-size:11px; }"
+                "QPushButton:hover { background:#4a4a4a; }"
+                "QPushButton:pressed { background:#3d6fa8; }"
+            )
+            # Capture 'mode' in closure
+            btn.clicked.connect(lambda _checked, m=mode: self.set_display_mode(m))
+            ctrl_layout.addWidget(btn)
+
+        reset_btn = QPushButton("Reset View")
+        reset_btn.setFixedHeight(26)
+        reset_btn.setStyleSheet(
+            "QPushButton { color:#ddd; background:#3a3a3a; border:1px solid #555;"
+            "  border-radius:3px; padding:2px 8px; font-size:11px; }"
+            "QPushButton:hover { background:#4a4a4a; }"
+        )
+        reset_btn.clicked.connect(self._reset_camera)
+        ctrl_layout.addWidget(reset_btn)
+        ctrl_layout.addStretch()
+
+        hint = QLabel("[W] wireframe")
+        hint.setStyleSheet("QLabel { color:#555; font-size:10px; }")
+        ctrl_layout.addWidget(hint)
+
+        self._status_label = QLabel("No mesh loaded")
+        self._status_label.setStyleSheet("QLabel { color:#888; font-size:11px; padding:0 6px; }")
+        ctrl_layout.addWidget(self._status_label)
+
+        layout.addWidget(controls)
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    def load_mesh(self, path: str | Path) -> bool:
+        """Load an OBJ or PLY mesh file.
+
+        Shows a :class:`~PySide6.QtWidgets.QProgressDialog` for meshes with
+        more than :attr:`_LARGE_MESH_THRESHOLD` faces.
+
+        Args:
+            path: Path to the ``.obj`` or ``.ply`` file.
+
+        Returns:
+            ``True`` on success, ``False`` otherwise.
+        """
+        from mapfree.utils.mesh_loader import load_mesh as _load
+
+        path = Path(path)
+        self._set_status("Loading…")
+
+        verts, faces, colors = _load(path)
+        if verts is None or faces is None:
+            msg = f"Could not load mesh: {path.name}"
+            logger.warning(msg)
+            self._set_status(msg)
+            self.loadError.emit(msg)
+            return False
+
+        self._verts = verts
+        self._faces = faces
+        self._colors = colors
+        self._centroid = verts.mean(axis=0)
+        span = float(np.linalg.norm(verts.max(axis=0) - verts.min(axis=0)))
+        self._fit_distance = span * 1.5 if span > 0 else 5.0
+
+        n_faces = len(faces)
+        if n_faces > self._LARGE_MESH_THRESHOLD:
+            self._show_progress(n_faces)
+
+        self._update_render()
+        self._set_status(f"{n_faces:,} faces loaded")
+        self.meshLoaded.emit(n_faces)
+        logger.info("Loaded %d faces from '%s'", n_faces, path)
+        return True
+
+    def face_count(self) -> int:
+        """Return number of faces currently loaded, or 0."""
+        return len(self._faces) if self._faces is not None else 0
+
+    def set_display_mode(self, mode: str) -> None:
+        """Switch rendering mode.
+
+        Args:
+            mode: One of ``"solid"``, ``"wireframe"``, ``"solid+wire"``,
+                or ``"points"``.
+        """
+        if mode not in ("solid", "wireframe", "solid+wire", "points"):
+            logger.warning("Unknown display mode: %s", mode)
+            return
+        self._display_mode = mode
+        self._apply_display_mode()
+
+    def clear(self) -> None:
+        """Remove the currently displayed mesh."""
+        self._verts = None
+        self._faces = None
+        self._colors = None
+        if _PYQTGRAPH_AVAILABLE and self._gl_view is not None:
+            if self._mesh_item is not None:
+                self._gl_view.removeItem(self._mesh_item)
+                self._mesh_item = None
+            if self._scatter_item is not None:
+                self._gl_view.removeItem(self._scatter_item)
+                self._scatter_item = None
+        self._set_status("No mesh loaded")
+
+    # ------------------------------------------------------------------
+    # Key event filter (W = wireframe toggle)
+    # ------------------------------------------------------------------
+
+    def eventFilter(self, obj: Any, event: Any) -> bool:
+        """Intercept 'W' key press on the GL view to toggle wireframe."""
+        from PySide6.QtCore import QEvent
+        if (
+            obj is self._gl_view
+            and event.type() == QEvent.Type.KeyPress
+            and event.key() == Qt.Key.Key_W
+        ):
+            self._toggle_wireframe()
+            return True
+        return super().eventFilter(obj, event)
+
+    # ------------------------------------------------------------------
+    # Private helpers
+    # ------------------------------------------------------------------
+
+    def _toggle_wireframe(self) -> None:
+        """Cycle: solid → wireframe → solid."""
+        if self._display_mode == "wireframe":
+            self.set_display_mode("solid")
+        else:
+            self.set_display_mode("wireframe")
+
+    def _set_status(self, message: str) -> None:
+        if self._status_label is not None:
+            self._status_label.setText(message)
+
+    def _reset_camera(self) -> None:
+        if not _PYQTGRAPH_AVAILABLE or self._gl_view is None:
+            return
+        self._gl_view.opts["center"] = _pg.Vector(
+            float(self._centroid[0]),
+            float(self._centroid[1]),
+            float(self._centroid[2]),
+        )
+        self._gl_view.setCameraPosition(
+            distance=self._fit_distance, elevation=30, azimuth=45
+        )
+        self._gl_view.update()
+
+    def _show_progress(self, n_faces: int) -> None:
+        """Briefly show a progress dialog for large meshes."""
+        dlg = QProgressDialog(
+            f"Loading mesh ({n_faces:,} faces)…", None, 0, 0, self
+        )
+        dlg.setWindowTitle("Loading Mesh")
+        dlg.setMinimumDuration(0)
+        dlg.setValue(0)
+        dlg.show()
+        QApplication.processEvents()
+        dlg.close()
+        dlg.deleteLater()
+
+    def _update_render(self) -> None:
+        """Create or refresh GLMeshItem / GLScatterPlotItem."""
+        if not _PYQTGRAPH_AVAILABLE or self._gl_view is None:
+            return
+        if self._verts is None or self._faces is None:
+            return
+
+        # Remove existing items
+        if self._mesh_item is not None:
+            self._gl_view.removeItem(self._mesh_item)
+            self._mesh_item = None
+        if self._scatter_item is not None:
+            self._gl_view.removeItem(self._scatter_item)
+            self._scatter_item = None
+
+        md = _gl.MeshData(vertexes=self._verts, faces=self._faces)
+
+        if self._display_mode == "points":
+            self._scatter_item = _gl.GLScatterPlotItem(
+                pos=self._verts,
+                color=self._colors if self._colors is not None else (0.8, 0.8, 0.8, 1.0),
+                size=2.0,
+                pxMode=True,
+            )
+            self._gl_view.addItem(self._scatter_item)
+        else:
+            draw_faces = self._display_mode in ("solid", "solid+wire")
+            draw_edges = self._display_mode in ("wireframe", "solid+wire")
+            self._mesh_item = _gl.GLMeshItem(
+                meshdata=md,
+                smooth=True,
+                drawFaces=draw_faces,
+                drawEdges=draw_edges,
+                color=(0.75, 0.75, 0.80, 1.0),
+                edgeColor=(0.3, 0.3, 0.3, 1.0),
+                shader="shaded",
+                glOptions="opaque",
+            )
+            self._gl_view.addItem(self._mesh_item)
+
+        self._reset_camera()
+
+    def _apply_display_mode(self) -> None:
+        """Apply current display mode to existing items without full reload."""
+        if not _PYQTGRAPH_AVAILABLE or self._verts is None:
+            return
+        if self._display_mode == "points":
+            self._update_render()
+            return
+        if self._scatter_item is not None:
+            self._gl_view.removeItem(self._scatter_item)
+            self._scatter_item = None
+
+        draw_faces = self._display_mode in ("solid", "solid+wire")
+        draw_edges = self._display_mode in ("wireframe", "solid+wire")
+        if self._mesh_item is not None:
+            self._mesh_item.setData(drawFaces=draw_faces, drawEdges=draw_edges)
+        else:
+            self._update_render()

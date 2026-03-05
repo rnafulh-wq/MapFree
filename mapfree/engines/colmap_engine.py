@@ -230,6 +230,22 @@ def _get_dji_opencv_params(image_path: Path) -> str | None:
     return f"{focal_px},{focal_px},{cx},{cy},0,0,0,0"
 
 
+def _emit_sparse_checkpoint(ctx, sparse_dir: Path) -> None:
+    """Emit 'sparse_checkpoint' event with the points3D.bin path if it exists."""
+    bus = getattr(ctx, "event_bus", None)
+    if bus is None:
+        return
+    # COLMAP writes sparse/0/points3D.bin
+    candidates = [
+        sparse_dir / "0" / "points3D.bin",
+        sparse_dir / "points3D.bin",
+    ]
+    for candidate in candidates:
+        if candidate.exists() and candidate.stat().st_size > 0:
+            bus.emit("sparse_checkpoint", {"path": str(candidate)})
+            return
+
+
 class ColmapEngine(BaseEngine):
     def feature_extraction(self, ctx):
         from mapfree.utils.hardware import get_hardware_profile
@@ -311,6 +327,8 @@ class ColmapEngine(BaseEngine):
             "--Mapper.ba_refine_principal_point", "1",
         ]
         _run_stage(ctx, cmd, "sparse")
+        # Emit sparse_checkpoint so live-preview can reload the point cloud
+        _emit_sparse_checkpoint(ctx, out_sparse)
 
     def point_filtering(self, ctx):
         """Filter sparse points by reprojection error and track length."""
