@@ -178,12 +178,12 @@ Tambahkan tests/utils/test_dependency_downloader.py:
 
 Commit: "feat(utils): dependency downloader with progress and retry"
 ```
-- [ ] DependencyDownloader class dibuat
-- [ ] Download dengan progress callback
-- [ ] Resume support
-- [ ] Retry dengan exponential backoff
-- [ ] Install per method diimplementasi
-- [ ] Unit test ditulis
+- [x] DependencyDownloader class dibuat
+- [x] Download dengan progress callback
+- [x] Resume support
+- [x] Retry dengan exponential backoff
+- [x] Install per method diimplementasi
+- [x] Unit test ditulis
 
 ---
 
