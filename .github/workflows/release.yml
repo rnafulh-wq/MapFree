@@ -41,6 +41,36 @@ jobs:
           name: windows
           path: MapFree-windows.zip
 
+  build-windows-installer:
+    name: Build Windows Installer (Inno Setup)
+    needs: build-windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows
+
+      - name: Restore dist\MapFree for Inno Setup
+        run: |
+          Expand-Archive -Path MapFree-windows.zip -DestinationPath .
+          if (-not (Test-Path dist\MapFree)) { New-Item -ItemType Directory -Path dist -Force; Move-Item MapFree dist\ }
+          dir dist\MapFree
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y
+
+      - name: Build installer
+        run: iscc scripts/installer/mapfree_setup.iss
+
+      - name: Upload Windows installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: scripts/installer/Output/MapFree-Setup-1.1.0.exe
+
   build-linux:
     name: Build Linux AppImage
     runs-on: ubuntu-22.04
@@ -71,7 +101,7 @@ jobs:
 
   create-release:
     name: Create GitHub Release
-    needs: [build-windows, build-linux]
+    needs: [build-windows, build-linux, build-windows-installer]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -88,6 +118,11 @@ jobs:
         with:
           name: linux
 
+      - name: Download Windows installer artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+
       - name: Prepare release assets
         run: |
           echo "=== workspace root ==="
@@ -96,6 +131,8 @@ jobs:
           ls -la windows/ 2>/dev/null || true
           echo "=== linux/ ==="
           ls -la linux/ 2>/dev/null || true
+          echo "=== windows-installer/ ==="
+          ls -la windows-installer/ 2>/dev/null || true
           if [ -f MapFree-windows.zip ]; then
             : # already at root
           elif [ -f windows/MapFree-windows.zip ]; then
@@ -114,7 +151,14 @@ jobs:
           else
             cp "$(find linux . -maxdepth 1 -name '*.AppImage' -type f 2>/dev/null | head -1)" ./MapFree-x86_64.AppImage
           fi
-          sha256sum MapFree-windows.zip MapFree-x86_64.AppImage > checksums.txt
+          if [ -f windows-installer/MapFree-Setup-1.1.0.exe ]; then
+            cp windows-installer/MapFree-Setup-1.1.0.exe .
+          elif [ -n "$(ls -A windows-installer/*.exe 2>/dev/null)" ]; then
+            cp windows-installer/*.exe ./MapFree-Setup-1.1.0.exe
+          fi
+          touch checksums.txt
+          sha256sum MapFree-windows.zip MapFree-x86_64.AppImage >> checksums.txt
+          [ -f MapFree-Setup-1.1.0.exe ] && sha256sum MapFree-Setup-1.1.0.exe >> checksums.txt
           cat checksums.txt
 
       - name: Extract release notes from CHANGELOG
@@ -150,6 +194,7 @@ jobs:
           name: ${{ github.ref_name }}
           body: ${{ steps.notes.outputs.body }}
           files: |
+            MapFree-Setup-1.1.0.exe
             MapFree-windows.zip
             MapFree-x86_64.AppImage
             checksums.txt

@@ -254,11 +254,11 @@ Filename: "{app}\MapFree.exe"; Description: "Jalankan MapFree Engine"; Flags: po
 
 Commit: "build: add Inno Setup Windows installer with hardware detection page"
 ```
-- [ ] mapfree_setup.iss dibuat
-- [ ] Custom wizard pages: hardware detection + component selection
-- [ ] COLMAP variant otomatis dipilih berdasarkan GPU
-- [ ] Shortcut Desktop dan Start Menu dibuat
-- [ ] Build CI menghasilkan .exe installer
+- [x] mapfree_setup.iss dibuat
+- [x] Custom wizard pages: hardware detection + component selection
+- [x] COLMAP variant otomatis dipilih berdasarkan GPU
+- [x] Shortcut Desktop dan Start Menu dibuat
+- [x] Build CI menghasilkan .exe installer
 - [ ] Installer berjalan di Windows 10/11 fresh
 
 ---
