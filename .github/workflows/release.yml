@@ -90,8 +90,30 @@ jobs:
 
       - name: Prepare release assets
         run: |
-          mv windows/MapFree-windows.zip .
-          mv linux/MapFree-x86_64.AppImage .
+          echo "=== workspace root ==="
+          ls -la
+          echo "=== windows/ ==="
+          ls -la windows/ 2>/dev/null || true
+          echo "=== linux/ ==="
+          ls -la linux/ 2>/dev/null || true
+          if [ -f MapFree-windows.zip ]; then
+            : # already at root
+          elif [ -f windows/MapFree-windows.zip ]; then
+            mv windows/MapFree-windows.zip .
+          elif [ -d windows ] && [ -n "$(ls -A windows/*.zip 2>/dev/null)" ]; then
+            mv windows/*.zip ./MapFree-windows.zip
+          else
+            cp "$(find windows . -maxdepth 1 -name '*.zip' -type f 2>/dev/null | head -1)" ./MapFree-windows.zip
+          fi
+          if [ -f MapFree-x86_64.AppImage ]; then
+            : # already at root
+          elif [ -f linux/MapFree-x86_64.AppImage ]; then
+            mv linux/MapFree-x86_64.AppImage .
+          elif [ -d linux ] && [ -n "$(ls -A linux/*.AppImage 2>/dev/null)" ]; then
+            mv linux/*.AppImage ./MapFree-x86_64.AppImage
+          else
+            cp "$(find linux . -maxdepth 1 -name '*.AppImage' -type f 2>/dev/null | head -1)" ./MapFree-x86_64.AppImage
+          fi
           sha256sum MapFree-windows.zip MapFree-x86_64.AppImage > checksums.txt
           cat checksums.txt
 
