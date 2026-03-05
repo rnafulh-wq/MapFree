@@ -24,6 +24,7 @@ PROFILES = ("high", "medium", "low", "cpu_only")
 COLMAP_VARIANTS = ("cuda", "no_cuda")
 OPENMVS_VARIANTS = ("cuda", "opencl", "cpu")
 GPU_VENDORS = ("nvidia", "amd", "intel", "unknown")
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
 def _get_os_and_version() -> tuple[str, str]:
@@ -35,7 +36,7 @@ def _get_os_and_version() -> tuple[str, str]:
                 capture_output=True,
                 text=True,
                 timeout=10,
-                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+                creationflags=_NO_WINDOW,
             )
             if out.returncode == 0 and out.stdout:
                 m = re.search(r"Caption=(.+)", out.stdout)
@@ -143,7 +144,7 @@ def _vendor_from_name(name: str) -> str:
 def _detect_gpu_windows() -> list[dict[str, Any]]:
     """Detect GPUs on Windows via wmic and optionally nvidia-smi for CUDA."""
     gpus: list[dict[str, Any]] = []
-    creationflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+    creationflags = _NO_WINDOW
     try:
         out = subprocess.run(
             [
