@@ -75,9 +75,9 @@ Uji di Ubuntu 22.04:
 
 Buat commit: "build: add Linux AppImage build script"
 ```
-- [ ] build_linux.sh dibuat
-- [ ] build_linux.spec dibuat
-- [ ] AppImage berhasil dibuild
+- [x] build_linux.sh dibuat
+- [x] build_linux.spec dibuat
+- [x] AppImage berhasil dibuild
 - [ ] Berjalan di Ubuntu 22.04 fresh install
 
 ---
