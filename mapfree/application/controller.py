@@ -1,11 +1,13 @@
 import logging
 import threading
+from pathlib import Path
 from collections import deque
 
 from mapfree.core.context import ProjectContext
 from mapfree.core.engine import create_engine
 from mapfree.core.pipeline import Pipeline
 from mapfree.core.state import PipelineState
+from mapfree.core.validation import validate_path_allowed
 
 logger = logging.getLogger(__name__)
 
@@ -144,6 +146,9 @@ class MapFreeController:
     def run_project(self, image_path, project_path, on_event=None, chunk_size=None, force_profile=None, event_emitter=None, quality=None):
         if self.worker_thread is not None and self.worker_thread.is_alive():
             return
+        base = Path.home().resolve()
+        validate_path_allowed(project_path, base, "project_path")
+        validate_path_allowed(image_path, base, "image_path")
         self.worker_thread = threading.Thread(
             target=self._run_worker,
             kwargs={

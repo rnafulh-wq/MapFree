@@ -19,6 +19,7 @@ from mapfree.core.config import load_config
 from mapfree.core.events import Event
 from mapfree.core.logger import setup_logging
 from mapfree.core.state import PipelineState
+from mapfree.core.validation import validate_path_allowed
 from mapfree.geospatial.output_names import (
     DTM_EPSG_TIF,
     DTM_TIF,
@@ -106,8 +107,9 @@ def main() -> None:
 
     load_config(override_path=args.config)
 
-    image_folder = Path(args.image_folder).resolve()
-    project_path = Path(args.output).resolve()
+    base = Path.home().resolve()
+    image_folder = validate_path_allowed(args.image_folder, base, "image_folder")
+    project_path = validate_path_allowed(args.output, base, "project_path")
     if not image_folder.is_dir():
         logger.error("image_folder is not a directory: %s", image_folder)
         sys.exit(1)
