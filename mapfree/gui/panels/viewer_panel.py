@@ -1,10 +1,10 @@
-"""Viewer panel — 2D raster display, 3D point-cloud viewer, and placeholder.
+"""Viewer panel — QTabWidget with Sparse, Dense, and Ortho tabs.
 
-Layout managed by QStackedWidget with three pages:
+Tab layout:
 
-    0  Placeholder  — shown when nothing is loaded
-    1  PointCloudViewer — 3D point cloud / mesh (pyqtgraph.opengl)
-    2  Raster label — orthophoto / image (QLabel with scaled QPixmap)
+    0  Sparse  — PointCloudViewer (OpenGL) or MatplotlibPointCloudViewer (fallback)
+    1  Dense   — MeshViewer (pyqtgraph.opengl mesh)
+    2  Ortho   — QLabel raster image (shown only when a raster is loaded)
 """
 from pathlib import Path
 
@@ -13,32 +13,42 @@ from PySide6.QtGui import QAction, QPixmap
 from PySide6.QtWidgets import (
     QLabel,
     QSizePolicy,
-    QStackedWidget,
+    QTabWidget,
     QToolBar,
     QVBoxLayout,
     QWidget,
 )
 
-from mapfree.gui.panels.viewer_3d import PointCloudViewer
+from mapfree.gui.panels import viewer_3d
+from mapfree.gui.panels.viewer_3d import MeshViewer, PointCloudViewer
+from mapfree.gui.panels.viewer_matplotlib import MatplotlibPointCloudViewer
 
-_PAGE_PLACEHOLDER = 0
-_PAGE_3D = 1
-_PAGE_RASTER = 2
+_OPENGL_AVAILABLE = getattr(viewer_3d, "_PYQTGRAPH_AVAILABLE", False)
+
+_TAB_SPARSE = 0
+_TAB_DENSE = 1
+_TAB_ORTHO = 2
 
 
 class ViewerPanel(QWidget):
-    """Central viewer area with three display modes: placeholder, 3D point cloud, raster image.
+    """Central viewer panel with Sparse, Dense, and Ortho tabs.
 
-    The 3D viewer is provided by :class:`PointCloudViewer` and automatically
-    falls back to a placeholder when pyqtgraph is unavailable or
-    ``MAPFREE_NO_OPENGL=1``.
+    Sparse tab:
+        :class:`PointCloudViewer` — PLY point clouds from COLMAP sparse output.
 
-    Public API (unchanged from previous version):
-        * :meth:`load_point_cloud` — load a PLY file into the 3D viewer
-        * :meth:`load_mesh`        — alias; delegates to :meth:`load_point_cloud`
-        * :meth:`load_raster`      — display a raster image (QLabel)
-        * :meth:`clear_scene`      — return to placeholder
-        * :meth:`get_visualizer`   — return the underlying PointCloudViewer
+    Dense tab:
+        :class:`MeshViewer` — OBJ/PLY mesh from dense reconstruction.
+
+    Ortho tab (hidden until a raster is loaded):
+        Scaled :class:`~PySide6.QtWidgets.QLabel` for orthophoto display.
+
+    Public API (backward-compatible):
+        * :meth:`load_point_cloud` — load PLY into Sparse tab
+        * :meth:`load_mesh`        — load OBJ/PLY into Dense tab
+        * :meth:`load_raster`      — display raster image in Ortho tab
+        * :meth:`clear_scene`      — reset all viewers
+        * :meth:`get_visualizer`   — return PointCloudViewer
+        * :meth:`get_mesh_viewer`  — return MeshViewer
     """
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -50,38 +60,45 @@ class ViewerPanel(QWidget):
         self._viewer_toolbar = self._create_viewer_toolbar()
         self._layout.addWidget(self._viewer_toolbar)
 
-        self._stack = QStackedWidget(self)
-        self._stack.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self._layout.addWidget(self._stack)
+        self._tabs = QTabWidget(self)
+        self._tabs.setStyleSheet(
+            "QTabWidget::pane { border: none; background: #252525; }"
+            "QTabBar::tab { background: #2d2d2d; color: #aaa;"
+            "  padding: 6px 18px; border-bottom: 2px solid transparent; }"
+            "QTabBar::tab:selected { color: #fff; border-bottom: 2px solid #3d6fa8; }"
+            "QTabBar::tab:hover { background: #363636; }"
+        )
+        self._tabs.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self._layout.addWidget(self._tabs)
 
-        # Page 0 — placeholder
-        self._placeholder = self._create_placeholder()
-        self._stack.addWidget(self._placeholder)
-
-        # Page 1 — 3D point cloud viewer
-        self._pc_viewer = PointCloudViewer(self)
+        # Tab 0 — Sparse (OpenGL or matplotlib fallback)
+        if _OPENGL_AVAILABLE:
+            self._pc_viewer = PointCloudViewer(self)
+        else:
+            self._pc_viewer = MatplotlibPointCloudViewer(self)
         self._pc_viewer.pointsLoaded.connect(self._on_points_loaded)
-        self._stack.addWidget(self._pc_viewer)
+        self._tabs.addTab(self._pc_viewer, "Sparse")
 
-        # Page 2 — raster image label
+        # Tab 1 — Dense
+        self._mesh_viewer = MeshViewer(self)
+        self._mesh_viewer.meshLoaded.connect(self._on_mesh_loaded)
+        self._tabs.addTab(self._mesh_viewer, "Dense")
+
+        # Tab 2 — Ortho (hidden by default)
         self._raster_label = QLabel(self)
         self._raster_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._raster_label.setSizePolicy(
-            QSizePolicy.Policy.Expanding,
-            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding,
         )
         self._raster_label.setStyleSheet("background-color: #252525;")
-        self._raster_label.setScaledContents(False)
-        self._stack.addWidget(self._raster_label)
+        self._tabs.addTab(self._raster_label, "Ortho")
+        self._tabs.setTabVisible(_TAB_ORTHO, False)
 
         self._raster_pixmap_path: str | None = None
 
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setMinimumHeight(400)
         self.setStyleSheet("background-color: #252525;")
-
-        # Start on placeholder
-        self._stack.setCurrentIndex(_PAGE_PLACEHOLDER)
         self._viewer_toolbar.setEnabled(False)
 
     # ------------------------------------------------------------------
@@ -89,44 +106,47 @@ class ViewerPanel(QWidget):
     # ------------------------------------------------------------------
 
     def load_point_cloud(self, file_path: str) -> bool:
-        """Load a PLY file into the 3D point cloud viewer.
+        """Load a PLY file into the Sparse tab.
 
         Args:
-            file_path: Path to the .ply file.
+            file_path: Path to the ``.ply`` file.
 
         Returns:
-            ``True`` on success; ``False`` if the file could not be loaded or
-            pyqtgraph / OpenGL is unavailable.
+            ``True`` on success, ``False`` otherwise.
         """
         file_path = str(file_path).strip()
         if not file_path or not Path(file_path).exists():
             return False
-
         ok = self._pc_viewer.load_ply(file_path)
         if ok:
-            self._stack.setCurrentIndex(_PAGE_3D)
-            self._sync_toolbar_to_3d()
+            self._tabs.setCurrentIndex(_TAB_SPARSE)
         return ok
 
     def load_mesh(self, file_path: str) -> bool:
-        """Load a mesh PLY/OBJ file (currently delegates to point-cloud view).
+        """Load an OBJ or PLY mesh into the Dense tab.
 
         Args:
-            file_path: Path to the mesh file.
+            file_path: Path to the ``.obj`` or ``.ply`` file.
 
         Returns:
-            ``True`` on success; ``False`` otherwise.
+            ``True`` on success, ``False`` otherwise.
         """
-        return self.load_point_cloud(file_path)
+        file_path = str(file_path).strip()
+        if not file_path or not Path(file_path).exists():
+            return False
+        ok = self._mesh_viewer.load_mesh(file_path)
+        if ok:
+            self._tabs.setCurrentIndex(_TAB_DENSE)
+        return ok
 
     def load_raster(self, file_path: str) -> bool:
-        """Display a raster image (orthophoto, etc.) in the 2D label.
+        """Display a raster image (orthophoto) in the Ortho tab.
 
         Args:
             file_path: Path to an image file.
 
         Returns:
-            ``True`` on success; ``False`` if the image cannot be loaded.
+            ``True`` on success, ``False`` otherwise.
         """
         file_path = str(file_path).strip()
         if not file_path or not Path(file_path).exists():
@@ -135,102 +155,89 @@ class ViewerPanel(QWidget):
         if pix.isNull():
             return False
         self._raster_pixmap_path = file_path
-        self._stack.setCurrentIndex(_PAGE_RASTER)
+        self._tabs.setTabVisible(_TAB_ORTHO, True)
+        self._tabs.setCurrentIndex(_TAB_ORTHO)
         self._update_raster_pixmap()
         self._viewer_toolbar.setEnabled(False)
         return True
 
     def clear_scene(self) -> None:
-        """Return to the placeholder page."""
+        """Reset all viewers and hide the Ortho tab."""
         self._pc_viewer.clear()
+        self._mesh_viewer.clear()
         self._raster_pixmap_path = None
-        self._stack.setCurrentIndex(_PAGE_PLACEHOLDER)
+        self._tabs.setTabVisible(_TAB_ORTHO, False)
+        self._tabs.setCurrentIndex(_TAB_SPARSE)
         self._viewer_toolbar.setEnabled(False)
 
-    def get_visualizer(self) -> PointCloudViewer:
-        """Return the underlying PointCloudViewer widget.
-
-        Returns:
-            The :class:`PointCloudViewer` instance (always present; may be
-            in fallback mode if OpenGL is unavailable).
-        """
+    def get_visualizer(self):
+        """Return the point cloud viewer in the Sparse tab (OpenGL or matplotlib fallback)."""
         return self._pc_viewer
 
+    def get_mesh_viewer(self) -> MeshViewer:
+        """Return the :class:`MeshViewer` in the Dense tab."""
+        return self._mesh_viewer
+
     # ------------------------------------------------------------------
-    # Event handlers
+    # Events
     # ------------------------------------------------------------------
 
     def resizeEvent(self, event) -> None:
-        """Re-scale raster image on resize."""
         super().resizeEvent(event)
-        if (
-            self._stack.currentIndex() == _PAGE_RASTER
-            and self._raster_pixmap_path
-        ):
+        if self._raster_pixmap_path and self._tabs.currentIndex() == _TAB_ORTHO:
             self._update_raster_pixmap()
-
-    def showEvent(self, event) -> None:
-        """Ensure correct page is shown after widget becomes visible."""
-        super().showEvent(event)
 
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _create_placeholder(self) -> QLabel:
-        """Create the dark placeholder label shown when nothing is loaded."""
-        label = QLabel("Viewer\n\n(Load a PLY point cloud or image)")
-        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        label.setStyleSheet(
-            "QLabel {"
-            "  color: #6a6a6a;"
-            "  font-size: 13px;"
-            "  background-color: #252525;"
-            "  border: 1px dashed #3d3d3d;"
-            "  border-radius: 8px;"
-            "}"
-        )
-        label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        return label
-
     def _create_viewer_toolbar(self) -> QToolBar:
-        """Build the viewer toolbar (Points/Mesh, Reset Camera, wireframe, etc.)."""
         bar = QToolBar(self)
         bar.setObjectName("ViewerToolbar")
         bar.setStyleSheet(
-            "QToolBar { background-color: #2d2d2d; border: none; padding: 4px; spacing: 4px; }"
-            "QToolButton { color: #e0e0e0; padding: 6px 10px; }"
-            "QToolButton:hover { background-color: #404040; }"
-            "QToolButton:checked { background-color: #3d6fa8; }"
+            "QToolBar { background-color:#2d2d2d; border:none; padding:4px; spacing:4px; }"
+            "QToolButton { color:#e0e0e0; padding:6px 10px; }"
+            "QToolButton:hover { background-color:#404040; }"
+            "QToolButton:checked { background-color:#3d6fa8; }"
         )
-        bar.addAction(QAction("Points / Mesh", self))
+        first_label = (
+            "Load Point Cloud (2D/3D Viewer)"
+            if not _OPENGL_AVAILABLE
+            else "Enable 3D viewer (OpenGL)"
+        )
+        bar.addAction(QAction(first_label, self))
         bar.addSeparator()
-
         reset_action = QAction("Reset Camera", self)
         reset_action.triggered.connect(self._on_reset_camera)
         bar.addAction(reset_action)
-
         bar.addAction(QAction("Top View", self))
         bar.addAction(QAction("Side View", self))
         bar.addSeparator()
-        bar.addAction(QAction("Wireframe", self))
+        wire_action = QAction("Wireframe", self)
+        wire_action.triggered.connect(self._on_wireframe_toggle)
+        bar.addAction(wire_action)
         bar.setEnabled(False)
         return bar
 
     def _on_reset_camera(self) -> None:
-        """Delegate Reset Camera action to the 3D viewer."""
-        self._pc_viewer._reset_camera()  # noqa: SLF001 — intentional friend access
+        idx = self._tabs.currentIndex()
+        if idx == _TAB_SPARSE:
+            self._pc_viewer._reset_camera()  # noqa: SLF001
+        elif idx == _TAB_DENSE:
+            self._mesh_viewer._reset_camera()  # noqa: SLF001
+
+    def _on_wireframe_toggle(self) -> None:
+        idx = self._tabs.currentIndex()
+        if idx == _TAB_DENSE:
+            self._mesh_viewer._toggle_wireframe()  # noqa: SLF001
 
     def _on_points_loaded(self, count: int) -> None:
-        """Called when PointCloudViewer finishes loading data."""
-        self._sync_toolbar_to_3d()
+        self._viewer_toolbar.setEnabled(True)
 
-    def _sync_toolbar_to_3d(self) -> None:
-        """Enable toolbar actions relevant to the 3D view."""
+    def _on_mesh_loaded(self, count: int) -> None:
         self._viewer_toolbar.setEnabled(True)
 
     def _update_raster_pixmap(self) -> None:
-        """Scale and display the raster pixmap to fill the label."""
         if not self._raster_pixmap_path:
             return
         pix = QPixmap(self._raster_pixmap_path)

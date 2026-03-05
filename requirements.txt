@@ -1,5 +1,6 @@
 PySide6>=6.5
 numpy
+matplotlib>=3.5.0
 opencv-python
 tqdm
 PyYAML>=6.0

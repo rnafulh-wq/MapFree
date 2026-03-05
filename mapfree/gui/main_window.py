@@ -30,6 +30,12 @@ from mapfree.gui.panels import (
     STATUS_DONE,
     STATUS_ERROR,
 )
+from mapfree.gui.panels.viewer_panel import ViewerPanel
+from mapfree.gui.panels.project_history_panel import (
+    ProjectHistoryPanel,
+    add_project as add_project_to_history,
+    update_status as update_project_history_status,
+)
 from mapfree.gui.map_widget import MapWidget
 from mapfree.gui.qt_controller import QtController
 from mapfree.gui.workers import PipelineWorker, MemoryMonitorWorker
@@ -177,20 +183,65 @@ class MainWindow(QMainWindow):
         self._connect_project_panel()
         self._start_memory_monitor()
         QTimer.singleShot(500, self._check_colmap_installation)
+        QTimer.singleShot(700, self._check_trial_expired)
 
-    def _check_colmap_installation(self):
-        """Optional: warn once at startup if COLMAP is not configured (no layout change)."""
+    def _check_trial_expired(self) -> None:
+        """If trial is expired, show license dialog non-blocking."""
         try:
-            from mapfree.engines.colmap_engine import verify_colmap_installation
-            if not verify_colmap_installation():
-                QMessageBox.warning(
-                    self,
-                    "COLMAP Not Configured",
-                    "COLMAP executable not found. Please set path in Settings or MAPFREE_COLMAP. "
-                    "Pipeline will fail until configured.",
-                )
+            from mapfree.application.license_manager import (
+                LicenseStatus,
+                _get_trial_status,
+            )
+            if _get_trial_status() == LicenseStatus.TRIAL_EXPIRED:
+                self._on_license()
         except Exception:
             pass
+
+    def _check_colmap_installation(self):
+        """Check all dependencies at startup; show dialog if critical ones are missing."""
+        try:
+            from mapfree.utils.dependency_check import check_all_dependencies
+            from mapfree.gui.dialogs.dependency_dialog import DependencyDialog
+            results = check_all_dependencies()
+            missing_critical = [
+                name for name, s in results.items() if s.critical and not s.available
+            ]
+            if missing_critical:
+                dlg = DependencyDialog(results, parent=self)
+                dlg.exec()
+        except Exception:
+            # Fall back to simple COLMAP check to avoid breaking startup
+            try:
+                from mapfree.engines.colmap_engine import verify_colmap_installation
+                if not verify_colmap_installation():
+                    QMessageBox.warning(
+                        self,
+                        "COLMAP Not Configured",
+                        "COLMAP executable not found. Please configure in Settings.",
+                    )
+            except Exception:
+                pass
+
+    def _on_settings(self) -> None:
+        """Open the Settings dialog."""
+        from mapfree.gui.dialogs.settings_dialog import SettingsDialog
+        dlg = SettingsDialog(parent=self)
+        dlg.exec()
+
+    def _on_license(self) -> None:
+        """Open the License Activation dialog."""
+        from mapfree.gui.dialogs.license_dialog import LicenseDialog
+        dlg = LicenseDialog(parent=self)
+        dlg.exec()
+
+    def _on_check_deps(self) -> None:
+        """Show dependency status dialog (manual refresh)."""
+        from mapfree.utils.dependency_check import check_all_dependencies, invalidate_cache
+        from mapfree.gui.dialogs.dependency_dialog import DependencyDialog
+        invalidate_cache()
+        results = check_all_dependencies()
+        dlg = DependencyDialog(results, parent=self)
+        dlg.exec()
 
     def _start_memory_monitor(self):
         """Start background memory monitor; warn user when RSS > threshold and suggest decimation."""
@@ -257,8 +308,14 @@ class MainWindow(QMainWindow):
         self._measure_distance_action = view_menu.addAction("Measure &Distance", self._on_toggle_measure_distance)
         self._measure_distance_action.setCheckable(True)
 
+        edit_menu.addSeparator()
+        edit_menu.addAction("&Settings…", self._on_settings)
+
         help_menu = menubar.addMenu("&Help")
         help_menu.addAction("&About")
+        help_menu.addSeparator()
+        help_menu.addAction("Aktivasi &Lisensi…", self._on_license)
+        help_menu.addAction("Cek &Dependencies…", self._on_check_deps)
 
     def _setup_toolbar(self):
         self._toolbar = QToolBar("Main")
@@ -358,7 +415,22 @@ class MainWindow(QMainWindow):
             self._viewer_panel.geometry_load_failed.connect(self._on_viewer_geometry_load_failed)
 
         horizontal = QSplitter(Qt.Orientation.Horizontal)
-        horizontal.addWidget(self._project_panel)
+        # Left sidebar: project panel + project history
+        left_widget = QWidget()
+        left_layout = QVBoxLayout(left_widget)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(0)
+        left_splitter = QSplitter(Qt.Orientation.Vertical)
+        left_splitter.addWidget(self._project_panel)
+        self._history_panel = ProjectHistoryPanel(self)
+        self._history_panel.resumeRequested.connect(self._on_history_resume)
+        self._history_panel.openOutputRequested.connect(self._on_history_open_output)
+        left_splitter.addWidget(self._history_panel)
+        left_splitter.setStretchFactor(0, 1)
+        left_splitter.setStretchFactor(1, 0)
+        left_splitter.setSizes([400, 180])
+        left_layout.addWidget(left_splitter)
+        horizontal.addWidget(left_widget)
         self._vertical_splitter = QSplitter(Qt.Orientation.Vertical)
         self._vertical_splitter.addWidget(self._workspace)
         self._vertical_splitter.addWidget(self._console_panel)
@@ -381,7 +453,7 @@ class MainWindow(QMainWindow):
         if not self._gl_enabled:
             return _viewer_disabled_widget(self)
         if os.environ.get("MAPFREE_NO_OPENGL") == "1":
-            return _ViewerPlaceholder(self)
+            return ViewerPanel(self)
         if os.environ.get("MAPFREE_OPENGL") == "1":
             return self._create_gl_viewer()
         return _ViewerPlaceholder(self, on_enable_gl=self._replace_with_gl_viewer)
@@ -423,6 +495,44 @@ class MainWindow(QMainWindow):
                 "3D Viewer",
                 "Could not start 3D viewer: %s\n\nOpen PLY files with MeshLab or CloudCompare." % e,
             )
+
+    def _on_history_resume(self, project_path: str) -> None:
+        """Open project from history (Resume)."""
+        if not project_path or not Path(project_path).is_dir():
+            return
+        self._project_path = Path(project_path)
+        images_sub = self._project_path / "images"
+        if images_sub.is_dir():
+            self._image_path = images_sub
+        self._project_panel.set_job_name(self._project_path.name)
+        self._refresh_project_panel()
+        self._update_run_enabled()
+        path, is_mesh = _get_best_result_path(self._project_path)
+        if path:
+            if is_mesh:
+                self._viewer_panel.load_mesh(str(path))
+            else:
+                self._viewer_panel.load_point_cloud(str(path))
+        self._statusbar.showMessage("Opened: %s" % project_path)
+        if hasattr(self, "_history_panel") and self._history_panel is not None:
+            self._history_panel.refresh()
+
+    def _on_history_open_output(self, project_path: str) -> None:
+        """Open project output folder in file explorer."""
+        if not project_path:
+            return
+        p = Path(project_path)
+        target = str(p) if p.is_dir() else str(p.parent)
+        try:
+            if sys.platform == "win32":
+                os.startfile(target)  # type: ignore[attr-defined]
+            else:
+                import subprocess
+                subprocess.Popen(
+                    ["xdg-open", target] if sys.platform != "darwin" else ["open", target]
+                )
+        except Exception:
+            pass
 
     def _connect_project_panel(self):
         self._project_panel.startRequested.connect(self._start_pipeline)
@@ -709,6 +819,9 @@ class MainWindow(QMainWindow):
         if not project_folder:
             return
         self._project_path = Path(project_folder)
+        add_project_to_history(str(self._project_path), "completed")
+        if hasattr(self, "_history_panel") and self._history_panel is not None:
+            self._history_panel.refresh()
         images_sub = self._project_path / "images"
         if images_sub.is_dir():
             self._image_path = images_sub
@@ -785,6 +898,25 @@ class MainWindow(QMainWindow):
         self._controller.pointCloudLoaded.connect(_on_point_cloud_loaded)
         self._controller.meshLoaded.connect(_on_mesh_loaded)
 
+        def _on_sparse_checkpoint(pts_bin_path: str):
+            """Live preview: load points3D.bin and refresh point cloud viewer."""
+            if not pts_bin_path:
+                return
+            try:
+                from mapfree.utils.colmap_io import read_points3d_bin
+                import numpy as np
+                xyz_rgb = read_points3d_bin(pts_bin_path)
+                if xyz_rgb is not None and len(xyz_rgb) > 0:
+                    # Viewer expects RGB in [0,1] when float; colmap_io returns [0,255]
+                    arr = xyz_rgb.astype(np.float32)
+                    arr[:, 3:6] /= 255.0
+                    pc = self._viewer_panel.get_visualizer()
+                    pc.refresh_points(arr)
+            except Exception:
+                pass  # Don't block pipeline on preview failure
+
+        self._controller.sparseCheckpoint.connect(_on_sparse_checkpoint)
+
         def on_cameras_loaded(geojson):
             self._switch_to_map_if_gps()
             self.map_widget.load_geojson_layer("Cameras", geojson)
@@ -845,6 +977,10 @@ class MainWindow(QMainWindow):
         for key in _STAGE_ORDER:
             self._project_panel.set_stage_status(key, STATUS_DONE)
         self._project_panel.set_running(False)
+        if self._project_path:
+            update_project_history_status(str(self._project_path), "completed")
+            if hasattr(self, "_history_panel") and self._history_panel is not None:
+                self._history_panel.refresh()
         # Auto-load 3D result into viewer (WebODM/Metashape-style)
         if self._project_path:
             path, is_mesh = _get_best_result_path(self._project_path)
@@ -858,6 +994,10 @@ class MainWindow(QMainWindow):
 
     def _on_pipeline_error(self, message: str):
         self._statusbar.showMessage("Pipeline error.")
+        if self._project_path:
+            update_project_history_status(str(self._project_path), "failed")
+            if hasattr(self, "_history_panel") and self._history_panel is not None:
+                self._history_panel.refresh()
         if self._current_stage:
             self._project_panel.set_stage_status(self._current_stage, STATUS_ERROR)
         self._project_panel.set_running(False)
@@ -891,6 +1031,9 @@ class MainWindow(QMainWindow):
             return
         image_path = str(self._image_path)
         project_path = str(self._project_path)
+        add_project_to_history(project_path, "in_progress")
+        if hasattr(self, "_history_panel") and self._history_panel is not None:
+            self._history_panel.refresh()
         quality = self._project_panel.get_quality()
         self._project_panel.set_running(True)
         self._project_panel.set_all_pending()
