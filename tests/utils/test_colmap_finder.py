@@ -23,15 +23,13 @@ def test_find_colmap_in_path(tmp_path):
     """When colmap is on PATH (shutil.which), returns that path."""
     fake_colmap = tmp_path / "colmap.exe"
     fake_colmap.touch()
-    path_val = str(fake_colmap.parent)
-    with patch.dict("os.environ", {"PATH": path_val, "MAPFREE_COLMAP": "", "MAPFREE_COLMAP_PATH": ""}, clear=False), \
+    with patch.dict("os.environ", {"PATH": "", "MAPFREE_COLMAP": "", "MAPFREE_COLMAP_PATH": ""}, clear=False), \
          patch("mapfree.core.config.get_config", return_value={}), \
          patch("mapfree.utils.path_manager.PathManager.get_dep_path", return_value=None), \
-         patch("sys.platform", "linux"):
-        import mapfree.utils.colmap_finder as m
-        with patch.object(m, "_extra_dirs", return_value=[]), \
-             patch.object(m, "_default_windows", return_value=[]):
-            result = find_colmap_executable()
+         patch("sys.platform", "linux"), \
+         patch("mapfree.utils.colmap_finder._extra_dirs", return_value=[]), \
+         patch("shutil.which", return_value=str(fake_colmap)):
+        result = find_colmap_executable()
     assert result is not None
     assert result == str(fake_colmap.resolve())
 
