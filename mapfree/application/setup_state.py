@@ -52,10 +52,13 @@ def _deps_from_results(results: dict) -> dict[str, dict[str, Any]]:
 
 def load_setup_state() -> Optional[dict[str, Any]]:
     """Load setup_complete.json if present. Returns None on missing/invalid."""
-    if not SETUP_COMPLETE_PATH.is_file():
+    flag_path = SETUP_COMPLETE_PATH
+    log.debug("Looking for setup flag at: %s", flag_path)
+    log.debug("Flag exists: %s", flag_path.exists())
+    if not flag_path.is_file():
         return None
     try:
-        with open(SETUP_COMPLETE_PATH, "r", encoding="utf-8") as f:
+        with open(flag_path, "r", encoding="utf-8") as f:
             return json.load(f)
     except (json.JSONDecodeError, OSError) as e:
         log.debug("Could not load setup state: %s", e)
@@ -75,10 +78,12 @@ def save_setup_state(results: dict) -> None:
     data["completed"] = colmap_found
     data["checked_at"] = now
     data["dependencies"] = deps
-    SETUP_COMPLETE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(SETUP_COMPLETE_PATH, "w", encoding="utf-8") as f:
+    flag_path = SETUP_COMPLETE_PATH
+    flag_path.parent.mkdir(parents=True, exist_ok=True)
+    log.info("Saving setup state to %s (completed=%s)", flag_path, colmap_found)
+    with open(flag_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
-    log.info("Setup state saved (completed=%s) to %s", colmap_found, SETUP_COMPLETE_PATH)
+    log.info("Setup state saved (completed=%s) to %s", colmap_found, flag_path)
 
 
 def _file_age_days() -> Optional[float]:

@@ -2,6 +2,7 @@
 Dependency downloader for MapFree installer: download with progress, retry, and install.
 """
 import logging
+import shutil
 import subprocess
 import time
 import zipfile
@@ -129,7 +130,7 @@ class DependencyDownloader:
         dest_dir = downloaded_file.parent
         try:
             if method == "zip_extract":
-                return self._install_zip_extract(downloaded_file, dest_dir)
+                return self._install_zip_extract(downloaded_file, dest_dir, package)
             if method == "exe_silent":
                 return self._install_exe_silent(downloaded_file)
             if method == "choco":
@@ -142,10 +143,39 @@ class DependencyDownloader:
             logger.exception("Install failed for %s: %s", package.name, e)
             return False
 
-    def _install_zip_extract(self, archive: Path, dest_dir: Path) -> bool:
-        """Extract ZIP to dest_dir (extract into a subdir per package if needed)."""
+    def _install_zip_extract(self, archive: Path, dest_dir: Path, package: DependencyPackage) -> bool:
+        """Extract ZIP to dest_dir; normalize COLMAP so binaries end up in dest_dir/colmap/."""
         with zipfile.ZipFile(archive, "r") as zf:
             zf.extractall(dest_dir)
+        if package.name != "COLMAP":
+            return True
+        # COLMAP zip may have one top-level dir (e.g. colmap-x64-windows-nocuda) or files at root.
+        # path_to_add is deps/colmap, so we need dest_dir/colmap/colmap.exe.
+        top_level = [p for p in dest_dir.iterdir() if p != archive and p.name != archive.name]
+        if not top_level:
+            return True
+        target_colmap_dir = dest_dir / "colmap"
+        if len(top_level) == 1 and top_level[0].is_dir():
+            single = top_level[0]
+            if single.name == "colmap":
+                return True
+            if target_colmap_dir.exists():
+                logger.debug("COLMAP dir %s already exists, leaving extract at %s", target_colmap_dir, single)
+                return True
+            single.rename(target_colmap_dir)
+            logger.debug("Renamed COLMAP extract dir %s -> %s", single.name, target_colmap_dir)
+            return True
+        if target_colmap_dir.exists():
+            return True
+        target_colmap_dir.mkdir(parents=True)
+        for p in top_level:
+            if p == archive:
+                continue
+            dest_item = target_colmap_dir / p.name
+            if dest_item.exists():
+                continue
+            shutil.move(str(p), str(dest_item))
+        logger.debug("Moved COLMAP files into %s", target_colmap_dir)
         return True
 
     def _install_exe_silent(self, exe_path: Path) -> bool:

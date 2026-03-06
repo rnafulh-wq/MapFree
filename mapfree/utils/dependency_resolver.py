@@ -10,14 +10,14 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# COLMAP GitHub Releases (update version as needed)
+# COLMAP GitHub Releases (update version as needed; check asset names at release page)
 COLMAP_VERSION = "3.13.0"
 COLMAP_RELEASE_BASE = (
     f"https://github.com/colmap/colmap/releases/download/{COLMAP_VERSION}"
 )
-# Windows: pre-built assets (demuc.de or GitHub; adjust filenames to match actual release)
-COLMAP_WINDOWS_CUDA_URL = f"{COLMAP_RELEASE_BASE}/COLMAP-{COLMAP_VERSION}-windows-cuda.zip"
-COLMAP_WINDOWS_NO_CUDA_URL = f"{COLMAP_RELEASE_BASE}/COLMAP-{COLMAP_VERSION}-windows.zip"
+# Windows: pre-built assets from GitHub (3.13+ use colmap-x64-windows-*.zip)
+COLMAP_WINDOWS_CUDA_URL = f"{COLMAP_RELEASE_BASE}/colmap-x64-windows-cuda.zip"
+COLMAP_WINDOWS_NO_CUDA_URL = f"{COLMAP_RELEASE_BASE}/colmap-x64-windows-nocuda.zip"
 # OpenMVS: community pre-built or GitHub releases
 OPENMVS_VERSION = "2.2.0"
 OPENMVS_WINDOWS_URL = (

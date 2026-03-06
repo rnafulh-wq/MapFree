@@ -512,6 +512,7 @@ class MainWindow(QMainWindow):
     def _create_map_container(self) -> QWidget:
         """Map tab: toolbar (basemap, Fit to Photos) + info label + map widget."""
         container = QWidget()
+        container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         layout = QVBoxLayout(container)
         layout.setContentsMargins(0, 0, 0, 0)
         bar = QHBoxLayout()

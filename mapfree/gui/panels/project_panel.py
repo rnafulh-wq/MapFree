@@ -17,9 +17,10 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QFileDialog,
+    QHeaderView,
 )
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QColor
+from PySide6.QtCore import Qt, Signal, QTimer
+from PySide6.QtGui import QColor, QFont
 
 # Display names and order for pipeline stages (sparse → dense → geospatial → post_process)
 STAGE_ITEMS = [
@@ -133,6 +134,7 @@ class ProjectPanel(QWidget):
         # --- Outputs (group) ---
         pipeline_grp = QGroupBox("Outputs")
         pipeline_grp.setObjectName("outputsGroup")
+        pipeline_grp.setMinimumHeight(180)
         pl2 = QVBoxLayout(pipeline_grp)
         pl2.setContentsMargins(8, 10, 8, 8)
         pl2.setSpacing(4)
@@ -140,15 +142,23 @@ class ProjectPanel(QWidget):
         self._stage_tree = QTreeWidget()
         self._stage_tree.setHeaderLabels(["Stage", "Status"])
         self._stage_tree.setColumnCount(2)
-        self._stage_tree.setColumnWidth(0, 160)
         self._stage_tree.setRootIsDecorated(False)
         self._stage_tree.setAlternatingRowColors(False)
+        header = self._stage_tree.header()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
+        self._stage_tree.setColumnWidth(1, 80)
         self._items = {}
         for key, label in STAGE_ITEMS:
             item = QTreeWidgetItem([label, "Pending"])
             item.setData(0, Qt.ItemDataRole.UserRole, key)
             self._stage_tree.addTopLevelItem(item)
             self._items[key] = item
+        self._running_stage_key = None
+        self._running_dot_index = 0
+        self._running_timer = QTimer(self)
+        self._running_timer.setInterval(400)
+        self._running_timer.timeout.connect(self._on_running_animation_tick)
         pl2.addWidget(self._stage_tree)
 
         btn_layout = QHBoxLayout()
@@ -339,23 +349,58 @@ class ProjectPanel(QWidget):
         item = self._items.get(stage_key)
         if not item:
             return
+        font_normal = QFont()
+        font_bold = QFont("Arial", 9, QFont.Weight.Bold)
         if status == STATUS_PENDING:
             item.setText(1, "Pending")
-            item.setForeground(1, QColor("#808080"))
+            item.setForeground(1, QColor("#9E9E9E"))
+            item.setFont(0, font_normal)
         elif status == STATUS_RUNNING:
             item.setText(1, "Running")
-            item.setForeground(1, QColor("#d4a84b"))
+            item.setForeground(1, QColor("#FFC107"))
+            item.setFont(0, font_bold)
+            self._running_stage_key = stage_key
+            self._running_dot_index = 0
+            if not self._running_timer.isActive():
+                self._running_timer.start()
         elif status == STATUS_DONE:
             item.setText(1, "Done")
             item.setForeground(1, QColor("#4CAF50"))
+            item.setFont(0, font_normal)
         elif status == STATUS_ERROR:
             item.setText(1, "Error")
-            item.setForeground(1, QColor("#D94F4F"))
+            item.setForeground(1, QColor("#F44336"))
+            item.setFont(0, font_normal)
         else:
             item.setText(1, status)
             item.setForeground(1, QColor("#E6E6E6"))
+            item.setFont(0, font_normal)
+        if status != STATUS_RUNNING and stage_key == getattr(self, "_running_stage_key", None):
+            self._running_stage_key = None
+            if self._running_timer.isActive():
+                self._running_timer.stop()
+
+    def _on_running_animation_tick(self):
+        """Cycle 'Running' / 'Running.' / 'Running..' / 'Running...' and pulse color."""
+        if not self._running_stage_key:
+            self._running_timer.stop()
+            return
+        item = self._items.get(self._running_stage_key)
+        if not item:
+            self._running_stage_key = None
+            self._running_timer.stop()
+            return
+        self._running_dot_index = (self._running_dot_index + 1) % 4
+        dots = "." * self._running_dot_index
+        item.setText(1, "Running" + dots)
+        # Pulse between #FFC107 and #FFD54F
+        color = QColor("#FFD54F" if self._running_dot_index % 2 else "#FFC107")
+        item.setForeground(1, color)
 
     def set_all_pending(self):
+        self._running_stage_key = None
+        if self._running_timer.isActive():
+            self._running_timer.stop()
         for key in self._items:
             self.set_stage_status(key, STATUS_PENDING)
 

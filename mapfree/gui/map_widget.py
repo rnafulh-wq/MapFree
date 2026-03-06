@@ -8,7 +8,7 @@ import logging
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal, QUrl
-from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout
+from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QSizePolicy
 
 try:
     from PySide6.QtWebEngineWidgets import QWebEngineView
@@ -35,6 +35,8 @@ class _MapPlaceholder(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.setMinimumSize(0, 0)
         layout = QVBoxLayout(self)
         lab = QLabel("Map (QtWebEngine not available)")
         lab.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -107,6 +109,8 @@ if _WEBENGINE_AVAILABLE:
 
         def __init__(self, parent=None):
             super().__init__(parent)
+            self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+            self.setMinimumSize(0, 0)
             self._camera_layer_visible = True
             self._map_loaded = False
             self._pending_layers = []

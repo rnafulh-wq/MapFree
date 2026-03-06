@@ -16,6 +16,10 @@ from mapfree.gui.dialogs.first_run_wizard import (  # noqa: E402
     FirstRunWizard,
     should_show_first_run_wizard,
 )
+from mapfree.application.setup_state import (  # noqa: E402
+    should_skip_dependency_dialog,
+    save_setup_state,
+)
 from mapfree.viewer.bootstrap.gl_bootstrap import GLBootstrap  # noqa: E402
 
 _log = logging.getLogger(__name__)
@@ -50,7 +54,8 @@ def _log_startup_colmap() -> None:
 def main() -> int:
     """Launch the MapFree GUI. Creates QApplication only if one does not exist.
     Shows first-run setup wizard when ~/.mapfree/setup_complete.json is missing.
-    Returns the exit code (for the caller to pass to sys.exit())."""
+    Dependency check runs after PathManager.inject_to_env() so COLMAP is found;
+    setup_complete.json skip logic runs before main window to avoid dialog flash."""
     _log_startup_colmap()
     gl_enabled = GLBootstrap().initialize_opengl()
 
@@ -62,6 +67,18 @@ def main() -> int:
     if should_show_first_run_wizard():
         wizard = FirstRunWizard()
         wizard.exec()
+
+    # Run dependency check before main window so PATH is already set and
+    # setup_complete.json is respected (skip dialog when completed + colmap.found).
+    if not should_skip_dependency_dialog():
+        from mapfree.utils.dependency_check import check_all_dependencies
+        from mapfree.gui.dialogs.dependency_dialog import DependencyDialog
+        results = check_all_dependencies()
+        if should_skip_dependency_dialog(recheck_results=results):
+            save_setup_state(results)
+        else:
+            dlg = DependencyDialog(results, parent=None)
+            dlg.exec()
 
     window = MainWindow(gl_enabled=gl_enabled)
     window.show()

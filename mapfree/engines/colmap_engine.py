@@ -133,6 +133,20 @@ def _run_stage(ctx, command, stage_name, timeout=3600):
             stop_event=stop_event,
         )
     except EngineExecutionError as e:
+        stage_log = workspace / "logs" / f"{stage_name}.log"
+        if stage_log.exists():
+            try:
+                with open(stage_log, "r", encoding="utf-8", errors="replace") as f:
+                    lines = f.readlines()
+                tail = lines[-100:] if len(lines) > 100 else lines
+                log.error(
+                    "COLMAP %s failed. Last lines of %s:\n%s",
+                    stage_name,
+                    stage_log,
+                    "".join(tail).strip() or "(empty)",
+                )
+            except OSError:
+                log.warning("Could not read COLMAP log: %s", stage_log)
         if bus is not None:
             bus.emit("engine_stage_completed", {"engine": "colmap", "stage": stage_name})
         raise EngineError("COLMAP", str(e), returncode=getattr(e, "returncode", -1)) from e
@@ -210,12 +224,41 @@ def _emit_sparse_checkpoint(ctx, sparse_dir: Path) -> None:
             return
 
 
+def _count_images(image_dir: Path) -> int:
+    """Return number of image files in directory (by extension)."""
+    if not image_dir.is_dir():
+        return 0
+    return sum(
+        1 for p in image_dir.iterdir()
+        if p.is_file() and p.suffix in IMAGE_EXTENSIONS
+    )
+
+
 class ColmapEngine(BaseEngine):
     def feature_extraction(self, ctx):
         from mapfree.utils.hardware import get_hardware_profile
-        db = Path(ctx.database_path)
-        img_path = Path(ctx.image_path)
-        db.parent.mkdir(parents=True, exist_ok=True)
+        image_dir = Path(ctx.image_path).resolve()
+        database_path = Path(ctx.database_path).resolve()
+        project_path = Path(ctx.project_path).resolve()
+        database_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if not image_dir.is_dir():
+            raise EngineError(
+                "COLMAP",
+                "image_path is not a directory or does not exist: %s" % image_dir,
+            )
+        n_images = _count_images(image_dir)
+        if n_images == 0:
+            raise EngineError(
+                "COLMAP",
+                "No image files found in %s (extensions: %s)" % (image_dir, IMAGE_EXTENSIONS),
+            )
+        if not database_path.parent.exists():
+            raise EngineError(
+                "COLMAP",
+                "database_path parent directory does not exist: %s" % database_path.parent,
+            )
+
         # Use profile values; on low VRAM (<2.5GB) avoid GPU OOM: use CPU + cap size
         vram_mb = get_hardware_profile().vram_mb
         low_vram = vram_mb < 2500
@@ -232,15 +275,22 @@ class ColmapEngine(BaseEngine):
         colmap_cfg = cfg.get("colmap") or {}
         num_threads = colmap_cfg.get("num_threads", -1)
         # Order images by EXIF: GPS (lat, lon) then datetime for sequential matcher
+        list_output = project_path / "image_list.txt"
         list_path = write_image_list_for_colmap(
-            img_path,
-            Path(ctx.project_path) / "image_list.txt",
+            image_dir,
+            list_output,
             IMAGE_EXTENSIONS,
         )
+        if list_path is None:
+            raise EngineError(
+                "COLMAP",
+                "Could not create image list for %s (no images or write failed)" % image_dir,
+            )
+
         cmd = [
             get_colmap_bin(), "feature_extractor",
-            "--database_path", str(db),
-            "--image_path", str(img_path),
+            "--database_path", str(database_path),
+            "--image_path", str(image_dir),
             "--ImageReader.single_camera", "1",
             "--ImageReader.camera_model", "OPENCV",
             "--FeatureExtraction.max_image_size", str(max_size),
@@ -248,11 +298,15 @@ class ColmapEngine(BaseEngine):
             "--SiftExtraction.max_num_features", str(max_features),
             "--FeatureExtraction.use_gpu", str(1 if use_gpu else 0),
         ]
-        if list_path is not None:
-            cmd.extend(["--image_list_path", str(list_path)])
-        dji_params = _get_dji_opencv_params(img_path)
+        cmd.extend(["--image_list_path", str(list_path.resolve())])
+        dji_params = _get_dji_opencv_params(image_dir)
         if dji_params is not None:
             cmd.extend(["--ImageReader.camera_params", dji_params])
+
+        log.info(
+            "COLMAP feature_extractor args: image_path=%s database_path=%s image_list_path=%s n_images=%d",
+            image_dir, database_path, list_path, n_images,
+        )
         _run_stage(ctx, cmd, "feature_extraction")
 
     def matching(self, ctx):
