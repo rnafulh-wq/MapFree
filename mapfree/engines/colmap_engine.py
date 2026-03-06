@@ -5,6 +5,7 @@ Uses mapfree.utils.colmap_finder.find_colmap_executable() for discovery.
 """
 import logging
 import os
+import shutil
 import sys
 from pathlib import Path
 

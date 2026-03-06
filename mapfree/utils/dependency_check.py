@@ -41,6 +41,7 @@ _OPENMVS_BINARIES = [
     "TextureMesh",
 ]
 
+
 def _find_colmap() -> Optional[str]:
     """Find COLMAP executable via shared colmap_finder (env, config, registry, dirs, PATH)."""
     from mapfree.utils.colmap_finder import find_colmap_executable

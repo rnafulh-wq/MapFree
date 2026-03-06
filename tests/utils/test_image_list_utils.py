@@ -1,9 +1,5 @@
 """Tests for mapfree.utils.image_list_utils."""
 
-from pathlib import Path
-
-import pytest
-
 from mapfree.utils.image_list_utils import copy_or_link_images
 
 
