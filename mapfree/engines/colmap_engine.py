@@ -90,6 +90,37 @@ def verify_colmap_installation() -> bool:
         return False
 
 
+def get_colmap_version() -> tuple[int, int]:
+    """
+    Return (major, minor) from `colmap --version` (e.g. (3, 9)).
+    Use for version-aware argument building. On parse failure returns (0, 0).
+    """
+    import re
+    import subprocess
+    try:
+        bin_path = resolve_colmap_executable()
+        cmd = [bin_path, "--version"]
+        if sys.platform == "win32" and bin_path.lower().endswith(".bat"):
+            cmd = ["cmd", "/c", bin_path, "--version"]
+        creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if sys.platform == "win32" else 0
+        out = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            creationflags=creationflags,
+        )
+        if out.returncode != 0:
+            return (0, 0)
+        # e.g. "COLMAP 3.9.1 - Structure-from-Motion..."
+        m = re.search(r"COLMAP\s+(\d+)\.(\d+)", (out.stdout or out.stderr or ""))
+        if m:
+            return (int(m.group(1)), int(m.group(2)))
+    except Exception:
+        pass
+    return (0, 0)
+
+
 def _get_cfg():
     from mapfree.core.config import get_config
     return get_config()
@@ -101,7 +132,7 @@ def _profile(ctx, key, default):
 
 
 def _run_stage(ctx, command, stage_name, timeout=3600):
-    workspace = Path(ctx.project_path)
+    workspace = Path(ctx.project_path).resolve()
     logger = getattr(ctx, "logger", None)
     bus = getattr(ctx, "event_bus", None)
 
@@ -287,16 +318,17 @@ class ColmapEngine(BaseEngine):
                 "Could not create image list for %s (no images or write failed)" % image_dir,
             )
 
+        # COLMAP 3.8+ uses SiftExtraction.* and ImageReader.* (FeatureExtraction.* removed)
         cmd = [
             get_colmap_bin(), "feature_extractor",
             "--database_path", str(database_path),
             "--image_path", str(image_dir),
             "--ImageReader.single_camera", "1",
             "--ImageReader.camera_model", "OPENCV",
-            "--FeatureExtraction.max_image_size", str(max_size),
-            "--FeatureExtraction.num_threads", str(num_threads),
+            "--SiftExtraction.max_image_size", str(max_size),
+            "--SiftExtraction.num_threads", str(num_threads),
             "--SiftExtraction.max_num_features", str(max_features),
-            "--FeatureExtraction.use_gpu", str(1 if use_gpu else 0),
+            "--SiftExtraction.use_gpu", str(1 if use_gpu else 0),
         ]
         cmd.extend(["--image_list_path", str(list_path.resolve())])
         dji_params = _get_dji_opencv_params(image_dir)
@@ -311,16 +343,23 @@ class ColmapEngine(BaseEngine):
 
     def matching(self, ctx):
         from mapfree.utils.hardware import get_hardware_profile
-        db = Path(ctx.database_path)
+        db = Path(ctx.database_path).resolve()
+        db.parent.mkdir(parents=True, exist_ok=True)
+        if not db.is_file():
+            raise EngineError(
+                "COLMAP",
+                "Database not found after feature extraction: %s" % db,
+            )
         matcher = _profile(ctx, "matcher", "exhaustive")
         use_gpu = _profile(ctx, "use_gpu", 1)
         if get_hardware_profile().vram_mb < 2500:
             use_gpu = 0  # avoid GPU OOM on 2GB during matching
+        # COLMAP 3.8+ uses SiftMatching.use_gpu (FeatureMatching.* removed)
         cmd_name = "sequential_matcher" if matcher == "sequential" else "exhaustive_matcher"
         cmd = [
             get_colmap_bin(), cmd_name,
             "--database_path", str(db),
-            "--FeatureMatching.use_gpu", str(1 if use_gpu else 0),
+            "--SiftMatching.use_gpu", str(1 if use_gpu else 0),
         ]
         _run_stage(ctx, cmd, "matching")
 
@@ -329,9 +368,19 @@ class ColmapEngine(BaseEngine):
         colmap_cfg = cfg.get("colmap") or {}
         ba_global = int(colmap_cfg.get("mapper_ba_global_max_iter", 50))
         ba_local = int(colmap_cfg.get("mapper_ba_local_max_iter", 25))
-        db = Path(ctx.database_path)
-        img_path = Path(ctx.image_path)
-        out_sparse = Path(ctx.sparse_path)
+        db = Path(ctx.database_path).resolve()
+        img_path = Path(ctx.image_path).resolve()
+        out_sparse = Path(ctx.sparse_path).resolve()
+        if not db.is_file():
+            raise EngineError(
+                "COLMAP",
+                "Database not found for mapper: %s (run feature_extraction and matching first)" % db,
+            )
+        if not img_path.is_dir():
+            raise EngineError(
+                "COLMAP",
+                "Image path for mapper is not a directory: %s" % img_path,
+            )
         out_sparse.mkdir(parents=True, exist_ok=True)
         cmd = [
             get_colmap_bin(), "mapper",
@@ -383,11 +432,16 @@ class ColmapEngine(BaseEngine):
 
     def dense(self, ctx, vram_watchdog=False):
         from mapfree.utils.hardware import get_hardware_profile
-        sparse_dir = Path(ctx.sparse_path)
+        sparse_dir = Path(ctx.sparse_path).resolve()
         if (sparse_dir / "0" / "cameras.bin").exists():
             sparse_dir = sparse_dir / "0"
-        img_path = Path(ctx.image_path)
-        dense_dir = Path(ctx.dense_path)
+        if not (sparse_dir / "cameras.bin").exists():
+            raise EngineError(
+                "COLMAP",
+                "Sparse model not found for dense stage: %s (run sparse reconstruction first)" % sparse_dir,
+            )
+        img_path = Path(ctx.image_path).resolve()
+        dense_dir = Path(ctx.dense_path).resolve()
         dense_dir.mkdir(parents=True, exist_ok=True)
         use_gpu = _profile(ctx, "use_gpu", 1)
         gpu_idx = "0" if use_gpu else "-1"
