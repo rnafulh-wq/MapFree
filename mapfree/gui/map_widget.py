@@ -61,6 +61,9 @@ class _MapPlaceholder(QWidget):
     def clear_layers(self) -> None:
         pass
 
+    def fit_to_photos(self) -> None:
+        pass
+
 
 if _WEBENGINE_AVAILABLE:
 
@@ -120,7 +123,7 @@ if _WEBENGINE_AVAILABLE:
             try:
                 settings.setAttribute(
                     QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls,
-                    False,
+                    True,
                 )
             except AttributeError:
                 pass
@@ -187,9 +190,12 @@ if _WEBENGINE_AVAILABLE:
                 self._run_set_layer_visibility("Cameras", self._camera_layer_visible)
 
         def set_basemap(self, name: str) -> None:
-            if name not in ("OpenStreetMap", "Satellite"):
+            if name not in ("OpenStreetMap", "Satellite", "None"):
                 name = "OpenStreetMap"
             self._run_js(f"if (typeof setBaseLayer === 'function') setBaseLayer({json.dumps(name)});")
+
+        def fit_to_photos(self) -> None:
+            self._run_js("if (typeof fitToPhotos === 'function') fitToPhotos();")
 
         def _run_set_layer_visibility(self, name: str, visible: bool) -> None:
             vis = "true" if visible else "false"

@@ -35,6 +35,7 @@ from .validation import sparse_valid, dense_valid
 from .logger import get_logger, get_chunk_logger, set_log_file_for_project
 from . import final_results as final_results_module
 from .config import QUALITY_PRESETS
+from .project_structure import resolve_project_paths
 
 
 class Pipeline:
@@ -211,7 +212,8 @@ class Pipeline:
 
         if dense_engine == "openmvs":
             from mapfree.engines.mvs_openmvs import OpenMVSEngine, openmvs_available
-            mvs_dir = project_path / "mvs"
+            proj_paths = resolve_project_paths(project_path)
+            mvs_dir = Path(proj_paths.mesh) if Path(proj_paths.mesh).exists() else (project_path / "mvs")
             if not openmvs_available():
                 self._log.warning("OpenMVS not found (InterfaceCOLMAP not in PATH); falling back to COLMAP dense")
                 self.emit("step", "OpenMVS not found, using COLMAP dense", None)
@@ -427,7 +429,7 @@ class Pipeline:
                 merged = chunking.merge_sparse_models(project_path, sparse_dirs)
                 self.ctx.sparse_path = str(merged)
             self.ctx.image_path = str(image_path)
-            self.ctx.dense_path = str(project_path / "dense")
+            self.ctx.dense_path = str(resolve_project_paths(project_path).dense)
             self._hook("step_end", step_name="sparse")
         else:
             sparse_dirs = []
@@ -477,7 +479,7 @@ class Pipeline:
             self.ctx.sparse_path = str(merged)
             self._log.info("Final sparse output: %s (also exported to final_results/ after pipeline)", merged)
             self.ctx.image_path = str(image_path)
-            self.ctx.dense_path = str(project_path / "dense")
+            self.ctx.dense_path = str(resolve_project_paths(project_path).dense)
             if sparse_valid(Path(merged)):
                 mark_step_done(project_path, "feature_extraction")
                 mark_step_done(project_path, "matching")
@@ -529,4 +531,4 @@ class Pipeline:
         self.ctx.sparse_path = str(Path(self.ctx.sparse_path) / "0") \
             if (Path(self.ctx.sparse_path) / "0").exists() else str(self.ctx.sparse_path)
         self.ctx.image_path = str(image_path)
-        self.ctx.dense_path = str(project_path / "dense")
+        self.ctx.dense_path = str(resolve_project_paths(project_path).dense)

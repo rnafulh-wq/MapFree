@@ -1,8 +1,11 @@
 """
 Extract GPS and timestamp from image EXIF. Used for CRS detection and ordering.
 """
+import logging
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 # EXIF tag numbers (PIL/ExifRead)
 TAG_DATETIME_ORIGINAL = 36867
@@ -63,11 +66,73 @@ def _extract_gps_altitude(gps_ifd: dict) -> float | None:
         return None
 
 
-def _read_exif_for_file(path: Path) -> dict | None:
-    """
-    Read EXIF from one image. Return dict with lat, lon, alt, timestamp or None if no GPS.
-    Does not raise; returns None on any error or missing GPS.
-    """
+def _exifread_degrees(value: Any) -> float:
+    """Convert exifread GPS degree value (deg, min, sec) to decimal float."""
+    if value is None or not hasattr(value, "values") or len(value.values) < 3:
+        return 0.0
+    try:
+        def _rat(v: Any) -> float:
+            if hasattr(v, "num") and hasattr(v, "den"):
+                return float(v.num) / float(v.den or 1)
+            return float(v)
+
+        d = _rat(value.values[0])
+        m = _rat(value.values[1])
+        s = _rat(value.values[2])
+        return d + m / 60.0 + s / 3600.0
+    except (TypeError, ValueError, ZeroDivisionError, AttributeError):
+        return 0.0
+
+
+def _read_exif_exifread(path: Path) -> dict | None:
+    """Fallback: read GPS using exifread (e.g. for DJI or when Pillow has no get_ifd)."""
+    try:
+        import exifread
+    except ImportError:
+        return None
+    try:
+        with open(path, "rb") as f:
+            tags = exifread.process_file(f, details=False)
+        lat_tag = tags.get("GPS GPSLatitude")
+        lat_ref = tags.get("GPS GPSLatitudeRef")
+        lon_tag = tags.get("GPS GPSLongitude")
+        lon_ref = tags.get("GPS GPSLongitudeRef")
+        if not all([lat_tag, lat_ref, lon_tag, lon_ref]):
+            return None
+        lat = _exifread_degrees(lat_tag)
+        lon = _exifread_degrees(lon_tag)
+        if lat == 0.0 and lon == 0.0:
+            return None
+        ref_val = getattr(lat_ref, "values", None) or [b"N"]
+        if ref_val and str(ref_val[0]).upper() == "S":
+            lat = -lat
+        ref_val = getattr(lon_ref, "values", None) or [b"E"]
+        if ref_val and str(ref_val[0]).upper() == "W":
+            lon = -lon
+        alt = None
+        alt_tag = tags.get("GPS GPSAltitude")
+        if alt_tag and hasattr(alt_tag, "values") and len(alt_tag.values) >= 1:
+            try:
+                v = alt_tag.values[0]
+                alt = float(v.num) / float(v.den or 1)
+            except (TypeError, ValueError, ZeroDivisionError, AttributeError):
+                pass
+        dt = tags.get("EXIF DateTimeOriginal")
+        timestamp = str(dt).strip() if dt else None
+        return {
+            "filename": path.name,
+            "lat": lat,
+            "lon": lon,
+            "alt": alt,
+            "timestamp": timestamp,
+        }
+    except Exception as e:
+        logger.debug("exifread failed for %s: %s", path.name, e)
+        return None
+
+
+def _read_exif_pil(path: Path) -> dict | None:
+    """Read GPS from image using PIL/Pillow (requires get_ifd, Pillow 8.2+)."""
     try:
         from PIL import Image
     except ImportError:
@@ -75,9 +140,9 @@ def _read_exif_for_file(path: Path) -> dict | None:
     try:
         with Image.open(path) as im:
             exif = im.getexif() if hasattr(im, "getexif") else None
-            if not exif:
+            if not exif or not hasattr(exif, "get_ifd"):
                 return None
-            gps_ifd = exif.get_ifd(GPS_IFD) if hasattr(exif, "get_ifd") else {}
+            gps_ifd = exif.get_ifd(GPS_IFD)
             if not gps_ifd:
                 return None
             lat = _dms_to_decimal(
@@ -104,6 +169,27 @@ def _read_exif_for_file(path: Path) -> dict | None:
         return None
 
 
+def _read_exif_for_file(path: Path) -> dict | None:
+    """
+    Read EXIF from one image. Return dict with lat, lon, alt, timestamp or None if no GPS.
+    Tries PIL first, then exifread fallback (e.g. for DJI or older Pillow). Does not raise.
+    """
+    path = Path(path)
+    rec = _read_exif_pil(path)
+    if rec is not None:
+        return rec
+    rec = _read_exif_exifread(path)
+    if rec is not None:
+        logger.debug("GPS read via exifread for %s", path.name)
+        return rec
+    return None
+
+
+def has_gps(path: Path) -> bool:
+    """Return True if the image at path has valid GPS in EXIF."""
+    return _read_exif_for_file(Path(path)) is not None
+
+
 def extract_gps_from_images(images_dir: str) -> list[dict]:
     """
     Extract GPS and timestamp from all JPG/JPEG files in a directory.
@@ -125,6 +211,24 @@ def extract_gps_from_images(images_dir: str) -> list[dict]:
         if not path.is_file() or path.suffix not in _JPG_EXTENSIONS:
             continue
         rec = _read_exif_for_file(path)
+        if rec is not None:
+            out.append(rec)
+    return out
+
+
+def extract_gps_from_paths(paths: list[Path]) -> list[dict]:
+    """
+    Extract GPS from a list of image paths (e.g. from file picker).
+    Returns same format as extract_gps_from_images; skips non-image or no-GPS.
+    """
+    out: list[dict] = []
+    for path in paths:
+        p = Path(path)
+        if not p.is_file():
+            continue
+        if p.suffix not in _JPG_EXTENSIONS:
+            continue
+        rec = _read_exif_for_file(p)
         if rec is not None:
             out.append(rec)
     return out

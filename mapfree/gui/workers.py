@@ -49,6 +49,30 @@ class ExportWorker(QThread):
             self.exportFailed.emit("Export failed: %s" % e)
 
 
+class GpsExtractWorker(QThread):
+    """Extract GPS status for a list of image paths in background. Emit per-item result."""
+    progress = Signal(int, int)   # current index, total
+    result = Signal(str, bool)   # path (str), has_gps
+    finished = Signal()
+
+    def __init__(self, paths: list):
+        super().__init__()
+        self._paths = list(paths)
+
+    def run(self):
+        from mapfree.geospatial.exif_reader import has_gps
+        n = len(self._paths)
+        for i, p in enumerate(self._paths):
+            path_str = str(Path(p).resolve())
+            try:
+                ok = has_gps(Path(p))
+            except Exception:
+                ok = False
+            self.result.emit(path_str, ok)
+            self.progress.emit(i + 1, n)
+        self.finished.emit()
+
+
 class PipelineWorker(QThread):
     """
     Runs the pipeline in a background thread by delegating to the controller.
@@ -116,7 +140,6 @@ class MemoryMonitorWorker(QThread):
                 rss_bytes = proc.memory_info().rss
                 rss_mb = rss_bytes / (1024 * 1024)
                 if rss_mb >= self._threshold_mb:
-                    # Throttle: emit at most once per 2*interval
                     now = time.monotonic()
                     if now - last_emitted >= self._interval_sec * 2:
                         self.memoryHigh.emit(rss_mb, self._threshold_mb)
@@ -128,11 +151,9 @@ class MemoryMonitorWorker(QThread):
 class GeometryLoadWorker(QThread):
     """
     Load PLY geometry (mesh or point cloud) in a background thread so the UI does not freeze.
-    Emits progress(0-100) and loadDone(vertices, normals, colors, indices, path, is_point_cloud, num_vertices, num_indices)
-    or loadFailed(path). Main thread should call viewer._upload_geometry in response to loadDone.
+    Emits progress(0-100) and loadDone(...) or loadFailed(path).
     """
-
-    progress = Signal(int)  # 0-100
+    progress = Signal(int)
     loadDone = Signal(list, list, list, list, str, bool, int, int)
     loadFailed = Signal(str)
 
@@ -143,7 +164,6 @@ class GeometryLoadWorker(QThread):
 
     def run(self):
         from mapfree.viewer.gl_widget import _load_ply, _simplify_for_render
-
         self.progress.emit(10)
         data = _load_ply(self._path)
         self.progress.emit(40)
@@ -159,9 +179,14 @@ class GeometryLoadWorker(QThread):
         if not normals:
             normals = [(0.0, 1.0, 0.0)] * len(vertices)
         self.progress.emit(70)
-        vertices, normals, colors, indices = _simplify_for_render(vertices, normals, colors, indices)
+        vertices, normals, colors, indices = _simplify_for_render(
+            vertices, normals, colors, indices
+        )
         self.progress.emit(95)
         nv = len(vertices)
         ni = len(indices) if indices else 0
-        self.loadDone.emit(vertices, normals, colors, indices, self._path, self._is_point_cloud, nv, ni)
+        self.loadDone.emit(
+            vertices, normals, colors, indices,
+            self._path, self._is_point_cloud, nv, ni
+        )
         self.progress.emit(100)

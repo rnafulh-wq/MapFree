@@ -41,15 +41,20 @@ def run_geospatial(
     except (TypeError, ValueError):
         epsg_int = None
 
-    # All geospatial outputs go into project_output/geospatial/ (dsm.tif, dtm.tif, orthophoto.tif)
-    geo_dir = project_path / "geospatial"
+    # All geospatial outputs go into project_output/04_geospatial/ (v1.1.1) or legacy geospatial/
+    try:
+        from mapfree.core.project_structure import resolve_project_paths
+        geo_dir = Path(resolve_project_paths(project_path).geospatial)
+        images_dir = Path(resolve_project_paths(project_path).images)
+    except Exception:
+        geo_dir = project_path / "geospatial"
+        images_dir = project_path / "images"
     geo_dir.mkdir(parents=True, exist_ok=True)
     dense_las = geo_dir / "dense.las"
     classified_las = geo_dir / "classified.las"
     dsm_tif = geo_dir / DSM_TIF
     dtm_tif = geo_dir / DTM_TIF
     ortho_tif = geo_dir / ORTHOPHOTO_TIF
-    images_dir = project_path / "images"
 
     def _emit(name: str) -> None:
         if on_event:

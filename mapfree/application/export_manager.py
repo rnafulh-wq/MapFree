@@ -19,12 +19,19 @@ from mapfree.geospatial.output_names import (
 
 log = logging.getLogger(__name__)
 
-_GEO = "geospatial"
+
+def _geo_dir(project_dir: Path) -> Path:
+    """Resolve geospatial output dir (04_geospatial or legacy geospatial/)."""
+    try:
+        from mapfree.core.project_structure import resolve_project_paths
+        return Path(resolve_project_paths(project_dir).geospatial)
+    except Exception:
+        return Path(project_dir) / "geospatial"
 
 
 def _source_path(project_dir: Path, epsg_name: str, orig_name: str) -> Path:
     """Return path to EPSG file if it exists, else original. Does not check existence."""
-    geo = Path(project_dir) / _GEO
+    geo = _geo_dir(project_dir)
     epsg_path = geo / epsg_name
     orig_path = geo / orig_name
     if epsg_path.exists():

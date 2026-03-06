@@ -2,7 +2,7 @@
 OpenMVS dense reconstruction engine.
 Replaces COLMAP dense (image_undistorter, patch_match_stereo, stereo_fusion) with:
   InterfaceCOLMAP -> DensifyPointCloud -> ReconstructMesh -> RefineMesh (optional) -> TextureMesh (optional).
-All outputs go to project_path/mvs/. For backward compatibility, a PLY is written to dense/fused.ply.
+All outputs go to project_path/03_mesh/. For backward compatibility, a PLY is written to dense/fused.ply.
 """
 import logging
 import os
@@ -121,7 +121,7 @@ class OpenMVSEngine:
     def __init__(self, context: Any, quality: str = "medium"):
         self.context = context
         self._project_path = Path(context.project_path)
-        self._mvs_dir = self._project_path / "mvs"
+        self._mvs_dir = Path(getattr(context, "mesh_path", None) or (self._project_path / "mvs"))
         self._sparse_path = Path(context.sparse_path)
         self._dense_path = Path(context.dense_path)
         self._image_path = Path(context.image_path)

@@ -110,7 +110,11 @@ class PathManager:
         current = os.environ.get("PATH", "")
         new_prefix = sep.join(paths_to_prepend)
         os.environ["PATH"] = new_prefix + sep + current
-        logger.debug("Injected %d dep path(s) into PATH", len(paths_to_prepend))
+        logger.info(
+            "Injected %d dep path(s) into PATH: %s",
+            len(paths_to_prepend),
+            paths_to_prepend[:5] if len(paths_to_prepend) > 5 else paths_to_prepend,
+        )
 
     @classmethod
     def add_to_system_path_windows(cls, path: str) -> bool:

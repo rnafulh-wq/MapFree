@@ -102,13 +102,10 @@ def test_cli_run_missing_colmap(dummy_image_dir, tmp_project_dir, monkeypatch):
 
     with pytest.raises(DependencyMissingError) as exc_info:
         with patch(
-            "mapfree.engines.colmap_engine.shutil.which",
+            "mapfree.engines.colmap_engine.find_colmap_executable",
             return_value=None,
-        ), patch(
-            "mapfree.engines.colmap_engine._is_executable",
-            return_value=False,
         ), patch.dict(
-            os.environ, {"MAPFREE_COLMAP": "", "MAPFREE_NO_OPENGL": "1"}
+            os.environ, {"MAPFREE_NO_OPENGL": "1"}
         ):
             resolve_colmap_executable()
 

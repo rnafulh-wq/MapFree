@@ -173,7 +173,7 @@ class TestCheckAllDependencies:
         with (
             patch("mapfree.utils.dependency_check._CACHE_PATH", tmp_path / "cache.json"),
             patch("mapfree.utils.dependency_check._load_cache", return_value=None),
-            patch("shutil.which", return_value="/usr/bin/colmap"),
+            patch("mapfree.utils.colmap_finder.find_colmap_executable", return_value="/usr/bin/colmap"),
             patch("subprocess.run") as mock_run,
         ):
             mock_run.return_value = MagicMock(

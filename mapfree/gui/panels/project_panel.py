@@ -1,5 +1,7 @@
 """Project panel — urutan: 1 Nama job, 2 Import foto, 3 Penyimpanan, 4 Kualitas, lalu Run."""
 
+from pathlib import Path
+
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -12,6 +14,9 @@ from PySide6.QtWidgets import (
     QTreeWidgetItem,
     QSizePolicy,
     QGroupBox,
+    QListWidget,
+    QListWidgetItem,
+    QFileDialog,
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor
@@ -45,10 +50,12 @@ class ProjectPanel(QWidget):
     importPhotosRequested = Signal()
     outputFolderRequested = Signal()
     stepsChanged = Signal()
+    imageListChanged = Signal(list)  # list of absolute path strings
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedWidth(300)
+        self.setMinimumWidth(200)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(6, 6, 6, 6)
         layout.setSpacing(6)
@@ -73,13 +80,36 @@ class ProjectPanel(QWidget):
         pl.addWidget(self._job_edit)
 
         pl.addWidget(field_label("Images"))
-        btn_import = QPushButton("Select folder...")
-        btn_import.setMinimumHeight(24)
-        btn_import.clicked.connect(self.importPhotosRequested.emit)
-        pl.addWidget(btn_import)
-        self._image_count_label = QLabel("0 images")
+        btn_row1 = QHBoxLayout()
+        btn_add_photos = QPushButton("Add Photos")
+        btn_add_photos.setMinimumHeight(24)
+        btn_add_photos.clicked.connect(self._on_add_photos)
+        btn_add_folder = QPushButton("Add Folder")
+        btn_add_folder.setMinimumHeight(24)
+        btn_add_folder.clicked.connect(self._on_add_folder)
+        btn_row1.addWidget(btn_add_photos)
+        btn_row1.addWidget(btn_add_folder)
+        pl.addLayout(btn_row1)
+        self._image_count_label = QLabel("0 foto | 0 dengan GPS | 0 tanpa GPS")
         self._image_count_label.setProperty("class", "muted")
+        self._image_count_label.setWordWrap(True)
         pl.addWidget(self._image_count_label)
+        self._photo_list = QListWidget()
+        self._photo_list.setMaximumHeight(120)
+        self._photo_list.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
+        pl.addWidget(self._photo_list)
+        btn_row2 = QHBoxLayout()
+        btn_remove = QPushButton("Remove Selected")
+        btn_remove.clicked.connect(self._on_remove_selected)
+        btn_clear = QPushButton("Clear All")
+        btn_clear.clicked.connect(self._on_clear_all)
+        btn_row2.addWidget(btn_remove)
+        btn_row2.addWidget(btn_clear)
+        pl.addLayout(btn_row2)
+        self._image_list_paths: list[str] = []
+        self._gps_status: dict[str, bool] = {}
+        self._gps_worker = None
+        self._last_image_dir = ""
 
         pl.addWidget(field_label("Output"))
         btn_output = QPushButton("Select folder...")
@@ -153,8 +183,125 @@ class ProjectPanel(QWidget):
         layout.addStretch()
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
 
+    IMAGE_FILTER = (
+        "Images (*.jpg *.jpeg *.JPG *.JPEG *.png *.PNG *.tif *.tiff *.TIF *.TIFF)"
+    )
+
     def _on_steps_changed(self):
         self.stepsChanged.emit()
+
+    def _on_add_photos(self):
+        files, _ = QFileDialog.getOpenFileNames(
+            self,
+            "Pilih Foto",
+            self._last_image_dir or "",
+            self.IMAGE_FILTER,
+        )
+        if not files:
+            return
+        self._last_image_dir = str(Path(files[0]).parent)
+        added = [str(Path(f).resolve()) for f in files if Path(f).is_file()]
+        for p in added:
+            if p not in self._image_list_paths:
+                self._image_list_paths.append(p)
+        self._refresh_photo_list_and_emit()
+
+    def _on_add_folder(self):
+        folder = QFileDialog.getExistingDirectory(
+            self, "Pilih folder berisi foto", self._last_image_dir or ""
+        )
+        if not folder:
+            return
+        self._last_image_dir = folder
+        from mapfree.utils.file_utils import list_images
+        try:
+            paths = list_images(Path(folder))
+            for p in paths:
+                s = str(p.resolve())
+                if s not in self._image_list_paths:
+                    self._image_list_paths.append(s)
+        except (OSError, TypeError):
+            pass
+        self._refresh_photo_list_and_emit()
+
+    def _on_remove_selected(self):
+        rows = set(i.row() for i in self._photo_list.selectedIndexes())
+        for r in sorted(rows, reverse=True):
+            if 0 <= r < len(self._image_list_paths):
+                self._image_list_paths.pop(r)
+        self._refresh_photo_list_and_emit()
+
+    def _on_clear_all(self):
+        self._image_list_paths.clear()
+        self._gps_status.clear()
+        self._refresh_photo_list_and_emit()
+
+    def _refresh_photo_list_and_emit(self):
+        self._update_photo_list_ui()
+        self._update_counters()
+        self.imageListChanged.emit(list(self._image_list_paths))
+        self.stepsChanged.emit()
+        if self._image_list_paths:
+            self._start_gps_worker()
+
+    def _update_photo_list_ui(self):
+        self._photo_list.clear()
+        for path in self._image_list_paths:
+            p = Path(path)
+            name = p.name
+            size_mb = p.stat().st_size / (1024 * 1024) if p.is_file() else 0
+            size_str = "%.1f MB" % size_mb if size_mb >= 1 else "%.0f KB" % (p.stat().st_size / 1024) if p.is_file() else "—"
+            has_gps = self._gps_status.get(path)
+            gps_str = "✓" if has_gps else "✗"
+            item = QListWidgetItem("%s  %s  %s" % (name, gps_str, size_str))
+            item.setData(Qt.ItemDataRole.UserRole, path)
+            if has_gps is True:
+                item.setForeground(QColor("#4CAF50"))
+            elif has_gps is False:
+                item.setForeground(QColor("#D94F4F"))
+            self._photo_list.addItem(item)
+
+    def _update_counters(self):
+        n = len(self._image_list_paths)
+        with_gps = sum(1 for p in self._image_list_paths if self._gps_status.get(p))
+        without = n - with_gps
+        self._image_count_label.setText(
+            "%d foto | %d dengan GPS | %d tanpa GPS" % (n, with_gps, without)
+        )
+
+    def _start_gps_worker(self):
+        if self._gps_worker is not None and self._gps_worker.isRunning():
+            return
+        from mapfree.gui.workers import GpsExtractWorker
+        self._gps_worker = GpsExtractWorker(self._image_list_paths)
+        self._gps_worker.result.connect(self._on_gps_result)
+        self._gps_worker.finished.connect(self._on_gps_finished)
+        self._gps_worker.start()
+
+    def _on_gps_result(self, path: str, has_gps: bool):
+        key = str(Path(path).resolve())
+        self._gps_status[key] = has_gps
+        for i in range(self._photo_list.count()):
+            item = self._photo_list.item(i)
+            if item.data(Qt.ItemDataRole.UserRole) == key:
+                gps_str = "✓" if has_gps else "✗"
+                text = item.text().rsplit("  ", 2)
+                if len(text) >= 2:
+                    item.setText("%s  %s  %s" % (text[0], gps_str, text[-1]))
+                item.setForeground(QColor("#4CAF50") if has_gps else QColor("#D94F4F"))
+                break
+        self._update_counters()
+
+    def _on_gps_finished(self):
+        self._gps_worker = None
+
+    def get_image_list(self) -> list:
+        return list(self._image_list_paths)
+
+    def set_image_list(self, paths: list):
+        self._image_list_paths = [str(Path(p).resolve()) for p in paths if Path(p).is_file()]
+        self._gps_status.clear()
+        self._refresh_photo_list_and_emit()
 
     def get_job_name(self):
         return self._job_edit.text().strip() if self._job_edit else ""
@@ -164,7 +311,9 @@ class ProjectPanel(QWidget):
             self._job_edit.setText(name or "")
 
     def set_image_count(self, count: int):
-        self._image_count_label.setText("%d images" % max(0, count))
+        """Backward compat: set total count when no list (e.g. folder mode or restore)."""
+        if not self._image_list_paths:
+            self._image_count_label.setText("%d foto | — dengan GPS | — tanpa GPS" % max(0, count))
         self.stepsChanged.emit()
 
     def set_output_folder(self, path: str):
@@ -192,10 +341,10 @@ class ProjectPanel(QWidget):
             return
         if status == STATUS_PENDING:
             item.setText(1, "Pending")
-            item.setForeground(1, QColor("#A0A2A6"))
+            item.setForeground(1, QColor("#808080"))
         elif status == STATUS_RUNNING:
             item.setText(1, "Running")
-            item.setForeground(1, QColor("#2F6FED"))
+            item.setForeground(1, QColor("#d4a84b"))
         elif status == STATUS_DONE:
             item.setText(1, "Done")
             item.setForeground(1, QColor("#4CAF50"))

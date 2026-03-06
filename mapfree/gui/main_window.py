@@ -9,6 +9,8 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QWidget,
     QVBoxLayout,
+    QHBoxLayout,
+    QSizePolicy,
     QSplitter,
     QStackedWidget,
     QToolBar,
@@ -18,6 +20,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QLabel,
     QComboBox,
+    QPushButton,
     QStyle,
 )
 from PySide6.QtCore import Qt, QTimer
@@ -129,18 +132,25 @@ _STAGE_ORDER = [
 def _get_best_result_path(project_path: Path):
     """
     Return (path_str, is_mesh) for the best 3D result to show in viewer (WebODM/Metashape-style).
-    Priority: mvs/ mesh > openmvs/ mesh > dense fused.ply > final_results/dense.ply > final_results/sparse.ply.
+    Priority: mesh/ or mvs/ mesh > dense fused.ply > final_results/dense.ply > final_results/sparse.ply.
     """
     proj = Path(project_path)
-    # OpenMVS mesh from mvs/ (new engine) or openmvs/ (legacy)
-    for mvs_dir in ("mvs", "openmvs"):
-        mvs = proj / mvs_dir
+    try:
+        from mapfree.core.project_structure import resolve_project_paths
+        paths = resolve_project_paths(proj)
+        mesh_dir = paths.mesh
+        dense_dir = paths.dense
+    except Exception:
+        mesh_dir = proj / "mvs"
+        dense_dir = proj / "dense"
+    for mvs_dir in (mesh_dir, proj / "mvs", proj / "openmvs"):
+        if not mvs_dir.exists():
+            continue
         for name in ("scene_mesh_refine.ply", "scene_mesh.ply"):
-            p = mvs / name
+            p = mvs_dir / name
             if p.exists() and p.stat().st_size > 0:
                 return str(p), True
-    # Dense point cloud
-    fused = proj / "dense" / "fused.ply"
+    fused = dense_dir / "fused.ply"
     if fused.exists() and fused.stat().st_size >= 1024:
         return str(fused), False
     final = proj / "final_results"
@@ -198,11 +208,22 @@ class MainWindow(QMainWindow):
             pass
 
     def _check_colmap_installation(self):
-        """Check all dependencies at startup; show dialog if critical ones are missing."""
+        """Check dependencies at startup; skip dialog if setup already complete and recent."""
         try:
+            from mapfree.application.setup_state import (
+                should_skip_dependency_dialog,
+                save_setup_state,
+            )
             from mapfree.utils.dependency_check import check_all_dependencies
             from mapfree.gui.dialogs.dependency_dialog import DependencyDialog
+
+            if should_skip_dependency_dialog():
+                return
+            # Re-check if file was older than 7 days
             results = check_all_dependencies()
+            if should_skip_dependency_dialog(recheck_results=results):
+                save_setup_state(results)
+                return
             missing_critical = [
                 name for name, s in results.items() if s.critical and not s.available
             ]
@@ -210,7 +231,6 @@ class MainWindow(QMainWindow):
                 dlg = DependencyDialog(results, parent=self)
                 dlg.exec()
         except Exception:
-            # Fall back to simple COLMAP check to avoid breaking startup
             try:
                 from mapfree.engines.colmap_engine import verify_colmap_installation
                 if not verify_colmap_installation():
@@ -319,7 +339,7 @@ class MainWindow(QMainWindow):
 
     def _setup_toolbar(self):
         self._toolbar = QToolBar("Main")
-        self._toolbar.setMovable(True)
+        self._toolbar.setMovable(False)
         self._toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         self.addToolBar(self._toolbar)
         style = QApplication.style()
@@ -357,33 +377,69 @@ class MainWindow(QMainWindow):
         self._statusbar = QStatusBar()
         self.setStatusBar(self._statusbar)
         self._statusbar.showMessage("Ready")
-        # Permanent widgets: CRS | FPS | Memory | Mode (industrial layout)
+        self._status_project = QLabel("Project: —")
+        self._status_project.setStyleSheet("color: #A0A2A6; font-size: 11px;")
+        self._statusbar.addPermanentWidget(self._status_project)
         self._status_crs = QLabel("CRS: —")
         self._status_fps = QLabel("FPS: —")
         self._status_mem = QLabel("Mem: —")
+        self._status_cpu = QLabel("CPU: —")
+        self._status_colmap = QLabel("COLMAP: —")
         self._status_mode = QLabel("Mode: Navigation")
-        for w in (self._status_crs, self._status_fps, self._status_mem, self._status_mode):
+        for w in (self._status_crs, self._status_fps, self._status_mem,
+                  self._status_cpu, self._status_colmap, self._status_mode):
             w.setStyleSheet("color: #A0A2A6; font-size: 11px;")
+            w.setMinimumWidth(72)
         self._statusbar.addPermanentWidget(self._status_crs)
         self._statusbar.addPermanentWidget(self._status_fps)
         self._statusbar.addPermanentWidget(self._status_mem)
+        self._statusbar.addPermanentWidget(self._status_cpu)
+        self._statusbar.addPermanentWidget(self._status_colmap)
         self._statusbar.addPermanentWidget(self._status_mode)
-        # Periodic update for memory (FPS stays — until viewer exposes it)
         self._status_timer = QTimer(self)
-        self._status_timer.timeout.connect(self._update_status_mem)
+        self._status_timer.timeout.connect(self._update_status_widgets)
         self._status_timer.start(2000)
 
-    def _update_status_mem(self) -> None:
-        """Update status bar memory (process RSS). Optional: psutil."""
-        if not hasattr(self, "_status_mem") or self._status_mem is None:
-            return
-        try:
-            import psutil
-            proc = psutil.Process()
-            rss_mb = proc.memory_info().rss / (1024 * 1024)
-            self._status_mem.setText("Mem: %.0f MB" % rss_mb)
-        except Exception:
-            self._status_mem.setText("Mem: —")
+    def _update_status_widgets(self) -> None:
+        """Update status bar: project name, memory, CPU, COLMAP."""
+        if hasattr(self, "_status_project") and self._status_project is not None:
+            if self._project_path:
+                self._status_project.setText("Project: %s" % self._project_path.name)
+            else:
+                self._status_project.setText("Project: —")
+        if hasattr(self, "_status_mem") and self._status_mem is not None:
+            try:
+                import psutil
+                proc = psutil.Process()
+                rss_mb = proc.memory_info().rss / (1024 * 1024)
+                self._status_mem.setText("Mem: %.0f MB" % rss_mb)
+            except Exception:
+                self._status_mem.setText("Mem: —")
+        if hasattr(self, "_status_cpu") and self._status_cpu is not None:
+            try:
+                import psutil
+                pct = psutil.cpu_percent(interval=None)
+                self._status_cpu.setText("CPU: %d%%" % int(pct))
+            except Exception:
+                self._status_cpu.setText("CPU: —")
+        if hasattr(self, "_status_colmap") and self._status_colmap is not None:
+            cache = getattr(self, "_colmap_status_cache", None)
+            cache_time = getattr(self, "_colmap_status_time", 0)
+            now = time.monotonic()
+            if cache is None or (now - cache_time) > 30:
+                try:
+                    from mapfree.engines.colmap_engine import resolve_colmap_executable
+                    resolve_colmap_executable()
+                    self._colmap_status_cache = True
+                except Exception:
+                    self._colmap_status_cache = False
+                self._colmap_status_time = now
+            if self._colmap_status_cache:
+                self._status_colmap.setText("COLMAP: ✓ Ditemukan")
+                self._status_colmap.setStyleSheet("color: #4CAF50; font-size: 11px;")
+            else:
+                self._status_colmap.setText("COLMAP: ✗ Tidak ada")
+                self._status_colmap.setStyleSheet("color: #e74c3c; font-size: 11px;")
 
     def _setup_central_widget(self):
         central = QWidget()
@@ -396,10 +452,11 @@ class MainWindow(QMainWindow):
         self._progress_panel = ProgressPanel()
         self._viewer_panel = self._create_viewer_widget()
         self.map_widget = MapWidget()
+        self._map_container = self._create_map_container()
 
         self._workspace = QStackedWidget()
         self._workspace.addWidget(self._viewer_panel)   # index 0 = 3D
-        self._workspace.addWidget(self.map_widget)      # index 1 = Map
+        self._workspace.addWidget(self._map_container)  # index 1 = Map
         self._workspace.setCurrentIndex(0)  # default 3D until GPS available
         tm = getattr(self._viewer_panel, "tool_manager", None)
         if tm is not None:
@@ -415,8 +472,11 @@ class MainWindow(QMainWindow):
             self._viewer_panel.geometry_load_failed.connect(self._on_viewer_geometry_load_failed)
 
         horizontal = QSplitter(Qt.Orientation.Horizontal)
-        # Left sidebar: project panel + project history
+        # Left sidebar: min 220px, max 320px, default 260px; user can resize
         left_widget = QWidget()
+        left_widget.setMinimumWidth(220)
+        left_widget.setMaximumWidth(320)
+        left_widget.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
         left_layout = QVBoxLayout(left_widget)
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setSpacing(0)
@@ -442,12 +502,48 @@ class MainWindow(QMainWindow):
         horizontal.addWidget(self._vertical_splitter)
         horizontal.setStretchFactor(0, 0)
         horizontal.setStretchFactor(1, 1)
-        horizontal.setSizes([300, 900])
+        horizontal.setSizes([260, 900])
 
         main_layout.addWidget(horizontal)
         main_layout.addWidget(self._progress_panel)
 
         self.setCentralWidget(central)
+
+    def _create_map_container(self) -> QWidget:
+        """Map tab: toolbar (basemap, Fit to Photos) + info label + map widget."""
+        container = QWidget()
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        bar = QHBoxLayout()
+        bar.addWidget(QLabel("Basemap:"))
+        self._basemap_combo = QComboBox()
+        self._basemap_combo.addItems(["OSM", "Satellite", "None"])
+        self._basemap_combo.setCurrentText("OSM")
+        self._basemap_combo.currentTextChanged.connect(self._on_basemap_changed)
+        bar.addWidget(self._basemap_combo)
+        fit_btn = QPushButton("Fit to Photos")
+        fit_btn.clicked.connect(lambda: self.map_widget.fit_to_photos())
+        bar.addWidget(fit_btn)
+        bar.addStretch()
+        self._map_photo_info = QLabel("GPS: — / —")
+        self._map_photo_info.setStyleSheet("color: #A0A2A6; font-size: 11px;")
+        bar.addWidget(self._map_photo_info)
+        layout.addLayout(bar)
+        layout.addWidget(self.map_widget)
+        return container
+
+    def _on_basemap_changed(self, text: str) -> None:
+        name = "OpenStreetMap" if text == "OSM" else ("Satellite" if text == "Satellite" else "None")
+        self.map_widget.set_basemap(name)
+
+    def _set_map_photo_info(self, gps_count: int, total: int) -> None:
+        """Update map tab info: GPS: gps_count / total."""
+        if getattr(self, "_map_photo_info", None) is None:
+            return
+        if total is None or total < 0:
+            self._map_photo_info.setText("GPS: %d / —" % gps_count)
+        else:
+            self._map_photo_info.setText("GPS: %d / %d" % (gps_count, total))
 
     def _create_viewer_widget(self):
         if not self._gl_enabled:
@@ -502,6 +598,14 @@ class MainWindow(QMainWindow):
             return
         self._project_path = Path(project_path)
         images_sub = self._project_path / "images"
+        try:
+            from mapfree.core.state import load_state
+            state = load_state(project_path)
+            saved_images = state.get("images")
+            if isinstance(saved_images, list) and saved_images:
+                self._project_panel.set_image_list(saved_images)
+        except Exception:
+            pass
         if images_sub.is_dir():
             self._image_path = images_sub
         self._project_panel.set_job_name(self._project_path.name)
@@ -537,15 +641,35 @@ class MainWindow(QMainWindow):
     def _connect_project_panel(self):
         self._project_panel.startRequested.connect(self._start_pipeline)
         self._project_panel.stopRequested.connect(self._on_stop_requested)
-        self._project_panel.importPhotosRequested.connect(self._on_import_photos)
         self._project_panel.outputFolderRequested.connect(self._on_set_output_folder)
         self._project_panel.stepsChanged.connect(self._update_run_enabled)
+        self._project_panel.imageListChanged.connect(self._on_image_list_changed)
         self._update_run_enabled()
 
+    def _on_image_list_changed(self, paths: list):
+        """Photo list changed in panel (Add/Remove/Clear). Update run eligibility."""
+        self._update_run_enabled()
+        if paths:
+            try:
+                from mapfree.geospatial.exif_reader import extract_gps_from_paths
+                from mapfree.geospatial.geojson_builder import build_geojson_points
+                pts = extract_gps_from_paths([Path(p) for p in paths])
+                if pts:
+                    geojson = build_geojson_points(pts)
+                    self._controller.camerasLoaded.emit(geojson)
+                    self._set_map_photo_info(len(pts), len(paths))
+                    self._switch_to_map_if_gps()
+                    self.map_widget.load_geojson_layer("Cameras", geojson)
+                else:
+                    self._set_map_photo_info(0, len(paths))
+            except Exception:
+                pass
+
     def _can_run(self):
-        """Semua 4 langkah harus terisi: nama job, foto, penyimpanan, kualitas."""
+        """Semua 4 langkah: nama job, foto (list atau folder), penyimpanan, kualitas."""
         job = self._project_panel.get_job_name()
-        return bool(job and self._image_path and self._project_path)
+        has_images = self._project_panel.get_image_list() or self._image_path
+        return bool(job and has_images and self._project_path)
 
     def _update_run_enabled(self):
         self._project_panel.set_run_enabled(self._can_run())
@@ -553,13 +677,12 @@ class MainWindow(QMainWindow):
         self._run_action.setEnabled(can_run)
 
     def _refresh_project_panel(self):
-        image_count = 0
         if self._image_path:
             try:
                 image_count = len(list_images(Path(self._image_path)))
+                self._project_panel.set_image_count(image_count)
             except (OSError, TypeError):
-                pass
-        self._project_panel.set_image_count(image_count)
+                self._project_panel.set_image_count(0)
         self._project_panel.set_output_folder(
             str(self._project_path) if self._project_path else ""
         )
@@ -569,7 +692,7 @@ class MainWindow(QMainWindow):
         self._image_path = None
         self._project_path = None
         self._project_panel.set_job_name("")
-        self._project_panel.set_image_count(0)
+        self._project_panel.set_image_list([])
         self._project_panel.set_output_folder("")
         self._update_run_enabled()
         self._statusbar.showMessage("New job. Isi 1–4: nama, import foto, penyimpanan, kualitas.")
@@ -577,16 +700,44 @@ class MainWindow(QMainWindow):
     def _on_set_output_folder(self):
         folder = QFileDialog.getExistingDirectory(
             self,
-            "Pilih folder penyimpanan job",
-            str(self._project_path) if self._project_path else "",
+            "Pilih folder output (parent)",
+            str(self._project_path.parent) if self._project_path else "",
             QFileDialog.Option.ShowDirsOnly,
         )
         if not folder:
             return
-        self._project_path = Path(folder)
+        job_name = self._project_panel.get_job_name()
+        if not job_name:
+            QMessageBox.warning(self, "Output", "Isi dulu Job name sebelum memilih output folder.")
+            return
+        base_dir = Path(folder)
+        project_dir = base_dir / job_name
+        if project_dir.exists():
+            try:
+                has_files = any(project_dir.iterdir())
+            except OSError:
+                has_files = True
+            if has_files:
+                resp = QMessageBox.question(
+                    self,
+                    "Project sudah ada",
+                    "Folder project sudah ada:\n\n%s\n\nLanjutkan dan pakai folder ini?"
+                    % str(project_dir),
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No,
+                )
+                if resp != QMessageBox.StandardButton.Yes:
+                    return
+        try:
+            from mapfree.core.project_structure import create_project_structure
+            paths = create_project_structure(base_dir, job_name)
+            self._project_path = Path(paths.root)
+        except Exception as e:
+            QMessageBox.critical(self, "Output", "Gagal membuat project structure: %s" % e)
+            return
         self._refresh_project_panel()
         self._update_run_enabled()
-        self._statusbar.showMessage("Penyimpanan: %s" % folder)
+        self._statusbar.showMessage("Output: %s" % str(self._project_path))
 
     def _require_project_for_export(self) -> bool:
         """Return True if project_path is set; else show warning and return False."""
@@ -823,6 +974,14 @@ class MainWindow(QMainWindow):
         if hasattr(self, "_history_panel") and self._history_panel is not None:
             self._history_panel.refresh()
         images_sub = self._project_path / "images"
+        try:
+            from mapfree.core.state import load_state
+            state = load_state(project_folder)
+            saved_images = state.get("images")
+            if isinstance(saved_images, list) and saved_images:
+                self._project_panel.set_image_list(saved_images)
+        except Exception:
+            pass
         if images_sub.is_dir():
             self._image_path = images_sub
         self._project_panel.set_job_name(self._project_path.name)
@@ -862,13 +1021,15 @@ class MainWindow(QMainWindow):
             from mapfree.geospatial.exif_reader import extract_gps_from_images
             from mapfree.geospatial.geojson_builder import build_geojson_points
             points = extract_gps_from_images(image_folder)
+            n_total = n
             if len(points) > 0:
                 geojson = build_geojson_points(points)
                 self._controller.camerasLoaded.emit(geojson)
-                # Switch to Map and load camera layer (queued if map not ready); auto zoom in addGeoJSONLayer
+                self._set_map_photo_info(len(points), n_total)
                 self._switch_to_map_if_gps()
                 self.map_widget.load_geojson_layer("Cameras", geojson)
             else:
+                self._set_map_photo_info(0, n_total)
                 self._statusbar.showMessage("No GPS metadata found in selected images.")
         except Exception:
             pass
@@ -918,6 +1079,14 @@ class MainWindow(QMainWindow):
         self._controller.sparseCheckpoint.connect(_on_sparse_checkpoint)
 
         def on_cameras_loaded(geojson):
+            n_gps = len(geojson.get("features", [])) if isinstance(geojson, dict) else 0
+            n_tot = None
+            if self._image_path:
+                try:
+                    n_tot = len(list_images(self._image_path))
+                except (OSError, TypeError):
+                    pass
+            self._set_map_photo_info(n_gps, n_tot)
             self._switch_to_map_if_gps()
             self.map_widget.load_geojson_layer("Cameras", geojson)
 
@@ -1003,11 +1172,11 @@ class MainWindow(QMainWindow):
         self._project_panel.set_running(False)
         self._stop_action.setEnabled(False)
         self._update_run_enabled()
-        QMessageBox.critical(
-            self,
-            "Pipeline Error",
-            message or "An error occurred.",
-        )
+        self._console_panel.append_log("Pipeline error: %s" % (message or "An error occurred."), "error")
+        self._vertical_splitter.setSizes([400, 200])
+        self._toggle_console_action.setChecked(True)
+        if self._console_panel.parent():
+            self._console_panel.setVisible(True)
 
     def _on_stop_requested(self):
         self._controller.stop_project()
@@ -1019,7 +1188,7 @@ class MainWindow(QMainWindow):
             miss = []
             if not self._project_panel.get_job_name():
                 miss.append("1. Nama job")
-            if not self._image_path:
+            if not self._project_panel.get_image_list() and not self._image_path:
                 miss.append("2. Import foto")
             if not self._project_path:
                 miss.append("3. Penyimpanan job")
@@ -1029,14 +1198,26 @@ class MainWindow(QMainWindow):
                 "Lengkapi dulu:\n" + "\n".join(miss or ["Semua langkah 1–4."]),
             )
             return
-        image_path = str(self._image_path)
         project_path = str(self._project_path)
+        image_list = self._project_panel.get_image_list()
+        if image_list:
+            from mapfree.utils.image_list_utils import copy_or_link_images
+            from mapfree.core.state import load_state, save_state
+            images_dir = Path(project_path) / "images"
+            images_dir.mkdir(parents=True, exist_ok=True)
+            copy_or_link_images([Path(p) for p in image_list], images_dir)
+            self._image_path = images_dir
+            state = load_state(project_path)
+            state["images"] = image_list
+            save_state(project_path, state)
+        image_path = str(self._image_path)
         add_project_to_history(project_path, "in_progress")
         if hasattr(self, "_history_panel") and self._history_panel is not None:
             self._history_panel.refresh()
         quality = self._project_panel.get_quality()
         self._project_panel.set_running(True)
         self._project_panel.set_all_pending()
+        self._progress_panel.set_log_path(Path(project_path) / "logs" / "mapfree.log")
         self._worker = PipelineWorker(
             self._controller,
             image_path,

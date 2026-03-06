@@ -24,6 +24,7 @@ import json
 import logging
 import shutil
 import subprocess
+import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -39,6 +40,16 @@ _OPENMVS_BINARIES = [
     "ReconstructMesh",
     "TextureMesh",
 ]
+
+def _find_colmap() -> Optional[str]:
+    """Find COLMAP executable via shared colmap_finder (env, config, registry, dirs, PATH)."""
+    from mapfree.utils.colmap_finder import find_colmap_executable
+    path = find_colmap_executable()
+    if path:
+        log.info("COLMAP found: %s", path)
+    else:
+        log.debug("COLMAP not found")
+    return path
 
 
 @dataclass
@@ -109,17 +120,8 @@ def check_all_dependencies() -> Dict[str, DependencyStatus]:
 
     results: Dict[str, DependencyStatus] = {}
 
-    # --- COLMAP (critical) ---
-    results["colmap"] = _check_binary(
-        "colmap",
-        version_args=["--version"],
-        install_hint=(
-            "Windows: scripts/install_colmap_windows.md\n"
-            "Linux:   sudo apt install colmap\n"
-            "macOS:   brew install colmap"
-        ),
-        critical=True,
-    )
+    # --- COLMAP (critical): extended search (registry, PATH, extra dirs) ---
+    results["colmap"] = _check_colmap()
 
     # --- OpenMVS binaries (optional) ---
     for binary in _OPENMVS_BINARIES:
@@ -147,6 +149,32 @@ def check_all_dependencies() -> Dict[str, DependencyStatus]:
 
     _save_cache(results)
     return results
+
+
+_COLMAP_INSTALL_HINT = (
+    "Windows: scripts/install_colmap_windows.md or MapFree First-Run Wizard\n"
+    "Linux:   sudo apt install colmap\n"
+    "macOS:   brew install colmap"
+)
+
+
+def _check_colmap() -> DependencyStatus:
+    """Check COLMAP with extended search (registry, PATH, extra dirs). Log result."""
+    found_path = _find_colmap()
+    if not found_path:
+        return DependencyStatus(
+            available=False,
+            install_hint=_COLMAP_INSTALL_HINT,
+            critical=True,
+        )
+    ok, version = _run_version(found_path, ["--version"])
+    return DependencyStatus(
+        available=ok,
+        version=version if ok else None,
+        path=found_path if ok else None,
+        install_hint="" if ok else _COLMAP_INSTALL_HINT,
+        critical=True,
+    )
 
 
 def _check_binary(
@@ -186,10 +214,15 @@ def _check_binary(
 
 
 def _run_version(cmd: str, args: List[str]) -> tuple[bool, str]:
-    """Run ``cmd + args`` and return ``(success, first_line_of_output)``."""
+    """Run ``cmd + args`` and return ``(success, first_line_of_output)``.
+    On Windows, .bat/.cmd are run via cmd /c so subprocess finds them.
+    """
+    run_args = [cmd] + args
+    if sys.platform == "win32" and (cmd.lower().endswith(".bat") or cmd.lower().endswith(".cmd")):
+        run_args = ["cmd", "/c", cmd] + args
     try:
         result = subprocess.run(
-            [cmd] + args,
+            run_args,
             capture_output=True,
             text=True,
             timeout=10,
@@ -230,6 +263,15 @@ def _load_cache() -> Optional[Dict[str, DependencyStatus]]:
     try:
         if not _CACHE_PATH.is_file():
             return None
+        # If deps_registry was updated after cache (e.g. wizard just installed COLMAP), re-check
+        try:
+            from mapfree.utils.path_manager import PathManager
+            reg_path = PathManager._registry_path()
+            if reg_path.is_file() and reg_path.stat().st_mtime > _CACHE_PATH.stat().st_mtime:
+                log.debug("deps_registry.json newer than cache; re-checking dependencies")
+                return None
+        except Exception:
+            pass
         raw = json.loads(_CACHE_PATH.read_text(encoding="utf-8"))
         cached_at_str = raw.get("cached_at", "")
         cached_at = datetime.fromisoformat(cached_at_str)

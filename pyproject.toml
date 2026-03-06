@@ -27,6 +27,7 @@ dependencies = [
     "psutil>=5.9.0",
     "numpy>=1.20.0",
     "matplotlib>=3.5.0",
+    "exifread>=3.0.0",
 ]
 
 [project.optional-dependencies]

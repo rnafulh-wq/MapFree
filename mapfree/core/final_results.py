@@ -81,7 +81,11 @@ def export_final_results(project_path: Path, sparse_source_dir: Path) -> Path:
     export_sparse_to_ply(sparse_source_dir, ply_path)
 
     # Copy dense fused.ply to final_results/dense.ply if present
-    dense_dir = project_path / "dense"
+    try:
+        from mapfree.core.project_structure import resolve_project_paths
+        dense_dir = Path(resolve_project_paths(project_path).dense)
+    except Exception:
+        dense_dir = project_path / "dense"
     fused_src = dense_dir / "fused.ply"
     if fused_src.exists():
         size = fused_src.stat().st_size

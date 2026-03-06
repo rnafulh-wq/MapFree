@@ -24,12 +24,20 @@ from mapfree.viewer.gl_widget import ViewerWidget, set_default_opengl_format
 def _best_result_path(project_path: Path):
     """Return (path_str, is_mesh) for best PLY to load, or (None, False)."""
     proj = Path(project_path)
-    openmvs = proj / "openmvs"
-    for name in ("scene_mesh_refine.ply", "scene_mesh.ply"):
-        p = openmvs / name
-        if p.exists() and p.stat().st_size > 0:
-            return str(p), True
-    fused = proj / "dense" / "fused.ply"
+    try:
+        from mapfree.core.project_structure import resolve_project_paths
+        paths = resolve_project_paths(proj)
+        mesh_dir, dense_dir = paths.mesh, paths.dense
+    except Exception:
+        mesh_dir, dense_dir = proj / "mvs", proj / "dense"
+    for mdir in (mesh_dir, proj / "openmvs", proj / "mvs"):
+        if not mdir.exists():
+            continue
+        for name in ("scene_mesh_refine.ply", "scene_mesh.ply"):
+            p = mdir / name
+            if p.exists() and p.stat().st_size > 0:
+                return str(p), True
+    fused = dense_dir / "fused.ply"
     if fused.exists() and fused.stat().st_size >= 1024:
         return str(fused), False
     final = proj / "final_results"
@@ -38,7 +46,7 @@ def _best_result_path(project_path: Path):
         if p.exists():
             if name == "dense.ply" and p.stat().st_size < 1024:
                 continue
-            return str(p), False  # both are point clouds
+            return str(p), False
     return None, False
 
 
