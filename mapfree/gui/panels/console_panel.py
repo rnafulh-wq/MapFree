@@ -1,6 +1,7 @@
 """Console panel — live log with monospace, auto-scroll, color coding."""
 
 import html
+
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -11,6 +12,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QFont
 
 
+MAX_CONSOLE_LINES = 1000
+
 # Log level colors (dark theme)
 LEVEL_COLORS = {
     "info": "#e0e0e0",
@@ -19,8 +22,18 @@ LEVEL_COLORS = {
 }
 
 
+def _level_from_text(text: str) -> str:
+    """Infer log level from line content for coloring."""
+    t = text.upper()
+    if "ERROR" in t or "E2026" in t:
+        return "error"
+    if "WARNING" in t or "WARN" in t:
+        return "warning"
+    return "info"
+
+
 class ConsolePanel(QWidget):
-    """Bottom-right panel: read-only log, monospace, auto-scroll, INFO/WARNING/ERROR colors."""
+    """Bottom-right panel: read-only log, monospace, auto-scroll, max 1000 lines."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -33,7 +46,7 @@ class ConsolePanel(QWidget):
         gl.setSpacing(0)
         self._log = QTextEdit()
         self._log.setReadOnly(True)
-        self._log.setPlaceholderText("Pipeline output…")
+        self._log.setPlaceholderText("")
         self._log.setMinimumHeight(80)
         font = QFont("Consolas", 10)
         if not font.exactMatch():
@@ -54,15 +67,24 @@ class ConsolePanel(QWidget):
         layout.addWidget(grp)
         self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
         self.setMinimumHeight(0)
+        self._lines: list = []
 
     def append_log(self, text: str, level: str = "info"):
-        """Append a line with color. level: info (white), warning (yellow), error (red). Thread-safe when used as slot."""
+        """Append a line with color; auto-detect level from text if default. Max 1000 lines."""
         if not text:
             return
+        if level == "info":
+            level = _level_from_text(text)
         color = LEVEL_COLORS.get(level.lower(), LEVEL_COLORS["info"])
         escaped = html.escape(text)
-        line = '<span style="color:%s">%s</span>' % (color, escaped)
-        self._log.append(line)
+        line_html = '<span style="color:%s">%s</span>' % (color, escaped)
+        if len(self._lines) < MAX_CONSOLE_LINES:
+            self._lines.append(line_html)
+            self._log.append(line_html)
+        else:
+            self._lines.append(line_html)
+            self._lines.pop(0)
+            self._log.setHtml("<br>".join(self._lines))
         scrollbar = self._log.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
 
@@ -71,4 +93,5 @@ class ConsolePanel(QWidget):
         self.append_log(text, "info")
 
     def clear_log(self):
+        self._lines.clear()
         self._log.clear()

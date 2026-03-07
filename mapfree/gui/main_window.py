@@ -1242,6 +1242,7 @@ class MainWindow(QMainWindow):
         matcher = self._project_panel.get_matcher()
         self._project_panel.set_running(True)
         self._project_panel.set_all_pending()
+        self._console_panel.clear_log()
         self._progress_panel.set_log_path(Path(project_path) / "logs" / "mapfree.log")
         self._worker = PipelineWorker(
             self._controller,
