@@ -290,15 +290,16 @@ class ColmapEngine(BaseEngine):
                 "database_path parent directory does not exist: %s" % database_path.parent,
             )
 
-        # Use profile values; on low VRAM (<2.5GB) avoid GPU OOM: use CPU + cap size
+        # Use GPU by default; fallback to CPU only when VRAM < 1GB
         vram_mb = get_hardware_profile().vram_mb
-        low_vram = vram_mb < 2500
+        low_vram = vram_mb < 1000
         max_size = _profile(ctx, "max_image_size", 2000)
-        max_features = _profile(ctx, "max_features", 8192)
+        max_features = _profile(ctx, "max_features", 4096)
         use_gpu = _profile(ctx, "use_gpu", 1)
         if low_vram:
             max_size = min(max_size, 1600)
-            use_gpu = 0  # SIFT GPU OOM on 2GB; use CPU for feature extraction
+            use_gpu = 0
+        log.info("GPU mode: use_gpu=%s, VRAM=%sMB", use_gpu, vram_mb)
         # Metashape-style quality: apply downscale to feature extraction
         downscale = _profile(ctx, "downscale", 1)
         max_size = max(256, max_size // downscale)
@@ -351,9 +352,11 @@ class ColmapEngine(BaseEngine):
                 "Database not found after feature extraction: %s" % db,
             )
         matcher = _profile(ctx, "matcher", "exhaustive")
+        vram_mb = get_hardware_profile().vram_mb
         use_gpu = _profile(ctx, "use_gpu", 1)
-        if get_hardware_profile().vram_mb < 2500:
-            use_gpu = 0  # avoid GPU OOM on 2GB during matching
+        if vram_mb < 1000:
+            use_gpu = 0
+        log.info("GPU mode: use_gpu=%s, VRAM=%sMB", use_gpu, vram_mb)
         # COLMAP 3.8+ uses SiftMatching.use_gpu (FeatureMatching.* removed)
         cmd_name = "sequential_matcher" if matcher == "sequential" else "exhaustive_matcher"
         cmd = [

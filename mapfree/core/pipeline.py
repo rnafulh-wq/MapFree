@@ -102,6 +102,7 @@ class Pipeline:
             if not self._abort:
                 self._bus("stage_completed", {"stage": "sparse"})
                 self._bus("progress_updated", 40)
+                self._log.info("Sparse stage completed, starting dense stage")
                 self._bus("stage_started", {"stage": "dense"})
                 self._run_dense()
                 fused_ply = Path(self.ctx.dense_path) / "fused.ply"
@@ -178,6 +179,14 @@ class Pipeline:
             self.emit("error", "No images found in %s" % self._image_path)
             self._abort = True
             return
+        try:
+            if self._image_path.is_dir() and any(p.is_dir() for p in self._image_path.iterdir()):
+                self._log.warning(
+                    "Warning: image folder contains subdirectories. "
+                    "Only files directly in image_dir will be processed.",
+                )
+        except OSError:
+            pass
 
         self.ctx.prepare()
         self._chunk_folders = chunking.split_dataset(self._image_path, self._project_path, self.chunk_size)
@@ -521,6 +530,7 @@ class Pipeline:
         else:
             self.emit("step", "[RUNNING] sparse reconstruction", 0.5)
             self.engine.sparse(self.ctx)
+            self._log.info("Sparse reconstruction finished, validating output")
             sparse_dir_after = Path(self.ctx.sparse_path) / "0"
             if not sparse_dir_after.exists():
                 sparse_dir_after = Path(self.ctx.sparse_path)
@@ -528,7 +538,8 @@ class Pipeline:
                 mark_step_done(project_path, "sparse")
         self._hook("step_end", step_name="sparse")
 
-        self.ctx.sparse_path = str(Path(self.ctx.sparse_path) / "0") \
-            if (Path(self.ctx.sparse_path) / "0").exists() else str(self.ctx.sparse_path)
-        self.ctx.image_path = str(image_path)
+        sparse_base = Path(self.ctx.sparse_path).resolve()
+        sparse_with_0 = sparse_base / "0"
+        self.ctx.sparse_path = str(sparse_with_0) if sparse_with_0.exists() else str(sparse_base)
+        self.ctx.image_path = str(image_path.resolve())
         self.ctx.dense_path = str(resolve_project_paths(project_path).dense)
