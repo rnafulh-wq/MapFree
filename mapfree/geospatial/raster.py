@@ -1,9 +1,9 @@
 """
 Raster generation: convert dense point cloud to DTM and DSM rasters.
 
-DTM (Digital Terrain Model): ground surface only — PDAL writers.gdal (no gdal_grid).
-DSM (Digital Surface Model): top-of-surface; still uses gdal_grid for LAS.
-GDAL used only for raster finishing, reprojection, validation.
+DTM/DSM: PDAL writers.gdal (readers.las -> writers.gdal). GDAL does not read LAS
+directly in many builds; using PDAL avoids "dense.las not recognized" errors.
+GDAL used only for raster finishing (gdal_translate, gdaladdo), reprojection, validation.
 """
 
 import json
@@ -160,6 +160,57 @@ def estimate_resolution(
     return res
 
 
+def _run_pdal_dsm_pipeline(
+    input_las: Path,
+    dsm_raw_tif: Path,
+    resolution: float,
+    nodata: float,
+    timeout: int,
+) -> None:
+    """Run PDAL pipeline: readers.las -> writers.gdal (output_type=max) -> DSM GeoTIFF.
+
+    Uses PDAL so GDAL never reads LAS directly (avoids 'dense.las not recognized').
+    """
+    pipeline: Dict[str, Any] = {
+        "pipeline": [
+            str(input_las.resolve()),
+            {
+                "type": "writers.gdal",
+                "filename": str(dsm_raw_tif.resolve()),
+                "output_type": "max",
+                "resolution": resolution,
+                "nodata": nodata,
+                "dimension": "Z",
+                "gdaldriver": "GTiff",
+                "data_type": "float",
+            },
+        ]
+    }
+    import tempfile
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".json", delete=False, encoding="utf-8"
+    ) as f:
+        json.dump(pipeline, f, indent=2)
+        tmp_path = f.name
+    try:
+        result = subprocess.run(
+            ["pdal", "pipeline", tmp_path],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            cwd=str(input_las.parent),
+        )
+        if result.returncode != 0:
+            msg = (result.stderr or result.stdout or "pdal pipeline failed").strip()
+            raise RuntimeError("generate_dsm PDAL writers.gdal failed: %s" % msg)
+        if not dsm_raw_tif.exists():
+            raise RuntimeError(
+                "generate_dsm: PDAL did not create output: %s" % dsm_raw_tif
+            )
+    finally:
+        Path(tmp_path).unlink(missing_ok=True)
+
+
 def generate_dsm(
     input_las: Path | str,
     output_tif: Path | str,
@@ -169,50 +220,57 @@ def generate_dsm(
     """
     Generate a DSM (digital surface model) GeoTIFF from a LAS point cloud.
 
-    Uses gdal_grid with inverse-distance interpolation (-zfield Z,
-    -a invdist:power=2.0:smoothing=1.0). Bounds are taken from pdal info
-    --metadata; raster size is computed from resolution (units per pixel).
+    Uses PDAL writers.gdal (output_type=max), not gdal_grid on LAS, so that
+    GDAL never reads LAS directly (avoids ERROR 4: 'dense.las' not recognized).
 
-    Raises RuntimeError if input is missing, pdal/gdal_grid fail, or output
-    is not created. Returns output_tif path.
+    Raises RuntimeError if input is missing, pdal fails, or output is not created.
+    Returns output_tif path.
     """
     input_las = Path(input_las)
     output_tif = Path(output_tif)
     if not input_las.exists():
         raise RuntimeError("generate_dsm: input does not exist: %s" % input_las)
+    if input_las.stat().st_size == 0:
+        raise RuntimeError("generate_dsm: input LAS is empty: %s" % input_las)
     output_tif.parent.mkdir(parents=True, exist_ok=True)
 
-    minx, maxx, miny, maxy = _bounds_from_pdal(input_las)
-    width = max(1, int(math.ceil((maxx - minx) / resolution)))
-    height = max(1, int(math.ceil((maxy - miny) / resolution)))
+    out_dir = output_tif.parent
+    dsm_raw_tif = out_dir / (output_tif.stem + "_dsm_raw.tif")
+    if dsm_raw_tif == output_tif:
+        dsm_raw_tif = out_dir / "._dsm_raw.tif"
 
-    cmd = [
-        "gdal_grid",
-        "-zfield", "Z",
-        "-a", "invdist:power=2.0:smoothing=1.0",
-        "-txe", str(minx), str(maxx),
-        "-tye", str(miny), str(maxy),
-        "-outsize", str(width), str(height),
-        str(input_las.resolve()),
+    _run_pdal_dsm_pipeline(
+        input_las, dsm_raw_tif, resolution, DEFAULT_NODATA, timeout
+    )
+
+    translate_cmd = [
+        "gdal_translate", "-q",
+        "-ot", "Float32",
+        "-a_nodata", str(DEFAULT_NODATA),
+        str(dsm_raw_tif.resolve()),
         str(output_tif.resolve()),
     ]
     try:
         result = subprocess.run(
-            cmd,
+            translate_cmd,
             capture_output=True,
             text=True,
-            timeout=timeout,
+            timeout=300,
         )
     except (OSError, subprocess.TimeoutExpired) as e:
-        raise RuntimeError("generate_dsm failed: %s" % e) from e
+        raise RuntimeError("generate_dsm gdal_translate failed: %s" % e) from e
     if result.returncode != 0:
-        msg = result.stderr or result.stdout or "gdal_grid failed"
-        raise RuntimeError("generate_dsm failed: %s" % msg.strip())
+        msg = result.stderr or result.stdout or "gdal_translate failed"
+        raise RuntimeError("generate_dsm gdal_translate failed: %s" % msg.strip())
     if not output_tif.exists():
         raise RuntimeError("generate_dsm: output was not created: %s" % output_tif)
+    try:
+        dsm_raw_tif.unlink(missing_ok=True)
+    except OSError:
+        pass
     log.info(
-        "generate_dsm: %s -> %s (res=%s, %dx%d)",
-        input_las, output_tif, resolution, width, height,
+        "generate_dsm: %s -> %s (res=%s, PDAL writers.gdal)",
+        input_las, output_tif, resolution,
     )
     return output_tif
 

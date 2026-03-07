@@ -3,8 +3,12 @@ Geospatial pipeline: convert dense point cloud to DTM, DSM, and orthophoto.
 
 Orchestrates georeferencing, classification, rasterization (DTM/DSM), and
 orthorectification. Callable from the main MapFree pipeline; no GUI dependency.
+
+Workflow: fused.ply (PDAL translate) -> dense.las -> classify_ground -> classified.las;
+DSM/DTM via PDAL writers.gdal (no direct GDAL on LAS); GDAL only for raster finishing.
 """
 
+import logging
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -14,6 +18,8 @@ from mapfree.geospatial.raster import generate_dsm, generate_dtm
 from mapfree.geospatial.orthorectify import generate_orthophoto
 from mapfree.geospatial.output_names import DTM_TIF, DSM_TIF, ORTHOPHOTO_TIF
 from mapfree.geospatial.pipeline import run_geospatial_pipeline
+
+log = logging.getLogger(__name__)
 
 
 def run_geospatial(
@@ -62,9 +68,28 @@ def run_geospatial(
 
     _emit("geospatial_started")
 
+    # Validate fused.ply before starting (Step A input)
+    if not dense_ply_path.exists():
+        raise RuntimeError(
+            "Geospatial: fused.ply tidak ditemukan: %s" % dense_ply_path
+        )
+    ply_size_mb = dense_ply_path.stat().st_size / (1024 * 1024)
+    log.info("fused.ply exists: True, size: %.1f MB", ply_size_mb)
+
     try:
         if dense_ply_path.exists():
             convert_ply_to_las(dense_ply_path, dense_las)
+            # Validate dense.las before any GDAL/PDAL raster step (GDAL cannot read LAS directly)
+            if not dense_las.exists():
+                raise RuntimeError(
+                    "Geospatial: dense.las tidak ditemukan: %s" % dense_las
+                )
+            if dense_las.stat().st_size == 0:
+                raise RuntimeError(
+                    "Geospatial: dense.las kosong (0 bytes): %s" % dense_las
+                )
+            las_size_mb = dense_las.stat().st_size / (1024 * 1024)
+            log.info("dense.las size: %.1f MB", las_size_mb)
             classify_ground(dense_las, classified_las)
             generate_dsm(dense_las, dsm_tif, resolution)
             generate_dtm(classified_las, dtm_tif, resolution, epsg=epsg_int)
