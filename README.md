@@ -41,50 +41,56 @@ Important components:
 
 ## Installation
 
+MapFree is intended to run from the **mapfree_engine** conda environment so that Python, GDAL, PDAL, and MapFree share one environment (single-install, portable).
+
+### Quick start (recommended)
+
+```bash
+# Clone and enter repo
+git clone https://github.com/rnafulh-wq/MapFree.git
+cd MapFree
+
+# Create conda environment and install MapFree
+conda env create -f environment.yml
+conda activate mapfree_engine
+pip install -e .
+
+# Run MapFree (always activate the env first)
+conda activate mapfree_engine
+python -m mapfree
+```
+
+**Windows:** Use `scripts\install_windows.bat` for one-click install (conda detection, env create, MapFree install, verification, desktop shortcut). Then run `scripts\mapfree_launcher.bat` or the Desktop shortcut to start MapFree.
+
 ### Requirements
 
-- Python 3.10+
-- **Python dependencies** (installed automatically with MapFree): PySide6, NumPy, OpenCV, PyYAML, psutil, tqdm. Use `pip install -e .` or `pip install -r requirements.txt`.
-- COLMAP installed and on PATH (or set `MAPFREE_COLMAP_BIN`)
-- OpenMVS installed and on PATH if using dense mesh pipeline (optional; COLMAP dense is default)
-- **PDAL and GDAL** — required only for geospatial stages (LAS conversion, DSM/DTM, orthophoto). Not bundled; must be installed on the system and on PATH.
+- Python 3.11 (via `environment.yml`)
+- **Conda** — Miniconda or Anaconda. MapFree and its dependencies (GDAL, PDAL, PySide6, etc.) are installed into the **mapfree_engine** environment.
+- **COLMAP** — install separately and on PATH (or set `MAPFREE_COLMAP` / config). Not included in the conda env.
+- **OpenMVS** — optional; install separately if using dense mesh pipeline. COLMAP dense is the default.
+- **PDAL and GDAL** — included in `environment.yml` (conda-forge); used for geospatial stages (DTM, orthophoto).
 
 ### PDAL & GDAL (geospatial)
 
-MapFree does not ship PDAL or GDAL. Install them and ensure they are on your PATH.
+When using the **mapfree_engine** environment, PDAL and GDAL are installed via `environment.yml` (conda-forge). No extra step needed.
 
-**Ubuntu / Debian (or use project script):**
+**If not using the conda env** (e.g. system Python or venv):
 
-```bash
-./scripts/install_geospatial.sh
-# or manually:
-sudo apt update
-sudo apt install -y pdal gdal-bin
-```
+- **Ubuntu / Debian:** `sudo apt install pdal gdal-bin` (or `./scripts/install_geospatial.sh`).
+- **Conda:** `conda install -c conda-forge pdal gdal`.
 
-**Conda (any OS):**
+**Verify (inside mapfree_engine):**
 
 ```bash
-conda install -c conda-forge pdal gdal
-```
-
-**Verify PATH:**
-
-```bash
-which pdal gdalinfo gdal_grid gdal_translate gdalwarp
-```
-
-All five commands should print paths. From the project root you can run:
-
-```bash
+conda activate mapfree_engine
 python -c "from mapfree.utils.dependency_check import check_geospatial_dependencies; check_geospatial_dependencies(); print('PDAL & GDAL OK')"
 ```
 
-To disable geospatial stages without installing PDAL/GDAL, set in config: `enable_geospatial: false`.
+To disable geospatial stages, set in config: `enable_geospatial: false`.
 
-### Setup
+### Alternative setup (venv / system Python)
 
-Use a virtual environment so dependencies do not affect the system Python:
+If you prefer a virtualenv instead of conda:
 
 ```bash
 git clone https://github.com/rnafulh-wq/MapFree.git
@@ -92,29 +98,24 @@ cd MapFree
 python3 -m venv venv
 source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-```
-
-**Windows (PowerShell, one-time installer):**
-
-```powershell
-# Run PowerShell as Administrator
-Set-ExecutionPolicy Bypass -Scope Process -Force
-.\scripts\install_windows.ps1
-```
-
-The script installs Chocolatey (if needed), COLMAP, Python 3.10+, MapFree, and creates a Desktop shortcut for `mapfree gui`.
-
-Or install as an editable package (includes the `mapfree` CLI):
-
-```bash
 pip install -e .
 ```
 
+You must install PDAL and GDAL separately and ensure they are on PATH. **Recommended:** use the **mapfree_engine** conda env for a single, consistent setup.
+
 ### Run
 
-**Desktop GUI:**
+Always activate the **mapfree_engine** environment first, then run MapFree:
 
 ```bash
+conda activate mapfree_engine
+python -m mapfree
+```
+
+**Desktop GUI:** The above starts the GUI by default. You can also run:
+
+```bash
+conda activate mapfree_engine
 mapfree gui
 # or
 python -m mapfree.app
@@ -182,11 +183,11 @@ MapFree/
 
 ## Development
 
-**Run in dev mode**
+**Run in dev mode (inside mapfree_engine)**
 
-- Install in editable mode: `pip install -e .`
-- GUI: `python -m mapfree.app`
-- CLI: `python -m mapfree.cli run <images> -o <project>`
+- Create env and install: `conda env create -f environment.yml && conda activate mapfree_engine && pip install -e .`
+- GUI: `conda activate mapfree_engine && python -m mapfree.app`
+- CLI: `conda activate mapfree_engine && python -m mapfree.cli run <images> -o <project>`
 - Optional: set `MAPFREE_LOG_LEVEL=DEBUG` and `MAPFREE_LOG_DIR` for file logging.
 
 **Where the GUI lives**
