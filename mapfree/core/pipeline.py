@@ -301,6 +301,8 @@ class Pipeline:
 
         project_path = self._project_path
         self._hook("step_start", step_name="dense")
+        # Ensure dense stage uses original image folder (not project/images)
+        self.ctx.image_path = str(self._image_path.resolve())
 
         if dense_engine == "openmvs":
             from mapfree.engines.mvs_openmvs import OpenMVSEngine, openmvs_available

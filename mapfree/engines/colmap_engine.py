@@ -428,15 +428,28 @@ class ColmapEngine(BaseEngine):
 
     def dense(self, ctx, vram_watchdog=False):
         from mapfree.utils.hardware import get_hardware_profile
+        # Image path must be the original photo folder (not project/images)
+        image_dir = Path(ctx.image_path).resolve()
+        if not image_dir.exists():
+            raise EngineError(
+                "COLMAP",
+                "Image directory tidak ditemukan: %s" % image_dir,
+            )
+        output_dir = Path(ctx.project_path).resolve()
         sparse_dir = Path(ctx.sparse_path).resolve()
         if (sparse_dir / "0" / "cameras.bin").exists():
             sparse_dir = sparse_dir / "0"
         if not (sparse_dir / "cameras.bin").exists():
+            sparse_dir = output_dir / "sparse_merged" / "0"
+        if not (sparse_dir / "cameras.bin").exists():
+            sparse_dir = output_dir / "sparse" / "0"
+        if not (sparse_dir / "cameras.bin").exists():
             raise EngineError(
                 "COLMAP",
-                "Sparse model not found for dense stage: %s (run sparse reconstruction first)" % sparse_dir,
+                "Sparse model tidak ditemukan di %s (jalankan sparse reconstruction dulu)" % sparse_dir,
             )
-        img_path = Path(ctx.image_path).resolve()
+        log.info("Dense - image_path: %s", image_dir)
+        log.info("Dense - sparse_path: %s", sparse_dir)
         dense_dir = Path(ctx.dense_path).resolve()
         dense_dir.mkdir(parents=True, exist_ok=True)
         use_gpu = _profile(ctx, "use_gpu", 1)
@@ -463,7 +476,7 @@ class ColmapEngine(BaseEngine):
 
         _run_stage(ctx, [
             str(get_colmap_bin()), "image_undistorter",
-            "--image_path", str(img_path),
+            "--image_path", str(image_dir),
             "--input_path", str(sparse_dir),
             "--output_path", str(dense_dir),
             "--output_type", "COLMAP",
