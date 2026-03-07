@@ -421,6 +421,15 @@ class Pipeline:
             )
         except RuntimeError as e:
             self._log.warning("Skipping geospatial stages: %s", e)
+            msg = (
+                "Geospatial stage di-skip: pdal/gdal tidak terinstall.\n"
+                "  Jalankan: conda install -c conda-forge pdal gdal\n"
+                "  untuk menghasilkan DTM dan Orthophoto."
+            )
+            self._bus(
+                "stage_skipped",
+                {"stage": "geospatial", "reason": str(e), "message": msg},
+            )
             return
 
         project_path = Path(self._project_path)

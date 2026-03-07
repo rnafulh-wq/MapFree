@@ -39,6 +39,7 @@ STATUS_PENDING = "pending"
 STATUS_RUNNING = "running"
 STATUS_DONE = "done"
 STATUS_ERROR = "error"
+STATUS_SKIPPED = "skipped"
 
 QUALITY_OPTIONS = ["High", "Medium", "Low"]
 
@@ -327,6 +328,14 @@ class ProjectPanel(QWidget):
         self._update_counters()
 
     def _on_gps_finished(self):
+        gps_status = self._gps_status
+        print(f"[GPS DEBUG] Results received: {len(gps_status)} entries")
+        print(f"[GPS DEBUG] Sample keys from result: {list(gps_status.keys())[:3]}")
+        print(f"[GPS DEBUG] Sample values: {list(gps_status.values())[:3]}")
+        print(f"[GPS DEBUG] _image_list_paths sample: {list(self._image_list_paths)[:3]}")
+        if self._image_list_paths:
+            first = list(self._image_list_paths)[0]
+            print(f"[GPS DEBUG] Key match test: {first!r} in gps_status -> {first in gps_status}")
         self._gps_worker = None
 
     def get_image_list(self) -> list:
@@ -398,8 +407,12 @@ class ProjectPanel(QWidget):
             item.setForeground(1, QColor("#4CAF50"))
             item.setFont(0, font_normal)
         elif status == STATUS_ERROR:
-            item.setText(1, "Error")
+            item.setText(1, "Failed")
             item.setForeground(1, QColor("#F44336"))
+            item.setFont(0, font_normal)
+        elif status == STATUS_SKIPPED:
+            item.setText(1, "Skipped")
+            item.setForeground(1, QColor("#9E9E9E"))
             item.setFont(0, font_normal)
         else:
             item.setText(1, status)

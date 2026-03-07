@@ -32,6 +32,7 @@ from mapfree.gui.panels import (
     STATUS_RUNNING,
     STATUS_DONE,
     STATUS_ERROR,
+    STATUS_SKIPPED,
 )
 from mapfree.gui.panels.viewer_panel import ViewerPanel
 from mapfree.gui.panels.project_history_panel import (
@@ -179,6 +180,7 @@ class MainWindow(QMainWindow):
         self._controller = QtController()
         self._worker = None
         self._current_stage = None
+        self._skipped_stages = set()
         self._image_path = None
         self._project_path = None
         self._setup_window()
@@ -1064,6 +1066,7 @@ class MainWindow(QMainWindow):
         self._controller.stateChanged.connect(self._on_state_changed)
         self._controller.pipelineFinished.connect(self._on_pipeline_finished)
         self._controller.pipelineError.connect(self._on_pipeline_error)
+        self._controller.stageSkipped.connect(self._on_stage_skipped)
         self._controller.exportStarted.connect(self._on_export_started)
         self._controller.exportFinished.connect(self._on_export_finished)
         self._controller.exportError.connect(self._on_export_error)
@@ -1134,6 +1137,7 @@ class MainWindow(QMainWindow):
             self._current_stage = None
             return
         if state == "running":
+            self._skipped_stages = set()
             self._project_panel.set_all_pending()
             self._project_panel.set_stage_status("feature_extraction", STATUS_RUNNING)
             self._current_stage = "feature_extraction"
@@ -1156,7 +1160,8 @@ class MainWindow(QMainWindow):
             return
         if state == "finished":
             for key in _STAGE_ORDER:
-                self._project_panel.set_stage_status(key, STATUS_DONE)
+                status = STATUS_SKIPPED if key in getattr(self, "_skipped_stages", set()) else STATUS_DONE
+                self._project_panel.set_stage_status(key, status)
             self._current_stage = None
             return
         if state == "error":
@@ -1164,11 +1169,26 @@ class MainWindow(QMainWindow):
                 self._project_panel.set_stage_status(self._current_stage, STATUS_ERROR)
             self._current_stage = None
 
+    def _on_stage_skipped(self, stage_key: str, data: dict):
+        """Set stage to Skipped and show install hint in console."""
+        if not hasattr(self, "_skipped_stages"):
+            self._skipped_stages = set()
+        self._skipped_stages.add(stage_key)
+        self._project_panel.set_stage_status(stage_key, STATUS_SKIPPED)
+        msg = data.get("message") if isinstance(data, dict) else None
+        if msg:
+            self._console_panel.append_log("\n⚠ " + msg.replace("\n", "\n  "), "warning")
+        self._vertical_splitter.setSizes([400, 200])
+        self._toggle_console_action.setChecked(True)
+        if self._console_panel.parent():
+            self._console_panel.setVisible(True)
+
     def _on_pipeline_finished(self):
         self._statusbar.showMessage("Pipeline finished successfully.")
         self._progress_panel.update_progress(100)
+        skipped = getattr(self, "_skipped_stages", set())
         for key in _STAGE_ORDER:
-            self._project_panel.set_stage_status(key, STATUS_DONE)
+            self._project_panel.set_stage_status(key, STATUS_SKIPPED if key in skipped else STATUS_DONE)
         self._project_panel.set_running(False)
         if self._project_path:
             update_project_history_status(str(self._project_path), "completed")

@@ -7,6 +7,7 @@ from mapfree.gui.panels.project_panel import (
     STATUS_RUNNING,
     STATUS_DONE,
     STATUS_ERROR,
+    STATUS_SKIPPED,
 )
 from mapfree.gui.panels.console_panel import ConsolePanel
 from mapfree.gui.panels.progress_panel import ProgressPanel
@@ -25,4 +26,5 @@ __all__ = [
     "STATUS_RUNNING",
     "STATUS_DONE",
     "STATUS_ERROR",
+    "STATUS_SKIPPED",
 ]

@@ -22,6 +22,7 @@ class QtController(QObject, MapFreeController):
     logReceived = Signal(str)           # single log line
     pipelineFinished = Signal()
     pipelineError = Signal(str)
+    stageSkipped = Signal(str, object)  # stage_key, data dict (message, reason)
 
     exportStarted = Signal()
     exportFinished = Signal(object)     # Path or dict (for export_all)
@@ -127,6 +128,10 @@ class QtController(QObject, MapFreeController):
                 if mesh_path:
                     self.meshLoaded.emit(mesh_path)
 
+        def on_stage_skipped(ev, data):
+            if isinstance(data, dict) and data.get("stage"):
+                self.stageSkipped.emit(data["stage"], data)
+
         def on_engine_log(ev, data):
             if not isinstance(data, dict):
                 return
@@ -156,6 +161,7 @@ class QtController(QObject, MapFreeController):
             ("progress_updated", on_progress_updated),
             ("stage_started", on_stage_started),
             ("stage_completed", on_stage_completed),
+            ("stage_skipped", on_stage_skipped),
             ("engine_log", on_engine_log),
             ("reprojection_progress", on_reprojection_progress),
             ("sparse_checkpoint", on_sparse_checkpoint),
