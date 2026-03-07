@@ -23,6 +23,8 @@ class ProjectContext:
         self.project_path = Path(paths.root)
         self.image_path = Path(image_path)
         self.profile = profile
+        # Folder foto asli (alias; engine dense uses this for --image_path)
+        self.image_dir = self.image_path
 
         self.database_path = self.project_path / "database.db"
         self.sparse_path = Path(paths.sparse)

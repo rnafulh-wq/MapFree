@@ -1,7 +1,10 @@
 """
 Dataset chunking and sparse model merge.
 Uses only stdlib: pathlib, shutil, subprocess.
+Avoids copying photos: uses hardlink (Windows/same FS) or symlink (Linux) when possible.
 """
+import logging
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -11,6 +14,8 @@ from .config import IMAGE_EXTENSIONS
 from .exceptions import EngineError
 from .profiles import resolve_chunk_size as _profiles_resolve
 from .wrapper import get_process_env
+
+log = logging.getLogger(__name__)
 
 
 def _colmap_bin():
@@ -35,6 +40,27 @@ def _list_images(folder: Path) -> list[Path]:
     )
 
 
+def _link_or_copy(src: Path, dest: Path) -> None:
+    """
+    Prefer hardlink (no extra disk), then symlink, then copy.
+    Avoids copying photos when same filesystem or when symlink is allowed.
+    """
+    src = src.resolve()
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        os.link(src, dest)
+        return
+    except OSError:
+        pass
+    try:
+        dest.symlink_to(src)
+        return
+    except OSError:
+        pass
+    log.warning("Linking failed for %s -> %s, copying", src, dest)
+    shutil.copy2(src, dest)
+
+
 def count_images(folder: Path) -> int:
     """Return number of images in folder."""
     return len(_list_images(Path(folder)))
@@ -46,8 +72,9 @@ def split_dataset(
     chunk_size: int | None = None,
 ) -> list[Path]:
     """
-    If image count > chunk_size, copy images into project/chunks/chunk_001, chunk_002, ...
-    Returns list of chunk folder paths. If image_count <= chunk_size, returns [image_folder].
+    If image count > chunk_size, link (hardlink/symlink) images into project/chunks/chunk_001, ...
+    Fallback: copy if linking fails. Returns list of chunk folder paths.
+    If image_count <= chunk_size, returns [image_folder] (no split).
     """
     image_folder = Path(image_folder)
     project_path = Path(project_path)
@@ -69,7 +96,7 @@ def split_dataset(
         chunk_path = chunks_dir / chunk_name
         chunk_path.mkdir(parents=True, exist_ok=True)
         for src in batch:
-            shutil.copy2(src, chunk_path / src.name)
+            _link_or_copy(src, chunk_path / src.name)
         chunk_folders.append(chunk_path)
     return chunk_folders
 

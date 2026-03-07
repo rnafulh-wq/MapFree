@@ -265,6 +265,11 @@ class Pipeline:
                 or (len(self._chunk_folders) == 1 and self._chunk_folders[0] != self._image_path)
             )
             self.emit("step", "Chunking enabled: %s" % ("YES" if self._use_chunking else "NO"), 0.07)
+        self._log.info(
+            "Mode: %s, %d photos",
+            "chunked" if self._use_chunking else "direct",
+            n_images,
+        )
         self.emit("step", "Total chunks: %d" % len(self._chunk_folders), 0.08)
 
     def _count_images_with_gps(self) -> int:
@@ -303,6 +308,7 @@ class Pipeline:
         self._hook("step_start", step_name="dense")
         # Ensure dense stage uses original image folder (not project/images)
         self.ctx.image_path = str(self._image_path.resolve())
+        self.ctx.image_dir = self._image_path.resolve()
 
         if dense_engine == "openmvs":
             from mapfree.engines.mvs_openmvs import OpenMVSEngine, openmvs_available
