@@ -348,10 +348,12 @@ class ColmapEngine(BaseEngine):
             "vocab_tree": "vocab_tree_matcher",
         }
         cmd_name = cmd_names.get(matcher, "spatial_matcher")
+        colmap_exe = str(get_colmap_bin())
         cmd = [
-            str(get_colmap_bin()), cmd_name,
+            colmap_exe, cmd_name,
             "--database_path", str(db),
-            "--SiftMatching.use_gpu", str(1 if use_gpu else 0),
+            "--FeatureMatching.use_gpu", str(int(use_gpu)),
+            "--FeatureMatching.num_threads", "-1",
         ]
         if cmd_name == "spatial_matcher":
             cmd.extend(["--SpatialMatching.max_num_neighbors", "50"])
