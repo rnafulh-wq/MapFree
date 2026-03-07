@@ -60,12 +60,12 @@ conda activate mapfree_engine
 python -m mapfree
 ```
 
-**Windows:** Use `scripts\install_windows.bat` for one-click install (conda detection, env create, MapFree install, verification, desktop shortcut). Then run `scripts\mapfree_launcher.bat` or the Desktop shortcut to start MapFree.
+**Windows:** Use `scripts\install_windows.bat` for one-click install (conda detection, env create, MapFree install, verification, desktop shortcut). Then run `scripts\mapfree_launcher.bat` or the Desktop shortcut to start MapFree. PySide6 is installed from conda-forge by the installer to avoid Qt DLL conflicts with COLMAP/GDAL.
 
 ### Requirements
 
 - Python 3.11 (via `environment.yml`)
-- **Conda** — Miniconda or Anaconda. MapFree and its dependencies (GDAL, PDAL, PySide6, etc.) are installed into the **mapfree_engine** environment.
+- **Conda** — Miniconda or Anaconda. MapFree and its dependencies (GDAL, PDAL, PySide6, etc.) are installed into the **mapfree_engine** environment. **PySide6 must be installed via conda-forge** (as in `environment.yml`), not pip, to avoid Qt DLL conflicts with COLMAP/GDAL.
 - **COLMAP** — install separately and on PATH (or set `MAPFREE_COLMAP` / config). Not included in the conda env.
 - **OpenMVS** — optional; install separately if using dense mesh pipeline. COLMAP dense is the default.
 - **PDAL and GDAL** — included in `environment.yml` (conda-forge); used for geospatial stages (DTM, orthophoto).

@@ -32,7 +32,7 @@ set "CONDA_EXE=%CONDA_BASE%\Scripts\conda.exe"
 echo [1/5] Conda ditemukan: %CONDA_EXE%
 echo.
 
-REM --- Create environment ---
+REM --- Create environment (PySide6 from conda-forge to avoid Qt DLL conflicts with COLMAP/GDAL) ---
 echo [2/5] Membuat conda environment mapfree_engine...
 call "%CONDA_EXE%" env remove -n mapfree_engine -y 2>nul
 call "%CONDA_EXE%" env create -f environment.yml

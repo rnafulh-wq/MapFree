@@ -14,8 +14,8 @@ dependencies:
   - pillow
   - numpy
   - scipy
-  # Qt GUI (MapFree uses PySide6)
-  - pyside6
+  # Qt GUI: PySide6 from conda-forge to avoid DLL conflicts with COLMAP/GDAL (do not install via pip)
+  - conda-forge::pyside6
   # Config / runtime
   - pyyaml
   - psutil
