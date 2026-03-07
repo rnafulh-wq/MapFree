@@ -136,16 +136,18 @@ def check_all_dependencies() -> Dict[str, DependencyStatus]:
             critical=False,
         )
 
-    # --- Geospatial (optional) ---
+    # --- Geospatial (optional): search PATH then mapfree_engine conda env ---
+    from mapfree.core.dependencies import find_gdal_tools
+    gdal_paths = find_gdal_tools()
     for cmd, hint in [
         ("pdal", "conda install -c conda-forge pdal  OR  sudo apt install pdal"),
         ("gdalinfo", "conda install -c conda-forge gdal  OR  sudo apt install gdal-bin"),
     ]:
-        results[cmd] = _check_binary(
+        results[cmd] = _check_gdal_tool(
             cmd,
+            gdal_paths.get(cmd),
             version_args=["--version"],
             install_hint=hint,
-            critical=False,
         )
 
     _save_cache(results)
@@ -175,6 +177,31 @@ def _check_colmap() -> DependencyStatus:
         path=found_path if ok else None,
         install_hint="" if ok else _COLMAP_INSTALL_HINT,
         critical=True,
+    )
+
+
+def _check_gdal_tool(
+    name: str,
+    found_path: Optional[str],
+    version_args: List[str],
+    install_hint: str,
+) -> DependencyStatus:
+    """Check a GDAL/PDAL tool using path from find_gdal_tools() or PATH."""
+    if not found_path:
+        found_path = shutil.which(name)
+    if not found_path:
+        return DependencyStatus(
+            available=False,
+            install_hint=install_hint,
+            critical=False,
+        )
+    ok, version = _run_version(found_path, version_args)
+    return DependencyStatus(
+        available=ok,
+        version=version if ok else None,
+        path=found_path if ok else None,
+        install_hint="" if ok else install_hint,
+        critical=False,
     )
 
 
@@ -319,15 +346,18 @@ def check_external_tools(tools: Optional[List[str]] = None) -> None:
     """Check that *tools* are available.  Raises :class:`RuntimeError` if any are missing."""
     if tools is None:
         tools = _DEFAULT_TOOLS
+    from mapfree.core.dependencies import find_gdal_tools
+    gdal_paths = find_gdal_tools()
     missing = []
     for cmd in tools:
         args = _VERSION_ARGS.get(cmd, ["--version"])
-        if not shutil.which(cmd):
+        found = gdal_paths.get(cmd) or shutil.which(cmd)
+        if not found:
             missing.append(cmd)
             continue
-        ok, msg = _run_version(cmd, args)
+        ok, msg = _run_version(found, args)
         if not ok:
-            missing.append(f"{cmd} ({msg})")
+            missing.append("%s (%s)" % (cmd, msg))
         else:
             log.debug("%s: %s", cmd, msg)
 
@@ -339,15 +369,22 @@ def check_external_tools(tools: Optional[List[str]] = None) -> None:
 
 
 def check_geospatial_dependencies() -> None:
-    """Check PDAL + GDAL tools.  Raises :class:`RuntimeError` if missing."""
+    """Check PDAL + GDAL tools.  Raises :class:`RuntimeError` if missing.
+
+    Uses find_gdal_tools() so tools in mapfree_engine conda env are found
+    when MapFree runs in base.
+    """
+    from mapfree.core.dependencies import find_gdal_tools
+    paths = find_gdal_tools()
     missing = []
     for cmd, version_args in _VERSION_CHECKS:
-        if not shutil.which(cmd):
+        found = paths.get(cmd) or shutil.which(cmd)
+        if not found:
             missing.append(cmd)
             continue
-        ok, msg = _run_version(cmd, list(version_args))
+        ok, msg = _run_version(found, list(version_args))
         if not ok:
-            missing.append(f"{cmd} ({msg})")
+            missing.append("%s (%s)" % (cmd, msg))
         else:
             log.debug("%s: %s", cmd, msg)
 
