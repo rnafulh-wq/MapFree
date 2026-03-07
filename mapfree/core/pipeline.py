@@ -39,7 +39,17 @@ from .project_structure import resolve_project_paths
 
 
 class Pipeline:
-    def __init__(self, engine, context, on_event=None, chunk_size=None, force_profile=None, event_emitter=None, quality=None):
+    def __init__(
+        self,
+        engine,
+        context,
+        on_event=None,
+        chunk_size=None,
+        force_profile=None,
+        event_emitter=None,
+        quality=None,
+        matcher=None,
+    ):
         self.engine = engine
         self.ctx = context
         self.on_event = on_event or (lambda e: None)
@@ -47,6 +57,9 @@ class Pipeline:
         self.force_profile = force_profile
         self.event_emitter = event_emitter
         self.quality = quality if quality in QUALITY_PRESETS else "medium"
+        self._matcher = matcher if matcher in (
+            "auto", "spatial", "sequential", "exhaustive", "vocab_tree"
+        ) else "auto"
         self._project_path = None
         self._image_path = None
         self._profile = None
@@ -167,6 +180,7 @@ class Pipeline:
         downscale = QUALITY_PRESETS.get(self.quality, 1)
         self.ctx.profile["quality"] = self.quality
         self.ctx.profile["downscale"] = downscale
+        self.ctx.profile["matcher"] = self._matcher
         self.emit("step", "Selected profile: %s" % profile["profile"], 0.05)
         self.emit("step", "Quality: %s (downscale %d)" % (self.quality.upper(), downscale), 0.05)
 
@@ -188,6 +202,11 @@ class Pipeline:
         except OSError:
             pass
 
+        if self.ctx.profile.get("matcher") == "auto":
+            resolved = self._resolve_matcher_auto(n_images)
+            self.ctx.profile["matcher"] = resolved
+            self._log.info("Matcher (auto): %s (n_images=%d)", resolved, n_images)
+
         self.ctx.prepare()
         self._chunk_folders = chunking.split_dataset(self._image_path, self._project_path, self.chunk_size)
         self._use_chunking = (
@@ -196,6 +215,34 @@ class Pipeline:
         )
         self.emit("step", "Chunking enabled: %s" % ("YES" if self._use_chunking else "NO"), 0.07)
         self.emit("step", "Total chunks: %d" % len(self._chunk_folders), 0.08)
+
+    def _resolve_matcher_auto(self, n_images: int) -> str:
+        """
+        Resolve matcher for dataset: >80% GPS -> spatial, <100 -> exhaustive,
+        >1000 -> vocab_tree, low GPS -> sequential, else spatial.
+        """
+        if n_images > 1000:
+            return "vocab_tree"
+        if n_images < 100:
+            return "exhaustive"
+        gps_ratio = 0.0
+        try:
+            from mapfree.core.config import IMAGE_EXTENSIONS
+            from mapfree.geospatial.exif_reader import has_gps
+            paths = [
+                p for p in self._image_path.iterdir()
+                if p.is_file() and p.suffix in IMAGE_EXTENSIONS
+            ]
+            if paths:
+                n_with_gps = sum(1 for p in paths if has_gps(p))
+                gps_ratio = n_with_gps / len(paths)
+        except (OSError, ImportError):
+            pass
+        if gps_ratio > 0.8:
+            return "spatial"
+        if gps_ratio < 0.2:
+            return "sequential"
+        return "spatial"
 
     def _run_sparse(self):
         if self._use_chunking and self._chunk_folders and self._chunk_folders[0] != self._image_path:

@@ -351,14 +351,20 @@ class ColmapEngine(BaseEngine):
                 "COLMAP",
                 "Database not found after feature extraction: %s" % db,
             )
-        matcher = _profile(ctx, "matcher", "exhaustive")
+        matcher = _profile(ctx, "matcher", "spatial")
         vram_mb = get_hardware_profile().vram_mb
         use_gpu = _profile(ctx, "use_gpu", 1)
         if vram_mb < 1000:
             use_gpu = 0
         log.info("GPU mode: use_gpu=%s, VRAM=%sMB", use_gpu, vram_mb)
         # COLMAP 3.8+ uses SiftMatching.use_gpu (FeatureMatching.* removed)
-        cmd_name = "sequential_matcher" if matcher == "sequential" else "exhaustive_matcher"
+        cmd_names = {
+            "sequential": "sequential_matcher",
+            "exhaustive": "exhaustive_matcher",
+            "spatial": "spatial_matcher",
+            "vocab_tree": "vocab_tree_matcher",
+        }
+        cmd_name = cmd_names.get(matcher, "spatial_matcher")
         cmd = [
             get_colmap_bin(), cmd_name,
             "--database_path", str(db),

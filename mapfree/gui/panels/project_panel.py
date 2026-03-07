@@ -39,6 +39,14 @@ STATUS_ERROR = "error"
 
 QUALITY_OPTIONS = ["High", "Medium", "Low"]
 
+MATCHER_OPTIONS = [
+    ("Auto (recommended)", "auto"),
+    ("Spatial (GPS-based)", "spatial"),
+    ("Sequential", "sequential"),
+    ("Exhaustive", "exhaustive"),
+    ("Vocab Tree", "vocab_tree"),
+]
+
 
 class ProjectPanel(QWidget):
     """
@@ -128,6 +136,16 @@ class ProjectPanel(QWidget):
         self._quality_combo.setCurrentText("Medium")
         self._quality_combo.currentTextChanged.connect(self._on_steps_changed)
         pl.addWidget(self._quality_combo)
+
+        pl.addWidget(field_label("Matching Method"))
+        self._matcher_combo = QComboBox()
+        for label, _ in MATCHER_OPTIONS:
+            self._matcher_combo.addItem(label)
+        self._matcher_combo.setCurrentIndex(0)
+        self._matcher_combo.setToolTip(
+            "Auto: spatial if >80% GPS, sequential if low GPS, exhaustive if <100 photos, vocab tree if >1000."
+        )
+        pl.addWidget(self._matcher_combo)
 
         layout.addWidget(project_grp)
 
@@ -333,6 +351,12 @@ class ProjectPanel(QWidget):
 
     def get_quality(self):
         return (self._quality_combo.currentText() or "Medium").lower()
+
+    def get_matcher(self) -> str:
+        idx = self._matcher_combo.currentIndex() if self._matcher_combo else 0
+        if 0 <= idx < len(MATCHER_OPTIONS):
+            return MATCHER_OPTIONS[idx][1]
+        return "auto"
 
     def set_quality(self, quality: str):
         q = quality.capitalize() if quality else "Medium"

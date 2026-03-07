@@ -698,6 +698,15 @@ class MainWindow(QMainWindow):
         self._update_run_enabled()
         self._statusbar.showMessage("New job. Isi 1–4: nama, import foto, penyimpanan, kualitas.")
 
+    def _get_image_dir_for_validation(self) -> Path | None:
+        """Return the folder containing input photos, or None if not set."""
+        if self._image_path and Path(self._image_path).is_dir():
+            return Path(self._image_path).resolve()
+        img_list = self._project_panel.get_image_list()
+        if img_list:
+            return Path(img_list[0]).resolve().parent
+        return None
+
     def _on_set_output_folder(self):
         folder = QFileDialog.getExistingDirectory(
             self,
@@ -713,6 +722,20 @@ class MainWindow(QMainWindow):
             return
         base_dir = Path(folder)
         project_dir = base_dir / job_name
+        image_dir = self._get_image_dir_for_validation()
+        if image_dir is not None:
+            try:
+                out_resolved = project_dir.resolve()
+                img_resolved = image_dir.resolve()
+                if out_resolved != img_resolved and out_resolved.is_relative_to(img_resolved):
+                    QMessageBox.warning(
+                        self,
+                        "Output folder",
+                        "Output folder tidak boleh berada di dalam folder foto.",
+                    )
+                    return
+            except (ValueError, OSError):
+                pass
         if project_dir.exists():
             try:
                 has_files = any(project_dir.iterdir())
@@ -1216,6 +1239,7 @@ class MainWindow(QMainWindow):
         if hasattr(self, "_history_panel") and self._history_panel is not None:
             self._history_panel.refresh()
         quality = self._project_panel.get_quality()
+        matcher = self._project_panel.get_matcher()
         self._project_panel.set_running(True)
         self._project_panel.set_all_pending()
         self._progress_panel.set_log_path(Path(project_path) / "logs" / "mapfree.log")
@@ -1224,6 +1248,7 @@ class MainWindow(QMainWindow):
             image_path,
             project_path,
             quality=quality,
+            matcher=matcher,
         )
         self._worker.started.connect(lambda: self._progress_panel.update_state("running"))
         self._worker.finished.connect(self._on_worker_finished)

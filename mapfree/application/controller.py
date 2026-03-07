@@ -106,6 +106,7 @@ class MapFreeController:
         force_profile=None,
         event_emitter=None,
         quality=None,
+        matcher=None,
     ):
         try:
             profile = self.profile if self.profile is not None else {}
@@ -120,6 +121,7 @@ class MapFreeController:
                 force_profile=force_profile,
                 event_emitter=event_emitter,
                 quality=quality,
+                matcher=matcher,
             )
             pipeline.run()
         except Exception as e:
@@ -142,7 +144,17 @@ class MapFreeController:
         with self._lock:
             self.state = PipelineState.IDLE
 
-    def run_project(self, image_path, project_path, on_event=None, chunk_size=None, force_profile=None, event_emitter=None, quality=None):
+    def run_project(
+        self,
+        image_path,
+        project_path,
+        on_event=None,
+        chunk_size=None,
+        force_profile=None,
+        event_emitter=None,
+        quality=None,
+        matcher=None,
+    ):
         if self.worker_thread is not None and self.worker_thread.is_alive():
             return
         validate_path_allowed(project_path, kind="project_path")
@@ -157,6 +169,7 @@ class MapFreeController:
                 "force_profile": force_profile,
                 "event_emitter": event_emitter,
                 "quality": quality,
+                "matcher": matcher,
             },
             daemon=True,
         )
