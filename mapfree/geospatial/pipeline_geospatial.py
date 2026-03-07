@@ -14,6 +14,7 @@ from typing import Callable, Optional
 
 from mapfree.utils.dependency_check import check_geospatial_dependencies
 from mapfree.geospatial.classification import convert_ply_to_las, classify_ground
+from mapfree.geospatial.georef import georeference_point_cloud
 from mapfree.geospatial.raster import generate_dsm, generate_dtm
 from mapfree.geospatial.orthorectify import generate_orthophoto
 from mapfree.geospatial.output_names import DTM_TIF, DSM_TIF, ORTHOPHOTO_TIF
@@ -78,7 +79,35 @@ def run_geospatial(
 
     try:
         if dense_ply_path.exists():
-            convert_ply_to_las(dense_ply_path, dense_las)
+            # GPS georeferencing: convert PLY to LAS with UTM CRS so DSM/DTM have correct location
+            gps_list = []
+            try:
+                from mapfree.geospatial.exif_reader import extract_gps_from_images
+                gps_list = extract_gps_from_images(str(images_dir))
+            except Exception as e:
+                log.debug("extract_gps_from_images failed: %s", e)
+            if gps_list:
+                rec = gps_list[0]
+                gps_center = (
+                    rec["lat"],
+                    rec["lon"],
+                    rec.get("alt") if rec.get("alt") is not None else 0.0,
+                )
+                database_path = Path(project_path) / "database.db"
+                if not database_path.exists():
+                    database_path = None
+                try:
+                    georeference_point_cloud(
+                        dense_ply_path,
+                        dense_las,
+                        gps_center,
+                        database_path=database_path,
+                    )
+                except RuntimeError as e:
+                    log.warning("Georeferencing failed, falling back to plain convert: %s", e)
+                    convert_ply_to_las(dense_ply_path, dense_las)
+            else:
+                convert_ply_to_las(dense_ply_path, dense_las)
             # Validate dense.las before any GDAL/PDAL raster step (GDAL cannot read LAS directly)
             if not dense_las.exists():
                 raise RuntimeError(

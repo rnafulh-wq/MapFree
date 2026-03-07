@@ -303,11 +303,8 @@ def _run_pdal_dtm_pipeline(
     tif_abs = str(dtm_raw_tif.resolve())
     pipeline: Dict[str, Any] = {
         "pipeline": [
-            {
-                "type": "readers.las",
-                "filename": las_abs,
-                "where": "Classification == 2",
-            },
+            {"type": "readers.las", "filename": las_abs},
+            {"type": "filters.range", "limits": "Classification[2:2]"},
             {
                 "type": "writers.gdal",
                 "filename": tif_abs,

@@ -6,6 +6,8 @@ No GUI dependency; callable from main pipeline.
 from mapfree.geospatial.georef import (
     georeference,
     convert_ply_to_las,
+    get_utm_epsg_from_gps,
+    georeference_point_cloud,
     EVENT_STAGE_STARTED,
     EVENT_STAGE_COMPLETED,
 )
@@ -28,6 +30,8 @@ from mapfree.geospatial.output_names import (
 __all__ = [
     "georeference",
     "convert_ply_to_las",
+    "get_utm_epsg_from_gps",
+    "georeference_point_cloud",
     "EVENT_STAGE_STARTED",
     "EVENT_STAGE_COMPLETED",
     "classify_point_cloud",
