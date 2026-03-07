@@ -14,6 +14,8 @@ Sparse final output: sparse_merged/0/ (chunked) or sparse/0/ (single). After run
 to final_results/ via final_results.export_final_results().
 Delegates: state (state.py), validation (validation.py), profile (profiles.py), detection (hardware.py).
 """
+import ctypes
+import sys
 from pathlib import Path
 
 from . import chunking, hardware
@@ -36,6 +38,8 @@ from .logger import get_logger, get_chunk_logger, set_log_file_for_project
 from . import final_results as final_results_module
 from .config import QUALITY_PRESETS
 from .project_structure import resolve_project_paths
+
+USE_CHUNKING_THRESHOLD = 500  # Only copy/split when dataset > 500 photos
 
 
 def select_matcher(image_gps_count: int, total_images: int) -> str:
@@ -87,6 +91,27 @@ class Pipeline:
     def emit(self, type_, message=None, progress=None):
         self.on_event(Event(type_, message, progress))
 
+    @staticmethod
+    def _prevent_sleep():
+        """Prevent Windows display/system sleep while pipeline runs."""
+        if sys.platform == "win32":
+            try:
+                # ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED
+                ctypes.windll.kernel32.SetThreadExecutionState(
+                    0x80000000 | 0x00000001 | 0x00000002
+                )
+            except Exception:
+                pass
+
+    @staticmethod
+    def _allow_sleep():
+        """Allow Windows sleep again after pipeline."""
+        if sys.platform == "win32":
+            try:
+                ctypes.windll.kernel32.SetThreadExecutionState(0x80000000)
+            except Exception:
+                pass
+
     def _hook(self, event_name: str, **payload):
         if self.event_emitter is not None:
             self.event_emitter.emit(event_name, **payload)
@@ -115,6 +140,7 @@ class Pipeline:
         self.emit("start", "Pipeline started", 0.0)
         self._bus("pipeline_started")
         self._state_cleared = False
+        self._prevent_sleep()
         try:
             self._prepare_environment()
             if self._abort:
@@ -159,6 +185,7 @@ class Pipeline:
             self._log.exception("Pipeline failed: %s", e)
             raise
         finally:
+            self._allow_sleep()
             if bus is not None:
                 bus.unsubscribe("pipeline_stop_requested", on_stop_requested)
             if self._project_path is not None and not getattr(self, "_state_cleared", False):
@@ -225,12 +252,19 @@ class Pipeline:
             self._log.info("Matcher (auto): %s (gps=%d, n_images=%d)", resolved, image_gps_count, n_images)
 
         self.ctx.prepare()
-        self._chunk_folders = chunking.split_dataset(self._image_path, self._project_path, self.chunk_size)
-        self._use_chunking = (
-            len(self._chunk_folders) > 1
-            or (len(self._chunk_folders) == 1 and self._chunk_folders[0] != self._image_path)
-        )
-        self.emit("step", "Chunking enabled: %s" % ("YES" if self._use_chunking else "NO"), 0.07)
+        if n_images <= USE_CHUNKING_THRESHOLD:
+            self._chunk_folders = [self._image_path]
+            self._use_chunking = False
+            self.emit("step", "Direct mode (no copy): %d photos" % n_images, 0.07)
+        else:
+            self._chunk_folders = chunking.split_dataset(
+                self._image_path, self._project_path, self.chunk_size
+            )
+            self._use_chunking = (
+                len(self._chunk_folders) > 1
+                or (len(self._chunk_folders) == 1 and self._chunk_folders[0] != self._image_path)
+            )
+            self.emit("step", "Chunking enabled: %s" % ("YES" if self._use_chunking else "NO"), 0.07)
         self.emit("step", "Total chunks: %d" % len(self._chunk_folders), 0.08)
 
     def _count_images_with_gps(self) -> int:
