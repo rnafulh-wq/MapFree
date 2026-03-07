@@ -1,0 +1,29 @@
+# MapFree Engine — single conda environment (Windows/Linux/macOS)
+# Install: conda env create -f environment.yml
+# Then: pip install -e .  (from repo root) or pip install mapfree
+name: mapfree_engine
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  # Geospatial
+  - gdal
+  - pdal
+  # Image processing
+  - pillow
+  - exifread
+  # Qt GUI (PySide6 for MapFree)
+  - pyside6
+  # Scientific
+  - numpy
+  - scipy
+  # Other runtime
+  - pyyaml
+  - psutil
+  - matplotlib
+  # COLMAP: install separately (installer / choco / manual)
+  # OpenMVS: install separately (installer / manual)
+  - pip:
+    - mapfree  # or: -e . for dev install from repo
