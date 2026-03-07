@@ -92,7 +92,13 @@ def run_geospatial(
             log.info("dense.las size: %.1f MB", las_size_mb)
             classify_ground(dense_las, classified_las)
             generate_dsm(dense_las, dsm_tif, resolution)
+            if not dsm_tif.exists() or dsm_tif.stat().st_size == 0:
+                raise RuntimeError("Geospatial: DSM .tif tidak valid setelah generate_dsm: %s" % dsm_tif)
+            log.info("DSM .tif valid: %s (%.1f MB)", dsm_tif, dsm_tif.stat().st_size / (1024 * 1024))
             generate_dtm(classified_las, dtm_tif, resolution, epsg=epsg_int)
+            if not dtm_tif.exists() or dtm_tif.stat().st_size == 0:
+                raise RuntimeError("Geospatial: DTM .tif tidak valid setelah generate_dtm: %s" % dtm_tif)
+            log.info("DTM .tif valid: %s (%.1f MB)", dtm_tif, dtm_tif.stat().st_size / (1024 * 1024))
             _emit("dtm_done")
             if images_dir.is_dir() and dtm_tif.exists():
                 try:

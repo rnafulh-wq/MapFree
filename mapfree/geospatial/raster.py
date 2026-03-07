@@ -169,20 +169,23 @@ def _run_pdal_dsm_pipeline(
 ) -> None:
     """Run PDAL pipeline: readers.las -> writers.gdal (output_type=max) -> DSM GeoTIFF.
 
-    Uses PDAL so GDAL never reads LAS directly (avoids 'dense.las not recognized').
+    GDAL is never called on LAS; only PDAL reads LAS and writes GeoTIFF.
     """
+    las_abs = str(input_las.resolve())
+    tif_abs = str(dsm_raw_tif.resolve())
     pipeline: Dict[str, Any] = {
         "pipeline": [
-            str(input_las.resolve()),
+            {"type": "readers.las", "filename": las_abs},
             {
                 "type": "writers.gdal",
-                "filename": str(dsm_raw_tif.resolve()),
-                "output_type": "max",
+                "filename": tif_abs,
                 "resolution": resolution,
+                "output_type": "max",
                 "nodata": nodata,
                 "dimension": "Z",
                 "gdaldriver": "GTiff",
                 "data_type": "float",
+                "gdalopts": "COMPRESS=LZW",
             },
         ]
     }
@@ -207,6 +210,14 @@ def _run_pdal_dsm_pipeline(
             raise RuntimeError(
                 "generate_dsm: PDAL did not create output: %s" % dsm_raw_tif
             )
+        if dsm_raw_tif.stat().st_size == 0:
+            raise RuntimeError(
+                "generate_dsm: output .tif is empty (0 bytes): %s" % dsm_raw_tif
+            )
+        log.info(
+            "generate_dsm: DSM .tif valid, size %.1f MB",
+            dsm_raw_tif.stat().st_size / (1024 * 1024),
+        )
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 
@@ -264,6 +275,8 @@ def generate_dsm(
         raise RuntimeError("generate_dsm gdal_translate failed: %s" % msg.strip())
     if not output_tif.exists():
         raise RuntimeError("generate_dsm: output was not created: %s" % output_tif)
+    if output_tif.stat().st_size == 0:
+        raise RuntimeError("generate_dsm: output .tif is empty: %s" % output_tif)
     try:
         dsm_raw_tif.unlink(missing_ok=True)
     except OSError:
@@ -282,19 +295,29 @@ def _run_pdal_dtm_pipeline(
     nodata: float,
     timeout: int,
 ) -> None:
-    """Run PDAL pipeline: readers.las -> writers.gdal (output_type=min) -> dtm_raw.tif."""
-    pipeline = {
+    """Run PDAL pipeline: readers.las (Classification==2) -> writers.gdal (min) -> DTM.
+
+    GDAL is never called on LAS; only PDAL reads classified LAS and writes GeoTIFF.
+    """
+    las_abs = str(ground_las.resolve())
+    tif_abs = str(dtm_raw_tif.resolve())
+    pipeline: Dict[str, Any] = {
         "pipeline": [
-            str(ground_las.resolve()),
+            {
+                "type": "readers.las",
+                "filename": las_abs,
+                "where": "Classification == 2",
+            },
             {
                 "type": "writers.gdal",
-                "filename": str(dtm_raw_tif.resolve()),
-                "output_type": "min",
+                "filename": tif_abs,
                 "resolution": resolution,
+                "output_type": "min",
                 "nodata": nodata,
                 "dimension": "Z",
                 "gdaldriver": "GTiff",
                 "data_type": "float",
+                "gdalopts": "COMPRESS=LZW",
             },
         ]
     }
@@ -319,6 +342,14 @@ def _run_pdal_dtm_pipeline(
             raise RuntimeError(
                 "generate_dtm: PDAL did not create output: %s" % dtm_raw_tif
             )
+        if dtm_raw_tif.stat().st_size == 0:
+            raise RuntimeError(
+                "generate_dtm: output .tif is empty (0 bytes): %s" % dtm_raw_tif
+            )
+        log.info(
+            "generate_dtm: DTM .tif valid, size %.1f MB",
+            dtm_raw_tif.stat().st_size / (1024 * 1024),
+        )
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 
@@ -398,6 +429,8 @@ def generate_dtm(
         )
     if not output_tif.exists():
         raise RuntimeError("generate_dtm: output was not created: %s" % output_tif)
+    if output_tif.stat().st_size == 0:
+        raise RuntimeError("generate_dtm: output .tif is empty: %s" % output_tif)
 
     # Overviews
     try:
