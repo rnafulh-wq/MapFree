@@ -60,15 +60,15 @@ class GpsExtractWorker(QThread):
         self._paths = list(paths)
 
     def run(self):
-        from mapfree.geospatial.exif_reader import has_gps
-        n = len(self._paths)
-        for i, p in enumerate(self._paths):
-            path_str = str(Path(p).resolve())
-            try:
-                ok = has_gps(Path(p))
-            except Exception:
-                ok = False
-            self.result.emit(path_str, ok)
+        import logging
+        from mapfree.geospatial.exif_reader import get_gps_status_for_paths
+        log = logging.getLogger(__name__)
+        path_objs = [Path(p) for p in self._paths]
+        n = len(path_objs)
+        log.debug("Extracting GPS for %d files", n)
+        status = get_gps_status_for_paths(path_objs)
+        for i, (path_str, has_gps) in enumerate(status.items()):
+            self.result.emit(path_str, has_gps)
             self.progress.emit(i + 1, n)
         self.finished.emit()
 

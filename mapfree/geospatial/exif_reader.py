@@ -232,3 +232,22 @@ def extract_gps_from_paths(paths: list[Path]) -> list[dict]:
         if rec is not None:
             out.append(rec)
     return out
+
+
+def get_gps_status_for_paths(file_paths: list[Path]) -> dict[str, bool]:
+    """
+    Return dict of path_str -> has_gps for a list of files (e.g. from Add Photos).
+    Key is always str(Path(p).resolve()) for consistent lookup in UI.
+    Does not filter by extension so PNG/TIF with EXIF are supported.
+    """
+    result: dict[str, bool] = {}
+    for p in file_paths:
+        path = Path(p).resolve()
+        if not path.is_file():
+            result[str(path)] = False
+            continue
+        try:
+            result[str(path)] = _read_exif_for_file(path) is not None
+        except Exception:
+            result[str(path)] = False
+    return result

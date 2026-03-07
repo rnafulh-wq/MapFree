@@ -1,5 +1,6 @@
 """Project panel — urutan: 1 Nama job, 2 Import foto, 3 Penyimpanan, 4 Kualitas, lalu Run."""
 
+import logging
 from pathlib import Path
 
 from PySide6.QtWidgets import (
@@ -21,6 +22,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtGui import QColor, QFont
+
+log = logging.getLogger(__name__)
 
 # Display names and order for pipeline stages (sparse → dense → geospatial → post_process)
 STAGE_ITEMS = [
@@ -232,6 +235,7 @@ class ProjectPanel(QWidget):
         for p in added:
             if p not in self._image_list_paths:
                 self._image_list_paths.append(p)
+        log.debug("Add Photos: %d files selected, total list %d", len(added), len(self._image_list_paths))
         self._refresh_photo_list_and_emit()
 
     def _on_add_folder(self):
@@ -301,7 +305,9 @@ class ProjectPanel(QWidget):
         if self._gps_worker is not None and self._gps_worker.isRunning():
             return
         from mapfree.gui.workers import GpsExtractWorker
-        self._gps_worker = GpsExtractWorker(self._image_list_paths)
+        files = list(self._image_list_paths)
+        log.debug("Extracting GPS for %d files (file list)", len(files))
+        self._gps_worker = GpsExtractWorker(files)
         self._gps_worker.result.connect(self._on_gps_result)
         self._gps_worker.finished.connect(self._on_gps_finished)
         self._gps_worker.start()
