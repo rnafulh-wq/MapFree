@@ -47,13 +47,15 @@ def run_process_streaming(
     If stop_event is set, a watcher thread will terminate the process.
     Returns exit code. Raises EngineExecutionError on spawn failure (e.g. executable not found).
     """
+    # Ensure list of str (paths with spaces safe; no Path objects)
+    command = [str(c) for c in command]
     if logger:
-        logger.info("Running: %s", " ".join(str(c) for c in command))
+        logger.info("Running: %s", " ".join(command))
     if log_file:
         try:
             Path(log_file).parent.mkdir(parents=True, exist_ok=True)
             with open(log_file, "a") as f:
-                f.write("\n--- CMD ---\n%s\n" % " ".join(str(c) for c in command))
+                f.write("\n--- CMD ---\n%s\n" % " ".join(command))
         except Exception:
             pass
 

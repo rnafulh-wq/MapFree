@@ -136,12 +136,14 @@ def _run_stage(ctx, command, stage_name, timeout=3600):
     logger = getattr(ctx, "logger", None)
     bus = getattr(ctx, "event_bus", None)
 
+    # Ensure every argument is str (paths with spaces safe when passed as list to subprocess)
+    command = [str(x) for x in command]
     # Windows: .bat must be run via cmd /c (shell=False)
-    if sys.platform == "win32" and command and str(command[0]).lower().endswith(".bat"):
-        command = ["cmd", "/c", command[0]] + list(command[1:])
+    if sys.platform == "win32" and command and command[0].lower().endswith(".bat"):
+        command = ["cmd", "/c", command[0]] + command[1:]
 
     log.info("COLMAP executable: %s", command[0] if command else "—")
-    log.info("COLMAP command: %s", " ".join(str(x) for x in command))
+    log.info("COLMAP command: %s", " ".join(command))
 
     if bus is not None:
         bus.emit("engine_stage_started", {"engine": "colmap", "stage": stage_name})
@@ -303,9 +305,6 @@ class ColmapEngine(BaseEngine):
         # Metashape-style quality: apply downscale to feature extraction
         downscale = _profile(ctx, "downscale", 1)
         max_size = max(256, max_size // downscale)
-        cfg = _get_cfg()
-        colmap_cfg = cfg.get("colmap") or {}
-        num_threads = colmap_cfg.get("num_threads", -1)
         # Order images by EXIF: GPS (lat, lon) then datetime for sequential matcher
         list_output = project_path / "image_list.txt"
         list_path = write_image_list_for_colmap(
@@ -319,22 +318,22 @@ class ColmapEngine(BaseEngine):
                 "Could not create image list for %s (no images or write failed)" % image_dir,
             )
 
-        # COLMAP 3.8+ uses SiftExtraction.* and ImageReader.* (FeatureExtraction.* removed)
+        # COLMAP 3.13+: ImageReader.max_image_size; SiftExtraction.num_threads removed
         cmd = [
-            get_colmap_bin(), "feature_extractor",
+            str(get_colmap_bin()),
+            "feature_extractor",
             "--database_path", str(database_path),
             "--image_path", str(image_dir),
             "--ImageReader.single_camera", "1",
             "--ImageReader.camera_model", "OPENCV",
-            "--SiftExtraction.max_image_size", str(max_size),
-            "--SiftExtraction.num_threads", str(num_threads),
+            "--ImageReader.max_image_size", str(max_size),
             "--SiftExtraction.max_num_features", str(max_features),
             "--SiftExtraction.use_gpu", str(1 if use_gpu else 0),
+            "--image_list_path", str(list_path.resolve()),
         ]
-        cmd.extend(["--image_list_path", str(list_path.resolve())])
         dji_params = _get_dji_opencv_params(image_dir)
         if dji_params is not None:
-            cmd.extend(["--ImageReader.camera_params", dji_params])
+            cmd.extend(["--ImageReader.camera_params", str(dji_params)])
 
         log.info(
             "COLMAP feature_extractor args: image_path=%s database_path=%s image_list_path=%s n_images=%d",
@@ -366,7 +365,7 @@ class ColmapEngine(BaseEngine):
         }
         cmd_name = cmd_names.get(matcher, "spatial_matcher")
         cmd = [
-            get_colmap_bin(), cmd_name,
+            str(get_colmap_bin()), cmd_name,
             "--database_path", str(db),
             "--SiftMatching.use_gpu", str(1 if use_gpu else 0),
         ]
@@ -394,7 +393,7 @@ class ColmapEngine(BaseEngine):
             )
         out_sparse.mkdir(parents=True, exist_ok=True)
         cmd = [
-            get_colmap_bin(), "mapper",
+            str(get_colmap_bin()), "mapper",
             "--database_path", str(db),
             "--image_path", str(img_path),
             "--output_path", str(out_sparse),
@@ -417,7 +416,7 @@ class ColmapEngine(BaseEngine):
         out_reproj = parent / "0_filtered"
         out_reproj.mkdir(parents=True, exist_ok=True)
         cmd_reproj = [
-            get_colmap_bin(), "point_filtering",
+            str(get_colmap_bin()), "point_filtering",
             "--input_path", str(sparse_dir),
             "--output_path", str(out_reproj),
             "--PointFiltering.filter_type", "reprojection_error",
@@ -427,7 +426,7 @@ class ColmapEngine(BaseEngine):
         out_track = parent / "0_filtered2"
         out_track.mkdir(parents=True, exist_ok=True)
         cmd_track = [
-            get_colmap_bin(), "point_filtering",
+            str(get_colmap_bin()), "point_filtering",
             "--input_path", str(out_reproj),
             "--output_path", str(out_track),
             "--PointFiltering.filter_type", "track_length",
@@ -477,7 +476,7 @@ class ColmapEngine(BaseEngine):
         patch_match_max_size = max(256, base_size // downscale)
 
         _run_stage(ctx, [
-            get_colmap_bin(), "image_undistorter",
+            str(get_colmap_bin()), "image_undistorter",
             "--image_path", str(img_path),
             "--input_path", str(sparse_dir),
             "--output_path", str(dense_dir),
@@ -485,7 +484,7 @@ class ColmapEngine(BaseEngine):
         ], "dense")
 
         _run_stage(ctx, [
-            get_colmap_bin(), "patch_match_stereo",
+            str(get_colmap_bin()), "patch_match_stereo",
             "--workspace_path", str(dense_dir),
             "--workspace_format", "COLMAP",
             "--PatchMatchStereo.gpu_index", gpu_idx,
@@ -498,7 +497,7 @@ class ColmapEngine(BaseEngine):
         ], "dense")
 
         _run_stage(ctx, [
-            get_colmap_bin(), "stereo_fusion",
+            str(get_colmap_bin()), "stereo_fusion",
             "--workspace_path", str(dense_dir),
             "--workspace_format", "COLMAP",
             "--input_type", "geometric",
