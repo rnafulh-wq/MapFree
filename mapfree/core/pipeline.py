@@ -38,6 +38,22 @@ from .config import QUALITY_PRESETS
 from .project_structure import resolve_project_paths
 
 
+def select_matcher(image_gps_count: int, total_images: int) -> str:
+    """
+    Select matcher from GPS availability and dataset size.
+    Drone/UAV with full GPS -> spatial; small set -> exhaustive; large -> vocab_tree; else sequential.
+    """
+    gps_ratio = image_gps_count / total_images if total_images > 0 else 0
+    if gps_ratio >= 0.8:
+        return "spatial"      # drone/UAV dengan GPS lengkap
+    elif total_images < 100:
+        return "exhaustive"   # dataset kecil tanpa GPS
+    elif total_images > 1000:
+        return "vocab_tree"   # dataset besar tanpa GPS
+    else:
+        return "sequential"   # foto berurutan tanpa GPS
+
+
 class Pipeline:
     def __init__(
         self,
@@ -203,9 +219,10 @@ class Pipeline:
             pass
 
         if self.ctx.profile.get("matcher") == "auto":
-            resolved = self._resolve_matcher_auto(n_images)
+            image_gps_count = self._count_images_with_gps()
+            resolved = select_matcher(image_gps_count, n_images)
             self.ctx.profile["matcher"] = resolved
-            self._log.info("Matcher (auto): %s (n_images=%d)", resolved, n_images)
+            self._log.info("Matcher (auto): %s (gps=%d, n_images=%d)", resolved, image_gps_count, n_images)
 
         self.ctx.prepare()
         self._chunk_folders = chunking.split_dataset(self._image_path, self._project_path, self.chunk_size)
@@ -216,16 +233,8 @@ class Pipeline:
         self.emit("step", "Chunking enabled: %s" % ("YES" if self._use_chunking else "NO"), 0.07)
         self.emit("step", "Total chunks: %d" % len(self._chunk_folders), 0.08)
 
-    def _resolve_matcher_auto(self, n_images: int) -> str:
-        """
-        Resolve matcher for dataset: >80% GPS -> spatial, <100 -> exhaustive,
-        >1000 -> vocab_tree, low GPS -> sequential, else spatial.
-        """
-        if n_images > 1000:
-            return "vocab_tree"
-        if n_images < 100:
-            return "exhaustive"
-        gps_ratio = 0.0
+    def _count_images_with_gps(self) -> int:
+        """Count images with GPS in EXIF under self._image_path (folder)."""
         try:
             from mapfree.core.config import IMAGE_EXTENSIONS
             from mapfree.geospatial.exif_reader import has_gps
@@ -233,16 +242,9 @@ class Pipeline:
                 p for p in self._image_path.iterdir()
                 if p.is_file() and p.suffix in IMAGE_EXTENSIONS
             ]
-            if paths:
-                n_with_gps = sum(1 for p in paths if has_gps(p))
-                gps_ratio = n_with_gps / len(paths)
+            return sum(1 for p in paths if has_gps(p))
         except (OSError, ImportError):
-            pass
-        if gps_ratio > 0.8:
-            return "spatial"
-        if gps_ratio < 0.2:
-            return "sequential"
-        return "spatial"
+            return 0
 
     def _run_sparse(self):
         if self._use_chunking and self._chunk_folders and self._chunk_folders[0] != self._image_path:

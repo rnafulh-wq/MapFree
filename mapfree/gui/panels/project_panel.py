@@ -40,7 +40,7 @@ STATUS_ERROR = "error"
 QUALITY_OPTIONS = ["High", "Medium", "Low"]
 
 MATCHER_OPTIONS = [
-    ("Auto (recommended)", "auto"),
+    ("Auto (Recommended)", "auto"),
     ("Spatial (GPS-based)", "spatial"),
     ("Sequential", "sequential"),
     ("Exhaustive", "exhaustive"),
@@ -143,7 +143,7 @@ class ProjectPanel(QWidget):
             self._matcher_combo.addItem(label)
         self._matcher_combo.setCurrentIndex(0)
         self._matcher_combo.setToolTip(
-            "Auto: spatial if >80% GPS, sequential if low GPS, exhaustive if <100 photos, vocab tree if >1000."
+            "Auto: spatial if ≥80% GPS, exhaustive if <100 photos, vocab tree if >1000, else sequential."
         )
         pl.addWidget(self._matcher_combo)
 

@@ -370,6 +370,8 @@ class ColmapEngine(BaseEngine):
             "--database_path", str(db),
             "--SiftMatching.use_gpu", str(1 if use_gpu else 0),
         ]
+        if cmd_name == "spatial_matcher":
+            cmd.extend(["--SpatialMatching.max_num_neighbors", "50"])
         _run_stage(ctx, cmd, "matching")
 
     def sparse(self, ctx):
