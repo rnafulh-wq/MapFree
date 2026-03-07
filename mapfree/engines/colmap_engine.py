@@ -292,20 +292,9 @@ class ColmapEngine(BaseEngine):
                 "database_path parent directory does not exist: %s" % database_path.parent,
             )
 
-        # Use GPU by default; fallback to CPU only when VRAM < 1GB
-        vram_mb = get_hardware_profile().vram_mb
-        low_vram = vram_mb < 1000
-        max_size = _profile(ctx, "max_image_size", 2000)
-        max_features = _profile(ctx, "max_features", 4096)
         use_gpu = _profile(ctx, "use_gpu", 1)
-        if low_vram:
-            max_size = min(max_size, 1600)
+        if get_hardware_profile().vram_mb < 1000:
             use_gpu = 0
-        log.info("GPU mode: use_gpu=%s, VRAM=%sMB", use_gpu, vram_mb)
-        # Metashape-style quality: apply downscale to feature extraction
-        downscale = _profile(ctx, "downscale", 1)
-        max_size = max(256, max_size // downscale)
-        # Order images by EXIF: GPS (lat, lon) then datetime for sequential matcher
         list_output = project_path / "image_list.txt"
         list_path = write_image_list_for_colmap(
             image_dir,
@@ -318,26 +307,21 @@ class ColmapEngine(BaseEngine):
                 "Could not create image list for %s (no images or write failed)" % image_dir,
             )
 
-        # COLMAP 3.13+: ImageReader.max_image_size; SiftExtraction.num_threads removed
+        # Exact args from verified manual test (no extra options)
         cmd = [
-            str(get_colmap_bin()),
-            "feature_extractor",
+            str(get_colmap_bin()), "feature_extractor",
             "--database_path", str(database_path),
             "--image_path", str(image_dir),
             "--ImageReader.single_camera", "1",
             "--ImageReader.camera_model", "OPENCV",
-            "--ImageReader.max_image_size", str(max_size),
-            "--SiftExtraction.max_num_features", str(max_features),
-            "--SiftExtraction.use_gpu", str(1 if use_gpu else 0),
+            "--SiftExtraction.max_num_features", "4096",
+            "--FeatureExtraction.use_gpu", str(int(use_gpu)),
+            "--FeatureExtraction.num_threads", "-1",
             "--image_list_path", str(list_path.resolve()),
         ]
-        dji_params = _get_dji_opencv_params(image_dir)
-        if dji_params is not None:
-            cmd.extend(["--ImageReader.camera_params", str(dji_params)])
-
         log.info(
-            "COLMAP feature_extractor args: image_path=%s database_path=%s image_list_path=%s n_images=%d",
-            image_dir, database_path, list_path, n_images,
+            "COLMAP feature_extractor: image_path=%s database_path=%s n_images=%d",
+            image_dir, database_path, n_images,
         )
         _run_stage(ctx, cmd, "feature_extraction")
 
