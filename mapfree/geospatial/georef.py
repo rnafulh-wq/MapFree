@@ -157,12 +157,19 @@ def georeference_point_cloud(
     tz = up - cz
 
     matrix_str = _build_transformation_matrix(tx, ty, tz)
+    # PDAL requires exactly 16 space-separated values; ensure we never send 3 (tx,ty,tz)
+    tokens = matrix_str.strip().split()
+    if len(tokens) != 16:
+        raise RuntimeError(
+            "georeference_point_cloud: transformation matrix must have 16 values, got %d. "
+            "Check _build_transformation_matrix." % len(tokens)
+        )
     pipeline: Dict[str, Any] = {
         "pipeline": [
             {"type": "readers.ply", "filename": str(ply_path.resolve())},
             {
                 "type": "filters.transformation",
-                "matrix": matrix_str,
+                "matrix": str(matrix_str),
             },
             {
                 "type": "writers.las",
