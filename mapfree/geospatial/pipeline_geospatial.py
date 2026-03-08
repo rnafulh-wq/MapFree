@@ -14,7 +14,7 @@ from typing import Callable, Optional
 
 from mapfree.utils.dependency_check import check_geospatial_dependencies
 from mapfree.geospatial.classification import convert_ply_to_las, classify_ground
-from mapfree.geospatial.georef import georeference_point_cloud
+from mapfree.geospatial.georef import georeference_point_cloud, find_fused_ply
 from mapfree.geospatial.raster import generate_dsm, generate_dtm
 from mapfree.geospatial.orthorectify import generate_orthophoto
 from mapfree.geospatial.output_names import DTM_TIF, DSM_TIF, ORTHOPHOTO_TIF
@@ -37,6 +37,26 @@ def run_geospatial(
     """
     project_path = Path(project_path)
     dense_ply_path = Path(dense_ply_path)
+
+    try:
+        from mapfree.core.project_structure import resolve_project_paths
+        paths = resolve_project_paths(project_path)
+        geo_dir = Path(paths.geospatial)
+        images_dir = Path(paths.images)
+        search_root = paths.dense.parent
+    except Exception:
+        geo_dir = project_path / "geospatial"
+        images_dir = project_path / "images"
+        search_root = project_path
+
+    if not dense_ply_path.exists():
+        found = find_fused_ply(search_root)
+        if found is not None:
+            dense_ply_path = found
+        else:
+            raise RuntimeError(
+                "Geospatial: fused.ply tidak ditemukan di %s" % search_root
+            )
     check_geospatial_dependencies()
 
     from mapfree.core.config import get_geospatial_config
@@ -48,14 +68,6 @@ def run_geospatial(
     except (TypeError, ValueError):
         epsg_int = None
 
-    # All geospatial outputs go into project_output/04_geospatial/ (v1.1.1) or legacy geospatial/
-    try:
-        from mapfree.core.project_structure import resolve_project_paths
-        geo_dir = Path(resolve_project_paths(project_path).geospatial)
-        images_dir = Path(resolve_project_paths(project_path).images)
-    except Exception:
-        geo_dir = project_path / "geospatial"
-        images_dir = project_path / "images"
     geo_dir.mkdir(parents=True, exist_ok=True)
     dense_las = geo_dir / "dense.las"
     classified_las = geo_dir / "classified.las"
@@ -69,11 +81,6 @@ def run_geospatial(
 
     _emit("geospatial_started")
 
-    # Validate fused.ply before starting (Step A input)
-    if not dense_ply_path.exists():
-        raise RuntimeError(
-            "Geospatial: fused.ply tidak ditemukan: %s" % dense_ply_path
-        )
     ply_size_mb = dense_ply_path.stat().st_size / (1024 * 1024)
     log.info("fused.ply exists: True, size: %.1f MB", ply_size_mb)
 
@@ -120,7 +127,12 @@ def run_geospatial(
             las_size_mb = dense_las.stat().st_size / (1024 * 1024)
             log.info("dense.las size: %.1f MB", las_size_mb)
             classify_ground(dense_las, classified_las)
+            log.info("generate_dsm: output path %s", dsm_tif)
             generate_dsm(dense_las, dsm_tif, resolution)
+            log.info(
+                "generate_dsm done: %s exists=%s size=%d",
+                dsm_tif, dsm_tif.exists(), dsm_tif.stat().st_size if dsm_tif.exists() else 0,
+            )
             if not dsm_tif.exists() or dsm_tif.stat().st_size == 0:
                 raise RuntimeError("Geospatial: DSM .tif tidak valid setelah generate_dsm: %s" % dsm_tif)
             MIN_DSM_BYTES = 10_000

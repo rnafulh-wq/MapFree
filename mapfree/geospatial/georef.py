@@ -27,6 +27,31 @@ def get_utm_epsg_from_gps(lat: float, lon: float) -> int:
     return 32700 + zone
 
 
+def find_fused_ply(output_dir: Path) -> Optional[Path]:
+    """
+    Locate fused.ply under output_dir. Tries known paths then rglob fallback.
+
+    Candidates: 02_dense/fused.ply, 02_dense/dense/fused.ply, dense/fused.ply.
+    """
+    output_dir = Path(output_dir)
+    candidates = [
+        output_dir / "02_dense" / "fused.ply",
+        output_dir / "02_dense" / "dense" / "fused.ply",
+        output_dir / "dense" / "fused.ply",
+    ]
+    for candidate in candidates:
+        if candidate.is_file() and candidate.stat().st_size > 0:
+            log.info("fused.ply ditemukan: %s", candidate)
+            return candidate
+    found = list(output_dir.rglob("fused.ply"))
+    if found:
+        p = next((f for f in found if f.is_file() and f.stat().st_size > 0), found[0])
+        log.info("fused.ply ditemukan via rglob: %s", p)
+        return p
+    log.warning("fused.ply tidak ditemukan di %s", output_dir)
+    return None
+
+
 def _gps_to_utm(
     lat: float, lon: float, alt: float, epsg: int
 ) -> Optional[Tuple[float, float, float]]:
