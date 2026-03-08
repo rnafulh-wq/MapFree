@@ -75,8 +75,10 @@ def _gps_to_utm(
         from osgeo import osr
         wgs84 = osr.SpatialReference()
         wgs84.ImportFromEPSG(4326)
+        wgs84.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
         utm_srs = osr.SpatialReference()
         utm_srs.ImportFromEPSG(epsg)
+        utm_srs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
         transform = osr.CoordinateTransformation(wgs84, utm_srs)
         pt = transform.TransformPoint(lon, lat, alt)
         # GDAL TransformPoint returns (x,y,z) or (x,y,z,t); unpack 3 only
