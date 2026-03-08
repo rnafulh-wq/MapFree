@@ -312,6 +312,7 @@ class MainWindow(QMainWindow):
         ]:
             a = export_menu.addAction(label, slot)
             self._export_actions.append(a)
+        file_menu.addAction("Clean Project &Cache", self._on_clean_project_cache)
         file_menu.addSeparator()
         file_menu.addAction("E&xit", self.close)
 
@@ -699,6 +700,19 @@ class MainWindow(QMainWindow):
         self._project_panel.set_output_folder("")
         self._update_run_enabled()
         self._statusbar.showMessage("New job. Isi 1–4: nama, import foto, penyimpanan, kualitas.")
+
+    def _on_clean_project_cache(self):
+        """Remove .cache/ in the active project folder."""
+        if not self._project_path:
+            QMessageBox.information(
+                self,
+                "Clean Project Cache",
+                "No project open. Open or create a project first.",
+            )
+            return
+        from mapfree.core.project_cache import cleanup_project_cache
+        cleanup_project_cache(self._project_path)
+        self._statusbar.showMessage("Project cache cleaned: %s" % self._project_path, 5000)
 
     def _get_image_dir_for_validation(self) -> Path | None:
         """Return the folder containing input photos, or None if not set."""

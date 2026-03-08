@@ -35,6 +35,7 @@ from .state import (
 )
 from .validation import sparse_valid, dense_valid
 from .logger import get_logger, get_chunk_logger, set_log_file_for_project
+from .project_cache import ensure_project_cache_dir, cleanup_project_cache
 from . import final_results as final_results_module
 from .config import QUALITY_PRESETS
 from .project_structure import resolve_project_paths
@@ -150,6 +151,7 @@ class Pipeline:
                 log_path = set_log_file_for_project(self._project_path)
                 if log_path:
                     self._log.info("Log file: %s", log_path)
+                ensure_project_cache_dir(self._project_path)
             self._bus("stage_started", {"stage": "sparse"})
             self._run_sparse()
             if not self._abort:
@@ -188,11 +190,13 @@ class Pipeline:
             self._allow_sleep()
             if bus is not None:
                 bus.unsubscribe("pipeline_stop_requested", on_stop_requested)
-            if self._project_path is not None and not getattr(self, "_state_cleared", False):
-                try:
-                    save_state(self._project_path, load_state(self._project_path))
-                except Exception:
-                    pass
+            if self._project_path is not None:
+                cleanup_project_cache(self._project_path)
+                if not getattr(self, "_state_cleared", False):
+                    try:
+                        save_state(self._project_path, load_state(self._project_path))
+                    except Exception:
+                        pass
 
     def _prepare_environment(self):
         """Resolve profile, chunk size, image count; prepare context and chunk list."""

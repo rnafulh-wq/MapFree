@@ -1,6 +1,6 @@
 """
 OSM tile map viewer using QGraphicsView (no WebEngine, no external browser).
-Tiles downloaded via requests, cached under ~/.mapfree/tile_cache/.
+Tiles downloaded via requests, cached under ~/.mapfree/tiles/ (global).
 GPS photo positions overlaid as QGraphicsEllipseItem; pan and zoom supported.
 """
 
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 TILE_SIZE = 256
 OSM_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-CACHE_DIR = Path.home() / ".mapfree" / "tile_cache"
+CACHE_DIR = Path.home() / ".mapfree" / "tiles"
 
 # Zoom limits (OSM typical range)
 ZOOM_MIN = 1

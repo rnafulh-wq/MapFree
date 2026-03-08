@@ -4,9 +4,11 @@ import logging
 import os
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
 from mapfree.utils.path_manager import PathManager
+from mapfree.utils.tile_cache import cleanup_old_tiles
 
 PathManager.inject_to_env()
 
@@ -105,6 +107,8 @@ def main() -> int:
     if icon_path is not None:
         window.setWindowIcon(QIcon(str(icon_path)))
     window.show()
+    # Clean global tile cache (files older than 30 days) in background
+    threading.Thread(target=lambda: cleanup_old_tiles(30), daemon=True).start()
     return app.exec()
 
 
