@@ -425,11 +425,12 @@ class ColmapEngine(BaseEngine):
 
     def point_filtering(self, ctx):
         """Filter sparse points by reprojection error and track length."""
-        sparse_dir = Path(ctx.sparse_path)
-        # Pick the model with the most 3D points instead of always using model 0
-        best = find_best_sparse_model(sparse_dir)
-        if (best / "cameras.bin").exists():
-            sparse_dir = best
+        sparse_root = Path(ctx.sparse_path).resolve()
+        # If ctx.sparse_path is already a model subfolder (e.g. .../01_sparse/0), use parent
+        if sparse_root.name in ("0", "1", "2") and (sparse_root / "cameras.bin").exists():
+            sparse_root = sparse_root.parent
+        best = find_best_sparse_model(sparse_root)
+        sparse_dir = best if (best / "cameras.bin").exists() else sparse_root / "0"
         parent = sparse_dir.parent
         out_reproj = parent / "0_filtered"
         out_reproj.mkdir(parents=True, exist_ok=True)
@@ -474,6 +475,9 @@ class ColmapEngine(BaseEngine):
             sparse_root = output_dir / "sparse"
         if not sparse_root.exists() or not any(sparse_root.iterdir()):
             sparse_root = Path(ctx.sparse_path).resolve()
+        # Ensure we pass the dir that contains 0, 1, 2... not a model subfolder (avoid .../0/0)
+        if sparse_root.name in ("0", "1", "2") and (sparse_root / "cameras.bin").exists():
+            sparse_root = sparse_root.parent
         sparse_input = find_best_sparse_model(sparse_root)
         if not (sparse_input / "cameras.bin").exists():
             raise EngineError(
