@@ -69,15 +69,21 @@ def save_setup_state(results: dict) -> None:
     """Write completed, checked_at, and dependencies to setup_complete.json.
 
     Merges with existing JSON so first-run wizard keys (version, profile, etc.)
-    are preserved.
+    are preserved. Also writes setup_complete, colmap_path, timestamp for
+    startup skip logic (skip dialog when file exists and colmap_path valid).
     """
     deps = _deps_from_results(results)
-    colmap_found = bool(deps.get("colmap", {}).get("found"))
+    colmap = deps.get("colmap") or {}
+    colmap_found = bool(colmap.get("found"))
+    colmap_path = colmap.get("path")
     now = datetime.now(timezone.utc).isoformat()
     data: dict[str, Any] = load_setup_state() or {}
     data["completed"] = colmap_found
     data["checked_at"] = now
     data["dependencies"] = deps
+    data["setup_complete"] = colmap_found
+    data["colmap_path"] = colmap_path
+    data["timestamp"] = now
     flag_path = SETUP_COMPLETE_PATH
     flag_path.parent.mkdir(parents=True, exist_ok=True)
     log.info("Saving setup state to %s (completed=%s)", flag_path, colmap_found)
@@ -97,14 +103,26 @@ def _file_age_days() -> Optional[float]:
         return None
 
 
+def _colmap_path_still_valid(state: dict[str, Any]) -> bool:
+    """Return True if saved colmap_path exists and is valid."""
+    colmap_path = state.get("colmap_path")
+    if not colmap_path:
+        colmap_path = (state.get("dependencies") or {}).get("colmap") or {}
+        colmap_path = colmap_path.get("path") if isinstance(colmap_path, dict) else None
+    if not colmap_path:
+        return False
+    return Path(colmap_path).exists()
+
+
 def should_skip_dependency_dialog(
     recheck_results: Optional[dict] = None,
 ) -> bool:
     """Return True if we can skip the 'Setup Diperlukan' dialog.
 
     Skip when:
-    - setup_complete.json has completed=true and dependencies.colmap.found=true, and
-    - either file age <= 7 days, or recheck_results is provided and colmap is still found.
+    - setup_complete.json has completed=true and dependencies.colmap.found=true,
+    - saved colmap_path still exists (valid),
+    - and either file age <= 7 days, or recheck_results is provided and colmap found.
 
     When recheck_results is provided (e.g. from a re-check because file was old),
     we do not update the file here; the caller should call save_setup_state(recheck_results)
@@ -113,11 +131,13 @@ def should_skip_dependency_dialog(
     state = load_setup_state()
     if not state:
         return False
-    if not state.get("completed"):
+    if not (state.get("completed") or state.get("setup_complete")):
         return False
     deps = state.get("dependencies") or {}
     colmap = deps.get("colmap") or {}
     if not colmap.get("found"):
+        return False
+    if not _colmap_path_still_valid(state):
         return False
     age = _file_age_days()
     if age is None:

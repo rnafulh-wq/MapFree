@@ -49,9 +49,10 @@ def find_colmap_executable() -> Optional[str]:
     1. MAPFREE_COLMAP or MAPFREE_COLMAP_PATH env
     2. Config colmap_path / colmap.colmap_bin
     3. PathManager deps_registry.json (colmap / COLMAP)
-    4. Default Windows: C:/tools/COLMAP, C:/colmap, C:/colmap/bin, C:/MapFree/deps/colmap
+    4. Default Windows: C:/tools/COLMAP, C:/colmap, C:/MapFree/deps/colmap
     5. Extra dirs (wizard/portable)
-    6. shutil.which on PATH
+    6. Conda env (Library/bin, Scripts) of current Python — find_tool("colmap")
+    7. shutil.which on PATH
 
     Returns absolute path string or None if not found.
     """
@@ -124,7 +125,16 @@ def find_colmap_executable() -> Optional[str]:
         except OSError:
             pass
 
-    # 6. PATH
+    # 6. Conda env (Library/bin, Scripts) of current Python — same as find_tool for GDAL/PDAL
+    try:
+        from mapfree.core.dependencies import find_tool
+        found = find_tool("colmap")
+        if found:
+            return str(Path(found).resolve())
+    except Exception:
+        pass
+
+    # 7. PATH
     for name in _COLMAP_NAMES:
         found = shutil.which(name)
         if found:
