@@ -241,14 +241,44 @@ def _get_dji_opencv_params(image_path: Path) -> str | None:
     return f"{focal_px},{focal_px},{cx},{cy},0,0,0,0"
 
 
+def find_best_sparse_model(sparse_dir: Path) -> Path:
+    """
+    Return the subfolder of sparse_dir whose points3D.bin is largest (most 3D points).
+
+    COLMAP mapper may produce multiple models (0, 1, 2, …); the largest by
+    points3D.bin file size contains the most registered images and should be
+    used for dense reconstruction. Falls back to sparse_dir/0 when no valid
+    subfolder is found.
+    """
+    sparse_dir = Path(sparse_dir)
+    best: Path | None = None
+    best_size = -1
+    try:
+        for sub in sorted(sparse_dir.iterdir()):
+            if not sub.is_dir():
+                continue
+            pts = sub / "points3D.bin"
+            if pts.exists() and pts.stat().st_size > best_size:
+                best_size = pts.stat().st_size
+                best = sub
+    except OSError:
+        pass
+    if best is not None:
+        log.info("find_best_sparse_model: selected %s (points3D.bin %d bytes)", best, best_size)
+        return best
+    fallback = sparse_dir / "0"
+    log.debug("find_best_sparse_model: no valid model found under %s, falling back to %s", sparse_dir, fallback)
+    return fallback
+
+
 def _emit_sparse_checkpoint(ctx, sparse_dir: Path) -> None:
-    """Emit 'sparse_checkpoint' event with the points3D.bin path if it exists."""
+    """Emit 'sparse_checkpoint' event with the points3D.bin path of the best model."""
     bus = getattr(ctx, "event_bus", None)
     if bus is None:
         return
-    # COLMAP writes sparse/0/points3D.bin
+    best = find_best_sparse_model(sparse_dir)
     candidates = [
-        sparse_dir / "0" / "points3D.bin",
+        best / "points3D.bin",
         sparse_dir / "points3D.bin",
     ]
     for candidate in candidates:
@@ -396,8 +426,10 @@ class ColmapEngine(BaseEngine):
     def point_filtering(self, ctx):
         """Filter sparse points by reprojection error and track length."""
         sparse_dir = Path(ctx.sparse_path)
-        if (sparse_dir / "0" / "cameras.bin").exists():
-            sparse_dir = sparse_dir / "0"
+        # Pick the model with the most 3D points instead of always using model 0
+        best = find_best_sparse_model(sparse_dir)
+        if (best / "cameras.bin").exists():
+            sparse_dir = best
         parent = sparse_dir.parent
         out_reproj = parent / "0_filtered"
         out_reproj.mkdir(parents=True, exist_ok=True)
@@ -436,13 +468,13 @@ class ColmapEngine(BaseEngine):
                 "Folder foto tidak ditemukan: %s" % image_dir,
             )
         output_dir = Path(ctx.project_path).resolve()
-        sparse_input = output_dir / "sparse_merged" / "0"
-        if not sparse_input.exists():
-            sparse_input = output_dir / "sparse" / "0"
-        if not sparse_input.exists():
-            sparse_input = Path(ctx.sparse_path).resolve()
-            if (sparse_input / "0" / "cameras.bin").exists():
-                sparse_input = sparse_input / "0"
+        # Prefer sparse_merged (post-merge), then sparse; always pick largest model
+        sparse_root = output_dir / "sparse_merged"
+        if not sparse_root.exists() or not any(sparse_root.iterdir()):
+            sparse_root = output_dir / "sparse"
+        if not sparse_root.exists() or not any(sparse_root.iterdir()):
+            sparse_root = Path(ctx.sparse_path).resolve()
+        sparse_input = find_best_sparse_model(sparse_root)
         if not (sparse_input / "cameras.bin").exists():
             raise EngineError(
                 "COLMAP",
