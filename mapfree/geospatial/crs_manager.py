@@ -95,7 +95,7 @@ class CRSManager:
         event_bus: Optional[Any] = None,
     ) -> Path:
         """
-        Reproject a raster to target CRS using gdalwarp with -progress.
+        Reproject a raster to target CRS using gdalwarp.
         Captures stdout/stderr, parses percentage, and emits "reprojection_progress"
         on event_bus when provided. Raises RuntimeError on failure.
         """
@@ -108,7 +108,6 @@ class CRSManager:
         srs = "EPSG:%d" % target_epsg
         cmd = [
             "gdalwarp",
-            "-progress",
             "-t_srs", srs,
             "-overwrite",
             str(input_tif.resolve()),

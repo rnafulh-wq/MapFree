@@ -123,6 +123,12 @@ def run_geospatial(
             generate_dsm(dense_las, dsm_tif, resolution)
             if not dsm_tif.exists() or dsm_tif.stat().st_size == 0:
                 raise RuntimeError("Geospatial: DSM .tif tidak valid setelah generate_dsm: %s" % dsm_tif)
+            MIN_DSM_BYTES = 10_000
+            if dsm_tif.stat().st_size < MIN_DSM_BYTES:
+                log.warning(
+                    "DSM.tif terlalu kecil (%d bytes), kemungkinan gagal. Cek PDAL pipeline output.",
+                    dsm_tif.stat().st_size,
+                )
             log.info("DSM .tif valid: %s (%.1f MB)", dsm_tif, dsm_tif.stat().st_size / (1024 * 1024))
             generate_dtm(classified_las, dtm_tif, resolution, epsg=epsg_int)
             if not dtm_tif.exists() or dtm_tif.stat().st_size == 0:

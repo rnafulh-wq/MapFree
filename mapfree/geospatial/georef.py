@@ -38,8 +38,12 @@ def _gps_to_utm(
         utm_srs = osr.SpatialReference()
         utm_srs.ImportFromEPSG(epsg)
         transform = osr.CoordinateTransformation(wgs84, utm_srs)
-        east, north, up, _ = transform.TransformPoint(lon, lat, alt)
-        return (float(east), float(north), float(up))
+        pt = transform.TransformPoint(lon, lat, alt)
+        # GDAL TransformPoint returns (x,y,z) or (x,y,z,t); unpack 3 only
+        if len(pt) < 3:
+            return None
+        east, north, up = float(pt[0]), float(pt[1]), float(pt[2])
+        return (east, north, up)
     except Exception as e:
         log.warning("_gps_to_utm failed (epsg=%s): %s", epsg, e)
         return None
