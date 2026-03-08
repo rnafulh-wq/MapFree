@@ -181,6 +181,9 @@ def georeference_point_cloud(
             },
         ]
     }
+    log.debug("PDAL pipeline JSON: %s", json.dumps(pipeline, indent=2))
+    log.debug("matrix_str repr: %r", matrix_str)
+    log.debug("matrix tokens: %d -> %s", len(tokens), tokens)
     with tempfile.NamedTemporaryFile(
         mode="w", suffix=".json", delete=False, encoding="utf-8"
     ) as f:
