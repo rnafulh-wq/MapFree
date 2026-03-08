@@ -506,9 +506,19 @@ class ColmapEngine(BaseEngine):
             num_samples = 15
 
         # Metashape-style quality: apply downscale to dense
+        quality = str(_profile(ctx, "quality", "medium")).lower()
         downscale = _profile(ctx, "downscale", 1)
         base_size = 3200 if patch_match_max_size == -1 else patch_match_max_size
         patch_match_max_size = max(256, base_size // downscale)
+        undistorter_max_size = patch_match_max_size
+        geom_consistency = "1"
+        fusion_min_num_pixels = "5"
+        if quality == "low":
+            # Low quality: faster/stabler dense settings for weak GPU/CPU machines.
+            undistorter_max_size = min(undistorter_max_size, 1200)
+            patch_match_max_size = min(patch_match_max_size, 1200)
+            geom_consistency = "0"
+            fusion_min_num_pixels = "3"
 
         _run_stage(ctx, [
             str(get_colmap_bin()), "image_undistorter",
@@ -516,6 +526,7 @@ class ColmapEngine(BaseEngine):
             "--input_path", str(sparse_input),
             "--output_path", str(dense_dir),
             "--output_type", "COLMAP",
+            "--max_image_size", str(undistorter_max_size),
         ], "dense")
 
         _run_stage(ctx, [
@@ -526,7 +537,7 @@ class ColmapEngine(BaseEngine):
             "--PatchMatchStereo.max_image_size", str(patch_match_max_size),
             "--PatchMatchStereo.cache_size", str(cache_size),
             "--PatchMatchStereo.window_step", "1",
-            "--PatchMatchStereo.geom_consistency", "1",
+            "--PatchMatchStereo.geom_consistency", geom_consistency,
             "--PatchMatchStereo.num_iterations", "5",
             "--PatchMatchStereo.num_samples", str(num_samples),
         ], "dense")
@@ -539,4 +550,5 @@ class ColmapEngine(BaseEngine):
             "--output_path", str(dense_dir / "fused.ply"),
             "--StereoFusion.max_image_size", str(patch_match_max_size),
             "--StereoFusion.check_num_images", "3",
+            "--StereoFusion.min_num_pixels", fusion_min_num_pixels,
         ], "dense")
