@@ -150,8 +150,12 @@ def run_geospatial(
             if images_dir.is_dir() and dtm_tif.exists():
                 try:
                     generate_orthophoto(images_dir, dtm_tif, ortho_tif)
-                except RuntimeError:
-                    pass
+                except RuntimeError as e:
+                    log.warning(
+                        "Orthophoto tidak dihasilkan: %s. "
+                        "Pastikan georeferencing berhasil dan DTM punya CRS.",
+                        e,
+                    )
             _emit("orthophoto_done")
     except Exception as e:
         raise RuntimeError("Geospatial stage failed: %s" % e) from e
