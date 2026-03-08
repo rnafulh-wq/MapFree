@@ -16,6 +16,8 @@ dependencies:
   - scipy
   # Qt GUI: PySide6 from conda-forge to avoid DLL conflicts with COLMAP/GDAL (do not install via pip)
   - conda-forge::pyside6
+  # OSM map viewer (QtWebEngine for PySide6.QtWebEngineWidgets)
+  - qt6-webengine
   # Config / runtime
   - pyyaml
   - psutil
