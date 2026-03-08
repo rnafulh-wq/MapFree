@@ -11,7 +11,7 @@ from typing import Optional
 
 import requests
 from PySide6.QtCore import QThread, Signal, QRectF
-from PySide6.QtGui import QPixmap, QPen, QBrush, QColor
+from PySide6.QtGui import QPixmap, QPen, QBrush, QColor, QPainter
 from PySide6.QtWidgets import (
     QGraphicsView,
     QGraphicsScene,
@@ -128,7 +128,7 @@ class MapTileWidget(QWidget):
         self.scene = QGraphicsScene(self)
         self.view = QGraphicsView(self.scene)
         self.view.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
-        self.view.setRenderHint(self.view.renderHints() | self.view.RenderHint.SmoothPixmapTransform)
+        self.view.setRenderHint(QPainter.RenderHint.Antialiasing)
         self.view.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.view.wheelEvent = self._on_wheel  # type: ignore[method-assign]
 
