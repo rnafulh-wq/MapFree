@@ -27,6 +27,21 @@ def get_utm_epsg_from_gps(lat: float, lon: float) -> int:
     return 32700 + zone
 
 
+def _build_transformation_matrix(tx: float, ty: float, tz: float) -> str:
+    """
+    Build 4x4 row-major transformation matrix string for PDAL filters.transformation.
+
+    Identity with translation only (Sx=Sy=Sz=1). PDAL requires exactly 16
+    space-separated values. Used for georeferencing PLY local coords to UTM.
+    """
+    return (
+        "1 0 0 %s " % tx
+        + "0 1 0 %s " % ty
+        + "0 0 1 %s " % tz
+        + "0 0 0 1"
+    )
+
+
 def find_fused_ply(output_dir: Path) -> Optional[Path]:
     """
     Locate fused.ply under output_dir. Tries known paths then rglob fallback.
@@ -141,17 +156,13 @@ def georeference_point_cloud(
     ty = north - cy
     tz = up - cz
 
+    matrix_str = _build_transformation_matrix(tx, ty, tz)
     pipeline: Dict[str, Any] = {
         "pipeline": [
             {"type": "readers.ply", "filename": str(ply_path.resolve())},
             {
                 "type": "filters.transformation",
-                "matrix": (
-                    "1 0 0 %f "
-                    "0 1 0 %f "
-                    "0 0 1 %f "
-                    "0 0 0 1" % (tx, ty, tz)
-                ),
+                "matrix": matrix_str,
             },
             {
                 "type": "writers.las",
