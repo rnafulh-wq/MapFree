@@ -74,49 +74,32 @@ def _gps_to_utm(
         return None
 
 
-def _get_ply_bounds(ply_path: Path, timeout: int = 60) -> Optional[Tuple[float, float, float, float, float, float]]:
-    """Get (minx, maxx, miny, maxy, minz, maxz) from pdal info --metadata on PLY."""
+def _get_ply_bounds(ply_path: Path, timeout: int = 60) -> Tuple[float, float, float, float, float, float]:
+    """
+    Get (minx, maxx, miny, maxy, minz, maxz) from PLY using pdal info --summary.
+
+    Raises RuntimeError if pdal info fails or bounds cannot be read.
+    """
+    result = subprocess.run(
+        ["pdal", "info", str(ply_path), "--summary"],
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+    )
+    if result.returncode != 0:
+        raise RuntimeError("pdal info failed: %s" % (result.stderr or result.stdout or "non-zero exit"))
+    data = json.loads(result.stdout)
     try:
-        result = subprocess.run(
-            ["pdal", "info", str(ply_path.resolve()), "--metadata"],
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-        )
-        if result.returncode != 0:
-            return None
-        data = json.loads(result.stdout)
-        meta = data.get("metadata") or {}
-
-        def find_bounds(obj: Any, depth: int = 0) -> Optional[Tuple[float, ...]]:
-            if depth > 20:
-                return None
-            if isinstance(obj, dict):
-                if all(k in obj for k in ("minx", "maxx", "miny", "maxy", "minz", "maxz")):
-                    return (
-                        float(obj["minx"]), float(obj["maxx"]),
-                        float(obj["miny"]), float(obj["maxy"]),
-                        float(obj["minz"]), float(obj["maxz"]),
-                    )
-                for v in obj.values():
-                    b = find_bounds(v, depth + 1)
-                    if b is not None:
-                        return b
-            return None
-
-        bounds = find_bounds(meta)
-        if bounds is None:
-            for k in ("minx", "maxx", "miny", "maxy", "minz", "maxz"):
-                if k not in meta:
-                    return None
-            bounds = (
-                float(meta["minx"]), float(meta["maxx"]),
-                float(meta["miny"]), float(meta["maxy"]),
-                float(meta["minz"]), float(meta["maxz"]),
-            )
-        return bounds
-    except (subprocess.TimeoutExpired, json.JSONDecodeError, KeyError, TypeError, ValueError):
-        return None
+        bounds = data["summary"]["bounds"]
+        minx = float(bounds["minx"])
+        maxx = float(bounds["maxx"])
+        miny = float(bounds["miny"])
+        maxy = float(bounds["maxy"])
+        minz = float(bounds["minz"])
+        maxz = float(bounds["maxz"])
+    except (KeyError, TypeError, ValueError) as e:
+        raise RuntimeError("pdal info: could not read bounds from summary: %s" % e) from e
+    return (minx, maxx, miny, maxy, minz, maxz)
 
 
 def georeference_point_cloud(
@@ -147,10 +130,7 @@ def georeference_point_cloud(
         )
     east, north, up = utm_center
 
-    bounds = _get_ply_bounds(ply_path, timeout=timeout)
-    if bounds is None:
-        raise RuntimeError("georeference_point_cloud: could not get PLY bounds: %s" % ply_path)
-    minx, maxx, miny, maxy, minz, maxz = bounds
+    minx, maxx, miny, maxy, minz, maxz = _get_ply_bounds(ply_path, timeout=timeout)
     cx = (minx + maxx) / 2.0
     cy = (miny + maxy) / 2.0
     cz = (minz + maxz) / 2.0
