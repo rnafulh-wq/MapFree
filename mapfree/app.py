@@ -4,11 +4,13 @@ import logging
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 from mapfree.utils.path_manager import PathManager
 
 PathManager.inject_to_env()
 
+from PySide6.QtGui import QIcon  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from mapfree.gui.main_window import MainWindow  # noqa: E402
@@ -23,6 +25,19 @@ from mapfree.application.setup_state import (  # noqa: E402
 from mapfree.viewer.bootstrap.gl_bootstrap import GLBootstrap  # noqa: E402
 
 _log = logging.getLogger(__name__)
+
+ICON_TASKBAR = "MapFree_logo_taskbar.png"
+
+
+def _find_icon_path() -> Path | None:
+    """Resolve path to taskbar icon: repo assets/ or PyInstaller bundle."""
+    if getattr(sys, "_MEIPASS", None):
+        p = Path(sys._MEIPASS) / "assets" / ICON_TASKBAR
+    else:
+        # From source: repo root = parent of mapfree package
+        base = Path(__file__).resolve().parent.parent
+        p = base / "assets" / ICON_TASKBAR
+    return p if p.is_file() else None
 
 
 def _log_startup_colmap() -> None:
@@ -64,6 +79,12 @@ def main() -> int:
         app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(True)
 
+    icon_path = _find_icon_path()
+    if icon_path is not None:
+        app.setWindowIcon(QIcon(str(icon_path)))
+    else:
+        _log.debug("App icon not found: assets/%s", ICON_TASKBAR)
+
     if should_show_first_run_wizard():
         wizard = FirstRunWizard()
         wizard.exec()
@@ -81,6 +102,8 @@ def main() -> int:
             dlg.exec()
 
     window = MainWindow(gl_enabled=gl_enabled)
+    if icon_path is not None:
+        window.setWindowIcon(QIcon(str(icon_path)))
     window.show()
     return app.exec()
 

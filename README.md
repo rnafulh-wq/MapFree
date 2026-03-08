@@ -1,3 +1,5 @@
+![MapFree](assets/MapFree_logo_desktop.png)
+
 # MapFree Engine
 
 **Native Desktop Photogrammetry Engine**

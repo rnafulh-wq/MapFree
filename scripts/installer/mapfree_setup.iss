@@ -14,7 +14,8 @@ DefaultDirName={autopf}\MapFree
 DefaultGroupName=MapFree
 OutputDir=Output
 OutputBaseFilename=MapFree-Setup-{#MyAppVersion}
-; SetupIconFile: leave empty to use Inno default (icon path can fail in CI)
+; Build ICO first: python scripts/installer/png_to_ico.py
+SetupIconFile=..\..\assets\MapFree_logo_taskbar.ico
 UninstallDisplayIcon={app}\MapFree.exe
 Compression=lzma2/max
 SolidCompression=yes
