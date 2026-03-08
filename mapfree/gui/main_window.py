@@ -40,7 +40,7 @@ from mapfree.gui.panels.project_history_panel import (
     add_project as add_project_to_history,
     update_status as update_project_history_status,
 )
-from mapfree.gui.map_widget import MapWidget
+from mapfree.gui.widgets.map_tile_widget import MapTileWidget
 from mapfree.gui.qt_controller import QtController
 from mapfree.gui.workers import PipelineWorker, MemoryMonitorWorker
 from mapfree.utils.file_utils import list_images
@@ -453,7 +453,7 @@ class MainWindow(QMainWindow):
         self._console_panel = ConsolePanel()
         self._progress_panel = ProgressPanel()
         self._viewer_panel = self._create_viewer_widget()
-        self.map_widget = MapWidget()
+        self.map_widget = MapTileWidget()
         self._map_container = self._create_map_container()
 
         self._workspace = QStackedWidget()
