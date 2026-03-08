@@ -7,25 +7,24 @@ channels:
 dependencies:
   - python=3.11
   - pip
-  # Geospatial
+  - conda-forge::pyside6
   - gdal
   - pdal
-  # Image / scientific
-  - pillow
-  - numpy
-  - scipy
-  # Qt GUI: PySide6 from conda-forge to avoid DLL conflicts with COLMAP/GDAL (do not install via pip)
-  - conda-forge::pyside6
-  # OSM map viewer (QtWebEngine for PySide6.QtWebEngineWidgets)
+  - colmap
   - qt6-webengine
-  # Config / runtime
-  - pyyaml
+  - numpy
+  - pillow
   - psutil
+  - pyyaml
+  - tqdm
+  - scipy
   - matplotlib
-  # COLMAP / OpenMVS: install separately (installer, choco, or manual)
-  # MapFree: install from repo with  pip install -e .  (see install_windows.bat / README)
+  - flake8
+  - pytest
+  - pytest-cov
+  - pytest-mock
+  - coverage
   - pip:
     - exifread>=3.0.0
     - opencv-python
-    - tqdm
     - pyqtgraph>=0.13.0
