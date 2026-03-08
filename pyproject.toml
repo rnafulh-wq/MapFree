@@ -7,14 +7,14 @@ name = "mapfree"
 version = "1.1.0"
 description = "Modular photogrammetry pipeline engine (CLI + Qt GUI)"
 readme = "README.md"
-license = { text = "MIT" }
+license = { text = "AGPL-3.0-or-later" }
 requires-python = ">=3.10"
 authors = [{ name = "MapFree Contributors" }]
 keywords = ["photogrammetry", "colmap", "3d-reconstruction", "pipeline"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
