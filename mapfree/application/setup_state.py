@@ -138,7 +138,13 @@ def should_skip_dependency_dialog(
     if not colmap.get("found"):
         return False
     if not _colmap_path_still_valid(state):
-        return False
+        # Fallback: live search in case conda path differs across sessions
+        try:
+            from mapfree.utils.colmap_finder import find_colmap_executable
+            if not find_colmap_executable():
+                return False
+        except Exception:
+            return False
     age = _file_age_days()
     if age is None:
         return False

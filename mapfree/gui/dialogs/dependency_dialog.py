@@ -268,9 +268,10 @@ class DependencyDialog(QDialog):
         self._populate_table()
 
     def _on_continue(self) -> None:
-        """Re-check, save setup state, then close dialog."""
-        from mapfree.utils.dependency_check import check_all_dependencies
+        """Invalidate cache, re-check, save setup state (with colmap_path), then close."""
+        from mapfree.utils.dependency_check import check_all_dependencies, invalidate_cache
         from mapfree.application.setup_state import save_setup_state
+        invalidate_cache()
         results = check_all_dependencies()
         save_setup_state(results)
         self.accept()

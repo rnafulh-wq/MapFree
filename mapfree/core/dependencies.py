@@ -39,6 +39,7 @@ def find_tool(name: str) -> Optional[str]:
         python_dir / "Scripts",
         python_dir.parent / "Library" / "bin",
         python_dir / "Library" / "bin",
+        python_dir / "Library" / "mingw-w64" / "bin",  # conda Windows native tools (e.g. colmap)
     ]
     exts = ["", ".exe", ".bat"] if sys.platform == "win32" else [""]
     for d in search_dirs:
