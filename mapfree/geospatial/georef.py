@@ -78,6 +78,7 @@ def _get_ply_bounds(ply_path: Path, timeout: int = 60) -> Tuple[float, float, fl
     """
     Get (minx, maxx, miny, maxy, minz, maxz) from PLY using pdal info --summary.
 
+    PDAL reads both ASCII and binary_little_endian PLY; no manual parsing.
     Raises RuntimeError if pdal info fails or bounds cannot be read.
     """
     result = subprocess.run(
@@ -87,19 +88,21 @@ def _get_ply_bounds(ply_path: Path, timeout: int = 60) -> Tuple[float, float, fl
         timeout=timeout,
     )
     if result.returncode != 0:
-        raise RuntimeError("pdal info failed: %s" % (result.stderr or result.stdout or "non-zero exit"))
+        err = (result.stderr or result.stdout or "non-zero exit")[:200]
+        raise RuntimeError("pdal info gagal untuk %s: %s" % (ply_path, err))
     data = json.loads(result.stdout)
     try:
         bounds = data["summary"]["bounds"]
-        minx = float(bounds["minx"])
-        maxx = float(bounds["maxx"])
-        miny = float(bounds["miny"])
-        maxy = float(bounds["maxy"])
-        minz = float(bounds["minz"])
-        maxz = float(bounds["maxz"])
+        return (
+            float(bounds["minx"]),
+            float(bounds["maxx"]),
+            float(bounds["miny"]),
+            float(bounds["maxy"]),
+            float(bounds["minz"]),
+            float(bounds["maxz"]),
+        )
     except (KeyError, TypeError, ValueError) as e:
-        raise RuntimeError("pdal info: could not read bounds from summary: %s" % e) from e
-    return (minx, maxx, miny, maxy, minz, maxz)
+        raise RuntimeError("pdal info: bounds tidak valid untuk %s: %s" % (ply_path, e)) from e
 
 
 def georeference_point_cloud(
