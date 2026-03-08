@@ -47,8 +47,9 @@ images/
 htmlcov/
 coverage.xml
 
-# Colmap venv symlink artifact (not a project file)
-/colmap
+# Linux symlinks yang tidak valid di Windows
+colmap
+venv/
 
 # OS
 .DS_Store
