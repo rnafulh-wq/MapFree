@@ -152,6 +152,10 @@ def _run_stage(ctx, command, stage_name, timeout=3600):
         if bus is not None:
             bus.emit("engine_log", {"engine": "colmap", "message": line})
 
+    def heartbeat() -> None:
+        if bus is not None:
+            bus.emit("engine_log", {"engine": "colmap", "message": "[heartbeat] %s running…" % stage_name})
+
     stop_event = getattr(ctx, "stop_event", None)
     try:
         run_command(
@@ -164,6 +168,7 @@ def _run_stage(ctx, command, stage_name, timeout=3600):
             logger=logger,
             line_callback=on_line,
             stop_event=stop_event,
+            heartbeat_callback=heartbeat,
         )
     except EngineExecutionError as e:
         stage_log = workspace / "logs" / f"{stage_name}.log"
@@ -461,8 +466,15 @@ class ColmapEngine(BaseEngine):
 
     def dense(self, ctx, vram_watchdog=False):
         from mapfree.utils.hardware import get_hardware_profile
-        # --image_path must be folder foto asli (ctx.image_dir), not output/images
-        image_dir = Path(getattr(ctx, "image_dir", ctx.image_path)).resolve()
+        # image_undistorter --image_path must be original photo folder (ctx.image_dir),
+        # not project output/images, so COLMAP finds the same images as in the sparse DB
+        image_dir_raw = getattr(ctx, "image_dir", None) or getattr(ctx, "image_path", None)
+        if not image_dir_raw:
+            raise EngineError(
+                "COLMAP",
+                "Dense: ctx.image_dir / image_path not set (folder foto asli).",
+            )
+        image_dir = Path(image_dir_raw).resolve()
         if not image_dir.exists():
             raise EngineError(
                 "COLMAP",

@@ -31,6 +31,9 @@ class EngineExecutionError(Exception):
     pass
 
 
+HEARTBEAT_INTERVAL = 30  # seconds; emit heartbeat so GUI stays responsive during long runs
+
+
 def run_process_streaming(
     command: list,
     *,
@@ -41,10 +44,13 @@ def run_process_streaming(
     log_file: Path | None = None,
     line_callback: Callable[[str], None] | None = None,
     stop_event: threading.Event | None = None,
+    heartbeat_callback: Callable[[], None] | None = None,
+    heartbeat_interval: int = HEARTBEAT_INTERVAL,
 ) -> int:
     """
     Run command with Popen (shell=False, list args). Stream stdout/stderr to logger/log_file/line_callback.
     If stop_event is set, a watcher thread will terminate the process.
+    If heartbeat_callback is set, it is called every heartbeat_interval seconds while the process runs.
     Returns exit code. Raises EngineExecutionError on spawn failure (e.g. executable not found).
     """
     # Ensure list of str (paths with spaces safe; no Path objects)
@@ -142,7 +148,28 @@ def run_process_streaming(
         w = threading.Thread(target=watcher, daemon=True)
         w.start()
     try:
-        proc.wait(timeout=timeout)
+        if heartbeat_callback is not None and heartbeat_interval > 0:
+            remaining = float(timeout) if timeout is not None else None
+            while True:
+                wait_s = (
+                    min(heartbeat_interval, remaining)
+                    if remaining is not None
+                    else heartbeat_interval
+                )
+                if remaining is not None and wait_s <= 0:
+                    raise subprocess.TimeoutExpired(command[0] if command else "", timeout)
+                try:
+                    proc.wait(timeout=wait_s)
+                    break
+                except subprocess.TimeoutExpired:
+                    if remaining is not None:
+                        remaining -= heartbeat_interval
+                    try:
+                        heartbeat_callback()
+                    except Exception:
+                        pass
+        else:
+            proc.wait(timeout=timeout)
     except subprocess.TimeoutExpired:
         proc.kill()
         proc.wait()
@@ -163,6 +190,7 @@ def run_command(
     logger: logging.Logger | None = None,
     line_callback: Callable[[str], None] | None = None,
     stop_event: threading.Event | None = None,
+    heartbeat_callback: Callable[[], None] | None = None,
 ) -> bool:
     """
     Run command with timeout, retries, and per-stage log. Streams output to log file and optional logger.
@@ -191,6 +219,7 @@ def run_command(
                 log_file=log_file,
                 line_callback=line_callback,
                 stop_event=stop_event,
+                heartbeat_callback=heartbeat_callback,
             )
             duration = time.time() - start
 
