@@ -517,7 +517,7 @@ class ColmapEngine(BaseEngine):
             cache_size = 8
             num_samples = 15
 
-        # Metashape-style quality: apply downscale to dense
+        # Metashape-style quality: resolution and photo count limit for dense (avoids Not Responding on large models).
         quality = str(_profile(ctx, "quality", "medium")).lower()
         downscale = _profile(ctx, "downscale", 1)
         base_size = 3200 if patch_match_max_size == -1 else patch_match_max_size
@@ -525,21 +525,32 @@ class ColmapEngine(BaseEngine):
         undistorter_max_size = patch_match_max_size
         geom_consistency = "1"
         fusion_min_num_pixels = "5"
+        max_num_images = -1  # all photos
+        num_iterations = 5  # default; overridden for low
         if quality == "low":
-            # Low quality: faster/stabler dense settings for weak GPU/CPU machines.
-            undistorter_max_size = min(undistorter_max_size, 1200)
-            patch_match_max_size = min(patch_match_max_size, 1200)
+            undistorter_max_size = min(undistorter_max_size, 800)
+            patch_match_max_size = 800
+            max_num_images = 100
             geom_consistency = "0"
             fusion_min_num_pixels = "3"
+            num_samples = 7
+            num_iterations = 3
+        elif quality == "medium":
+            max_num_images = 200
+        # else high: max_num_images = -1, num_samples/num_iterations from VRAM block above
 
-        _run_stage(ctx, [
+        image_undistorter_cmd = [
             str(get_colmap_bin()), "image_undistorter",
             "--image_path", str(image_dir),
             "--input_path", str(sparse_input),
             "--output_path", str(dense_dir),
             "--output_type", "COLMAP",
             "--max_image_size", str(undistorter_max_size),
-        ], "dense")
+        ]
+        # Limit photos for dense (Metashape-style); requires COLMAP with ImageUndistorter.max_num_images.
+        if max_num_images > 0:
+            image_undistorter_cmd.extend(["--max_num_images", str(max_num_images)])
+        _run_stage(ctx, image_undistorter_cmd, "dense")
 
         _run_stage(ctx, [
             str(get_colmap_bin()), "patch_match_stereo",
@@ -550,15 +561,18 @@ class ColmapEngine(BaseEngine):
             "--PatchMatchStereo.cache_size", str(cache_size),
             "--PatchMatchStereo.window_step", "1",
             "--PatchMatchStereo.geom_consistency", geom_consistency,
-            "--PatchMatchStereo.num_iterations", "5",
+            "--PatchMatchStereo.num_iterations", str(num_iterations),
             "--PatchMatchStereo.num_samples", str(num_samples),
         ], "dense")
 
+        # When geom_consistency=0, patch_match only writes photometric depth;
+        # stereo_fusion must use the same input_type or it finds no inputs → 0 points.
+        fusion_input_type = "geometric" if geom_consistency == "1" else "photometric"
         _run_stage(ctx, [
             str(get_colmap_bin()), "stereo_fusion",
             "--workspace_path", str(dense_dir),
             "--workspace_format", "COLMAP",
-            "--input_type", "geometric",
+            "--input_type", fusion_input_type,
             "--output_path", str(dense_dir / "fused.ply"),
             "--StereoFusion.max_image_size", str(patch_match_max_size),
             "--StereoFusion.check_num_images", "3",
