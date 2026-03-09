@@ -526,7 +526,6 @@ class ColmapEngine(BaseEngine):
         geom_consistency = "1"
         fusion_min_num_pixels = "5"
         num_iterations = 5  # default; overridden for low
-        max_num_images = {"low": 100, "medium": 200, "high": -1}.get(quality, -1)
         if quality == "low":
             undistorter_max_size = min(undistorter_max_size, 800)
             patch_match_max_size = 800
@@ -535,18 +534,16 @@ class ColmapEngine(BaseEngine):
             num_samples = 7
             num_iterations = 3
         # medium/high: num_samples and num_iterations from VRAM block above
+        # Note: COLMAP image_undistorter has no --max_num_images; limit via max_image_size only.
 
-        undistorter_cmd = [
+        _run_stage(ctx, [
             str(get_colmap_bin()), "image_undistorter",
             "--image_path", str(image_dir),
             "--input_path", str(sparse_input),
             "--output_path", str(dense_dir),
             "--output_type", "COLMAP",
             "--max_image_size", str(undistorter_max_size),
-        ]
-        if max_num_images > 0:
-            undistorter_cmd.extend(["--max_num_images", str(max_num_images)])
-        _run_stage(ctx, undistorter_cmd, "dense")
+        ], "dense")
 
         _run_stage(ctx, [
             str(get_colmap_bin()), "patch_match_stereo",

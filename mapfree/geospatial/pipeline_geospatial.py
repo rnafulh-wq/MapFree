@@ -169,10 +169,9 @@ def run_geospatial(
                     )
                 try:
                     generate_orthophoto(ortho_dir, dtm_tif, ortho_tif)
-                except RuntimeError as e:
+                except Exception as e:
                     log.warning(
-                        "Orthophoto tidak dihasilkan: %s. "
-                        "Pastikan gambar punya EXIF GPS atau sudah tergeoreferensi, dan DTM punya CRS.",
+                        "Orthophoto tidak dihasilkan: %s. Lanjut tanpa orthophoto.",
                         e,
                     )
             _emit("orthophoto_done")
