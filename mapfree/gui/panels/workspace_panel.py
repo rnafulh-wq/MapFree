@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QTreeWidgetItem,
     QHeaderView,
 )
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt
 
 
 class WorkspacePanel(QWidget):
