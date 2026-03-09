@@ -5,6 +5,7 @@ Pure backend; no GUI.
 """
 
 import json
+import math
 import subprocess
 import tempfile
 from pathlib import Path
@@ -27,19 +28,127 @@ def get_utm_epsg_from_gps(lat: float, lon: float) -> int:
     return 32700 + zone
 
 
-def _build_transformation_matrix(tx: float, ty: float, tz: float) -> str:
+def _build_transformation_matrix(
+    tx: float, ty: float, tz: float,
+    sx: float = 1.0, sy: float = 1.0, sz: float = 1.0,
+) -> str:
     """
     Build 4x4 row-major transformation matrix string for PDAL filters.transformation.
 
-    Identity with translation only (Sx=Sy=Sz=1). PDAL requires exactly 16
-    space-separated values. Used for georeferencing PLY local coords to UTM.
+    Scale then translate. PDAL requires exactly 16 space-separated values.
+    Used for georeferencing PLY local coords to UTM (with optional scale).
     """
     return (
-        "1 0 0 %s " % tx
-        + "0 1 0 %s " % ty
-        + "0 0 1 %s " % tz
+        "%s 0 0 %s " % (sx, tx)
+        + "0 %s 0 %s " % (sy, ty)
+        + "0 0 %s %s " % (sz, tz)
         + "0 0 0 1"
     )
+
+
+def _qvec_tvec_to_camera_center(
+    qvec: Tuple[float, float, float, float],
+    tvec: Tuple[float, float, float],
+) -> Tuple[float, float, float]:
+    """Compute camera center in world from COLMAP qvec (qw,qx,qy,qz) and tvec. C = -R^T @ t."""
+    qw, qx, qy, qz = qvec
+    tx, ty, tz = tvec
+    # Hamilton quaternion to rotation matrix (world to camera)
+    r00 = 1 - 2 * (qy * qy + qz * qz)
+    r01 = 2 * (qx * qy - qz * qw)
+    r02 = 2 * (qx * qz + qy * qw)
+    r10 = 2 * (qx * qy + qz * qw)
+    r11 = 1 - 2 * (qx * qx + qz * qz)
+    r12 = 2 * (qy * qz - qx * qw)
+    r20 = 2 * (qx * qz - qy * qw)
+    r21 = 2 * (qy * qz + qx * qw)
+    r22 = 1 - 2 * (qx * qx + qy * qy)
+    # C = -R^T @ t
+    cx = -(r00 * tx + r10 * ty + r20 * tz)
+    cy = -(r01 * tx + r11 * ty + r21 * tz)
+    cz = -(r02 * tx + r12 * ty + r22 * tz)
+    return (cx, cy, cz)
+
+
+def _compute_scale_from_gps_and_colmap(
+    sparse_dir: Path,
+    gps_list: List[Dict[str, Any]],
+    epsg: int,
+    min_pairs: int = 5,
+) -> Optional[float]:
+    """
+    Estimate scale factor by comparing COLMAP camera distances to UTM distances from GPS.
+
+    Uses at least min_pairs image pairs; returns median of scale ratios, or None if
+    insufficient data.
+    """
+    from mapfree.utils.colmap_io import read_images_binary
+    images_bin = Path(sparse_dir) / "images.bin"
+    if not images_bin.is_file():
+        log.debug("No images.bin at %s", images_bin)
+        return None
+    images = read_images_binary(images_bin)
+    if not images:
+        return None
+    gps_by_name = {}
+    for rec in gps_list:
+        name = rec.get("filename") or rec.get("name")
+        if not name:
+            continue
+        name = Path(name).name
+        lat = rec.get("lat")
+        lon = rec.get("lon")
+        alt = rec.get("alt")
+        if lat is None or lon is None:
+            continue
+        if alt is None:
+            alt = 0.0
+        utm_pt = _gps_to_utm(float(lat), float(lon), float(alt), epsg)
+        if utm_pt is None:
+            continue
+        gps_by_name[name] = utm_pt
+    if len(gps_by_name) < 2:
+        log.debug("Need at least 2 images with GPS for scale; got %d", len(gps_by_name))
+        return None
+    # Build list of (colmap_center, utm_pt) for each image we have GPS for
+    colmap_utm: List[Tuple[Tuple[float, float, float], Tuple[float, float, float]]] = []
+    for im in images:
+        name = Path(im["name"]).name
+        if name not in gps_by_name:
+            continue
+        center = _qvec_tvec_to_camera_center(im["qvec"], im["tvec"])
+        colmap_utm.append((center, gps_by_name[name]))
+    if len(colmap_utm) < 2:
+        return None
+    scales: List[float] = []
+    n = len(colmap_utm)
+    for i in range(n):
+        for j in range(i + 1, n):
+            (ca, ua), (cb, ub) = colmap_utm[i], colmap_utm[j]
+            colmap_dist = math.sqrt(
+                (ca[0] - cb[0]) ** 2 + (ca[1] - cb[1]) ** 2 + (ca[2] - cb[2]) ** 2
+            )
+            utm_dist = math.sqrt(
+                (ua[0] - ub[0]) ** 2 + (ua[1] - ub[1]) ** 2 + (ua[2] - ub[2]) ** 2
+            )
+            if colmap_dist < 1e-9:
+                continue
+            scale = utm_dist / colmap_dist
+            if 0.01 < scale < 1e6:
+                scales.append(scale)
+    if len(scales) < min_pairs:
+        log.debug(
+            "Need at least %d scale pairs for robust estimate; got %d",
+            min_pairs, len(scales),
+        )
+        return None
+    scales.sort()
+    median_scale = scales[len(scales) // 2]
+    log.info(
+        "Scale from GPS/COLMAP: median=%.4f (from %d pairs, range %.4f–%.4f)",
+        median_scale, len(scales), scales[0], scales[-1],
+    )
+    return median_scale
 
 
 def find_fused_ply(output_dir: Path) -> Optional[Path]:
@@ -127,13 +236,16 @@ def georeference_point_cloud(
     las_path: Path,
     gps_center: Tuple[float, float, float],
     database_path: Optional[Path] = None,
+    sparse_dir: Optional[Path] = None,
+    gps_list: Optional[List[Dict[str, Any]]] = None,
     timeout: int = 3600,
 ) -> Path:
     """
-    Convert PLY to LAS with UTM CRS by translating local COLMAP coords to UTM.
+    Convert PLY to LAS with UTM CRS by translating and scaling local COLMAP coords to UTM.
 
-    gps_center: (lat, lon, alt) WGS84 from EXIF (e.g. first image). Used as origin
-    so the point cloud is placed in the correct geographic location.
+    gps_center: (lat, lon, alt) WGS84 from EXIF (e.g. first image). Used as origin.
+    If sparse_dir and gps_list are provided, scale factor is estimated from camera
+    positions vs GPS so that real-world distances (e.g. ~500 m) match COLMAP scale.
     """
     ply_path = Path(ply_path)
     las_path = Path(las_path)
@@ -150,15 +262,23 @@ def georeference_point_cloud(
         )
     east, north, up = utm_center
 
+    scale = 1.0
+    if sparse_dir is not None and gps_list:
+        scale_opt = _compute_scale_from_gps_and_colmap(
+            Path(sparse_dir), gps_list, epsg, min_pairs=5
+        )
+        if scale_opt is not None:
+            scale = scale_opt
+
     minx, maxx, miny, maxy, minz, maxz = _get_ply_bounds(ply_path, timeout=timeout)
     cx = (minx + maxx) / 2.0
     cy = (miny + maxy) / 2.0
     cz = (minz + maxz) / 2.0
-    tx = east - cx
-    ty = north - cy
-    tz = up - cz
+    tx = east - cx * scale
+    ty = north - cy * scale
+    tz = up - cz * scale
 
-    matrix_str = _build_transformation_matrix(tx, ty, tz)
+    matrix_str = _build_transformation_matrix(tx, ty, tz, scale, scale, scale)
     # PDAL requires exactly 16 space-separated values; ensure we never send 3 (tx,ty,tz)
     tokens = matrix_str.strip().split()
     if len(tokens) != 16:
@@ -206,8 +326,8 @@ def georeference_point_cloud(
     finally:
         Path(tmp_path).unlink(missing_ok=True)
     log.info(
-        "georeference_point_cloud: %s -> %s (EPSG:%d, origin UTM %.2f, %.2f, %.2f)",
-        ply_path, las_path, epsg, east, north, up,
+        "georeference_point_cloud: %s -> %s (EPSG:%d, origin UTM %.2f, %.2f, %.2f, scale=%.4f)",
+        ply_path, las_path, epsg, east, north, up, scale,
     )
     return las_path
 

@@ -103,12 +103,22 @@ def run_geospatial(
                 database_path = Path(project_path) / "database.db"
                 if not database_path.exists():
                     database_path = None
+                sparse_dir = None
+                for candidate in (
+                    project_path / "sparse_merged" / "0",
+                    project_path / "01_sparse" / "0",
+                ):
+                    if (candidate / "images.bin").is_file():
+                        sparse_dir = candidate
+                        break
                 try:
                     georeference_point_cloud(
                         dense_ply_path,
                         dense_las,
                         gps_center,
                         database_path=database_path,
+                        sparse_dir=sparse_dir,
+                        gps_list=gps_list,
                     )
                 except RuntimeError as e:
                     log.warning("Georeferencing failed, falling back to plain convert: %s", e)
