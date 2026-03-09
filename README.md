@@ -10,7 +10,7 @@
     <img src="https://img.shields.io/badge/python-3.11+-blue.svg" alt="Python 3.11+"/>
   </a>
   <a href="https://github.com/rnafulh-wq/MapFree/actions">
-    <img src="https://img.shields.io/badge/status-alpha-orange.svg" alt="Status: Alpha"/>
+    <img src="https://img.shields.io/badge/status-stable-brightgreen.svg" alt="Status: Stable"/>
   </a>
 </p>
 
