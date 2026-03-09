@@ -16,7 +16,7 @@ from mapfree.utils.dependency_check import check_geospatial_dependencies
 from mapfree.geospatial.classification import convert_ply_to_las, classify_ground
 from mapfree.geospatial.georef import georeference_point_cloud, find_fused_ply
 from mapfree.geospatial.raster import generate_dsm, generate_dtm
-from mapfree.geospatial.orthorectify import generate_orthophoto
+from mapfree.geospatial.orthorectify import generate_orthophoto, prepare_georeferenced_vrts
 from mapfree.geospatial.output_names import DTM_TIF, DSM_TIF, ORTHOPHOTO_TIF
 from mapfree.geospatial.pipeline import run_geospatial_pipeline
 
@@ -142,18 +142,37 @@ def run_geospatial(
                     dsm_tif.stat().st_size,
                 )
             log.info("DSM .tif valid: %s (%.1f MB)", dsm_tif, dsm_tif.stat().st_size / (1024 * 1024))
+            if epsg_int is None and gps_list:
+                from mapfree.geospatial.georef import get_utm_epsg_from_gps
+                epsg_int = get_utm_epsg_from_gps(
+                    float(gps_list[0]["lat"]), float(gps_list[0]["lon"])
+                )
+                log.info("Auto-detected EPSG from GPS for DTM: %s", epsg_int)
             generate_dtm(classified_las, dtm_tif, resolution, epsg=epsg_int)
             if not dtm_tif.exists() or dtm_tif.stat().st_size == 0:
                 raise RuntimeError("Geospatial: DTM .tif tidak valid setelah generate_dtm: %s" % dtm_tif)
             log.info("DTM .tif valid: %s (%.1f MB)", dtm_tif, dtm_tif.stat().st_size / (1024 * 1024))
             _emit("dtm_done")
             if images_dir.is_dir() and dtm_tif.exists():
+                vrts_dir = geo_dir / "ortho_vrts"
+                prepared = prepare_georeferenced_vrts(
+                    images_dir, dtm_tif, vrts_dir
+                )
+                if prepared is not None:
+                    ortho_dir = prepared
+                    log.info("Orthophoto dari VRT (EXIF GPS): %s", ortho_dir)
+                else:
+                    ortho_dir = images_dir
+                    log.debug(
+                        "Tidak ada VRT dari EXIF, coba ortho dari folder gambar: %s",
+                        ortho_dir,
+                    )
                 try:
-                    generate_orthophoto(images_dir, dtm_tif, ortho_tif)
+                    generate_orthophoto(ortho_dir, dtm_tif, ortho_tif)
                 except RuntimeError as e:
                     log.warning(
                         "Orthophoto tidak dihasilkan: %s. "
-                        "Pastikan georeferencing berhasil dan DTM punya CRS.",
+                        "Pastikan gambar punya EXIF GPS atau sudah tergeoreferensi, dan DTM punya CRS.",
                         e,
                     )
             _emit("orthophoto_done")

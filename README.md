@@ -92,6 +92,8 @@ conda activate mapfree_engine
 python -m mapfree
 ```
 
+If you get `No module named 'mapfree'`, the package is not installed: from the project root with `mapfree_engine` activated, run `pip install -e .` (step 4 above).
+
 ---
 
 ## Quick Start

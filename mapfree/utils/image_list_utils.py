@@ -10,9 +10,17 @@ def _link_or_copy_one(src: Path, dest: Path) -> None:
     """
     Prefer hardlink (no extra disk), then symlink, then copy.
     Windows: hardlink works without admin; symlink often requires admin.
+    If src and dest are the same file (e.g. re-run with images already in project),
+    skip to avoid shutil.SameFileError.
     """
     src = src.resolve()
     dest.parent.mkdir(parents=True, exist_ok=True)
+    if dest.exists():
+        try:
+            if os.path.samefile(src, dest):
+                return
+        except OSError:
+            pass
     try:
         os.link(src, dest)
         return

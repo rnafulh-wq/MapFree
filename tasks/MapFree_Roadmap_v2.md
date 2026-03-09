@@ -166,7 +166,13 @@ Detail: lihat `fase_v1.1.1_bugfix_ux.md`
 
 **Definition of Done:**
 - [ ] Pipeline berhasil end-to-end dengan 335 foto Lewoleba
-- [ ] Sparse → Dense → Output selesai tanpa error
+- [ ] Sparse → Dense → DTM → Ortho → Output selesai tanpa error
+- [ ] Single installer: install sekali, langsung jalan di Windows baru
+- [ ] environment.yml lengkap: semua deps di mapfree_engine
+- [ ] scripts/install_windows.bat: auto-detect conda, create env, install MapFree
+- [ ] scripts/mapfree_launcher.bat: jalankan MapFree tanpa manual activate conda
+- [ ] find_tool() portable: cari GDAL/PDAL dari sys.executable, bukan hardcode path
+- [ ] Test install dari nol di folder baru (bukan dev environment)
 - [ ] Release v1.1.0 tersedia di GitHub
 
 ---
@@ -273,6 +279,88 @@ EngineRegistry:
 - [ ] `mapfree/engines/registry.py` — EngineRegistry
 - [ ] Migrate ColmapEngine ke struktur baru
 - [ ] Tests: mock subprocess calls
+
+#### v1.2.3a — Dynamic Argument Validation ← TAMBAHAN dari real-world testing
+*Latar belakang: COLMAP 3.13 mengubah banyak nama argumen dari versi sebelumnya,
+menyebabkan pipeline crash. Fix manual tidak scalable karena setiap versi COLMAP
+bisa mengubah nama argumen kapan saja.*
+
+```
+Buat mapfree/engines/colmap/arg_validator.py:
+
+class ColmapArgValidator:
+    def __init__(self, colmap_exe: Path):
+        self._cache_path = Path.home() / ".mapfree/colmap_args_cache.json"
+        self._valid_args = self._load_or_build_cache(colmap_exe)
+    
+    def _parse_help(self, colmap_exe, command) -> set[str]:
+        # Jalankan: colmap <command> --help
+        # Parse semua baris yang dimulai dengan "--"
+        # Return set nama argumen yang valid
+        result = subprocess.run(
+            [str(colmap_exe), command, "--help"],
+            capture_output=True, text=True, timeout=10
+        )
+        args = set()
+        for line in result.stdout.splitlines():
+            line = line.strip()
+            if line.startswith("--"):
+                arg = line.split()[0]  # ambil "--ArgName.subname"
+                args.add(arg)
+        return args
+    
+    def _load_or_build_cache(self, exe) -> dict[str, set]:
+        # Load dari cache jika ada dan tidak expired (7 hari)
+        # Jika tidak ada, build dari --help untuk semua command
+        commands = ["feature_extractor", "spatial_matcher", 
+                   "exhaustive_matcher", "sequential_matcher", "mapper"]
+        cache = {}
+        for cmd in commands:
+            cache[cmd] = self._parse_help(exe, cmd)
+        return cache
+    
+    def filter_args(self, command: str, proposed_args: dict) -> list:
+        # Hanya return argumen yang valid untuk command ini
+        valid = self._valid_args.get(command, set())
+        result = []
+        for arg, value in proposed_args.items():
+            if arg in valid:
+                result += [arg, str(value)]
+            else:
+                logger.warning(
+                    f"COLMAP arg '{arg}' tidak valid untuk '{command}', dilewati. "
+                    f"Mungkin versi COLMAP berubah."
+                )
+        return result
+
+Integrasi di ColmapEngine.__init__():
+    self._validator = ColmapArgValidator(self._colmap_exe)
+
+Integrasi di setiap command builder:
+    # Propose semua argumen yang ingin dipakai
+    proposed = {
+        "--ImageReader.single_camera": "1",
+        "--SiftExtraction.max_num_features": "4096",
+        "--FeatureExtraction.use_gpu": str(use_gpu),
+        # ... semua argumen
+    }
+    # Filter hanya yang valid untuk versi COLMAP ini
+    validated_args = self._validator.filter_args("feature_extractor", proposed)
+    cmd = [str(colmap_exe), "feature_extractor", 
+           "--database_path", str(db), ...] + validated_args
+```
+
+Manfaat:
+- MapFree kompatibel dengan COLMAP 3.8, 3.9, 3.13, dan versi masa depan
+- Tidak perlu update manual setiap kali COLMAP rilis versi baru
+- Warning informatif jika argumen dilewati
+- Cache hasil --help agar tidak lambat setiap startup
+
+- [ ] `mapfree/engines/colmap/arg_validator.py` — ColmapArgValidator
+- [ ] Cache valid args ke `~/.mapfree/colmap_args_cache.json`
+- [ ] Integrasi ke semua command di ColmapEngine
+- [ ] Invalidate cache jika versi COLMAP berubah
+- [ ] Tests: mock subprocess --help output untuk berbagai versi
 
 #### v1.2.4 — Service Layer
 

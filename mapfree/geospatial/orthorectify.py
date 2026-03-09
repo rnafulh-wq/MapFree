@@ -23,6 +23,129 @@ from mapfree.geospatial.raster import validate_dtm
 
 log = logging.getLogger(__name__)
 
+
+def _image_size_from_gdal(path: Path) -> Optional[tuple[int, int]]:
+    """Return (width, height) from gdalinfo -json, or None."""
+    info = _gdalinfo_json(path)
+    if not info:
+        return None
+    try:
+        w = int(info.get("size", [0, 0])[0])
+        h = int(info.get("size", [0, 0])[1])
+        if w > 0 and h > 0:
+            return (w, h)
+    except (TypeError, ValueError, IndexError):
+        pass
+    return None
+
+
+def prepare_georeferenced_vrts(
+    images_dir: Path | str,
+    dtm_tif: Path | str,
+    output_dir: Path | str,
+    epsg: Optional[int] = None,
+    res_xy: Optional[float] = None,
+) -> Optional[Path]:
+    """
+    Create VRTs with geotransform from EXIF GPS so gdalwarp can use them.
+    images_dir: folder of JPGs; dtm_tif: for CRS/res if not given; output_dir: where to write VRTs.
+    Returns output_dir if at least one VRT was written, else None.
+    """
+    images_dir = Path(images_dir)
+    dtm_tif = Path(dtm_tif)
+    output_dir = Path(output_dir)
+    if not images_dir.is_dir() or not dtm_tif.exists():
+        return None
+    dtm_info = _raster_info(dtm_tif)
+    if not dtm_info:
+        return None
+    if epsg is None:
+        epsg = _epsg_from_raster(dtm_tif)
+    if res_xy is None:
+        res_xy = (float(dtm_info["res_x"]) + float(dtm_info["res_y"])) / 2.0
+    try:
+        from mapfree.geospatial.exif_reader import extract_gps_from_images
+        from mapfree.geospatial.georef import _gps_to_utm
+    except ImportError:
+        return None
+    gps_list = extract_gps_from_images(str(images_dir))
+    if not gps_list:
+        log.debug(
+            "prepare_georeferenced_vrts: no GPS in EXIF di %s",
+            images_dir,
+        )
+        return None
+    if epsg is None:
+        try:
+            from mapfree.geospatial.georef import get_utm_epsg_from_gps
+            rec = gps_list[0]
+            epsg = get_utm_epsg_from_gps(
+                float(rec.get("lat", 0)), float(rec.get("lon", 0))
+            )
+            log.debug(
+                "prepare_georeferenced_vrts: EPSG from GPS (DTM has no CRS): %s",
+                epsg,
+            )
+        except (ImportError, IndexError, KeyError, TypeError, ValueError):
+            pass
+    if epsg is None:
+        log.debug(
+            "prepare_georeferenced_vrts: tidak ada EPSG (DTM tanpa CRS dan gagal dari GPS)",
+        )
+        return None
+    output_dir.mkdir(parents=True, exist_ok=True)
+    count = 0
+    for rec in gps_list:
+        fname = rec.get("filename")
+        if not fname:
+            continue
+        img_path = images_dir / fname
+        if not img_path.is_file():
+            continue
+        size = _image_size_from_gdal(img_path)
+        if not size:
+            continue
+        w, h = size
+        lat = float(rec.get("lat", 0))
+        lon = float(rec.get("lon", 0))
+        alt = float(rec.get("alt") or 0)
+        utm = _gps_to_utm(lat, lon, alt, epsg)
+        if not utm:
+            continue
+        east, north, _ = utm
+        ulx = east - (w / 2.0) * res_xy
+        uly = north + (h / 2.0) * res_xy
+        vrt_path = output_dir / (img_path.stem + ".vrt")
+        src = str(img_path.resolve())
+        bands_xml = "".join(
+            '  <VRTRasterBand dataType="Byte" band="%d">\n'
+            '    <SimpleSource>\n'
+            '      <SourceFilename relativeToVRT="0">%s</SourceFilename>\n'
+            '      <SourceBand>%d</SourceBand>\n'
+            '    </SimpleSource>\n'
+            '  </VRTRasterBand>\n' % (b, src, b)
+            for b in (1, 2, 3)
+        )
+        vrt_content = (
+            '<VRTDataset rasterXSize="%d" rasterYSize="%d">\n'
+            '  <SRS>EPSG:%d</SRS>\n'
+            '  <GeoTransform>%.12g, %.12g, 0, %.12g, 0, -%.12g</GeoTransform>\n'
+            "%s"
+            '</VRTDataset>\n'
+        ) % (w, h, epsg, ulx, res_xy, uly, res_xy, bands_xml)
+        try:
+            vrt_path.write_text(vrt_content, encoding="utf-8")
+            count += 1
+        except OSError:
+            continue
+    if count == 0:
+        log.debug(
+            "prepare_georeferenced_vrts: tidak ada VRT terbentuk (gdalinfo/utm gagal untuk semua gambar)",
+        )
+        return None
+    log.info("prepare_georeferenced_vrts: wrote %d VRTs to %s", count, output_dir)
+    return output_dir
+
 _IMAGE_EXTENSIONS = {".tif", ".tiff", ".jpg", ".jpeg", ".png", ".vrt"}
 
 
@@ -212,6 +335,7 @@ def finalize_orthophoto(
 
 __all__ = [
     "build_orthomosaic",
-    "generate_orthophoto",
     "finalize_orthophoto",
+    "generate_orthophoto",
+    "prepare_georeferenced_vrts",
 ]

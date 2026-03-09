@@ -175,6 +175,29 @@ def _read_exif_for_file(path: Path) -> dict | None:
     Tries PIL first, then exifread fallback (e.g. for DJI or older Pillow). Does not raise.
     """
     path = Path(path)
+    print(f"[EXIF DEBUG] Reading: {path}")
+    try:
+        from PIL import Image
+        img = Image.open(path)
+        exif_data = img._getexif()
+        print(f"[EXIF DEBUG] PIL exif_data type: {type(exif_data)}")
+        if exif_data:
+            print(f"[EXIF DEBUG] PIL exif keys count: {len(exif_data)}")
+            print(f"[EXIF DEBUG] GPS tag (34853) present: {34853 in exif_data}")
+        else:
+            print("[EXIF DEBUG] PIL returned None exif_data")
+    except Exception as e:
+        print(f"[EXIF DEBUG] PIL failed: {e}")
+
+    try:
+        import exifread
+        with open(path, "rb") as f:
+            tags = exifread.process_file(f, details=False)
+        gps_keys = [k for k in tags if k.startswith("GPS")]
+        print(f"[EXIF DEBUG] exifread GPS keys: {gps_keys[:5]}")
+    except Exception as e:
+        print(f"[EXIF DEBUG] exifread failed: {e}")
+
     rec = _read_exif_pil(path)
     if rec is not None:
         return rec
@@ -240,6 +263,8 @@ def get_gps_status_for_paths(file_paths: list[Path]) -> dict[str, bool]:
     Key is always str(Path(p).resolve()) for consistent lookup in UI.
     Does not filter by extension so PNG/TIF with EXIF are supported.
     """
+    print(f"[GPS DEBUG] Processing {len(file_paths)} files")
+    print(f"[GPS DEBUG] Sample input path: {file_paths[0] if file_paths else 'empty'}")
     result: dict[str, bool] = {}
     for p in file_paths:
         path = Path(p).resolve()
@@ -250,4 +275,5 @@ def get_gps_status_for_paths(file_paths: list[Path]) -> dict[str, bool]:
             result[str(path)] = _read_exif_for_file(path) is not None
         except Exception:
             result[str(path)] = False
+    print(f"[GPS DEBUG] Results: {sum(1 for v in result.values() if v)} with GPS")
     return result

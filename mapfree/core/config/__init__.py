@@ -56,7 +56,7 @@ def _defaults() -> dict:
         "colmap": {"mapper_ba_global_max_iter": 30, "mapper_ba_local_max_iter": 20},
         "geospatial": {
             "enable": True,
-            "resolution": 0.5,
+            "resolution": 0.05,  # meter per pixel (5 cm); coarser = smaller DTM
             "target_epsg": None,  # If null, auto-detect from image EXIF
         },
         "enable_geospatial": True,
