@@ -120,13 +120,15 @@ def should_skip_dependency_dialog(
     """Return True if we can skip the 'Setup Diperlukan' dialog.
 
     Skip when:
-    - setup_complete.json has completed=true and dependencies.colmap.found=true,
-    - saved colmap_path still exists (valid),
-    - and either file age <= 7 days, or recheck_results is provided and colmap found.
+    1. SETUP_COMPLETE_PATH exists and JSON is valid.
+    2. completed=True (or setup_complete=True).
+    3. dependencies["colmap"]["found"] == True.
+    4. Either checked_at is within 7 days (use file mtime for age), or
+       recheck_results is provided and colmap is found there.
 
-    When recheck_results is provided (e.g. from a re-check because file was old),
-    we do not update the file here; the caller should call save_setup_state(recheck_results)
-    if they want to refresh the timestamp.
+    When file is older than 7 days: if recheck_results is provided and colmap
+    is available there, return True; otherwise return False (trigger recheck).
+    Caller should call save_setup_state(recheck_results) to refresh timestamp.
     """
     state = load_setup_state()
     if not state:
@@ -137,22 +139,14 @@ def should_skip_dependency_dialog(
     colmap = deps.get("colmap") or {}
     if not colmap.get("found"):
         return False
-    if not _colmap_path_still_valid(state):
-        # Fallback: live search in case conda path differs across sessions
-        try:
-            from mapfree.utils.colmap_finder import find_colmap_executable
-            if not find_colmap_executable():
-                return False
-        except Exception:
-            return False
     age = _file_age_days()
     if age is None:
         return False
     if age <= _MAX_AGE_DAYS:
         return True
-    # File older than 7 days: use recheck if provided
+    # File older than 7 days: skip only if recheck_results has colmap found
     if recheck_results is not None:
         colmap_status = recheck_results.get("colmap")
-        if colmap_status and getattr(colmap_status, "available", False):
+        if colmap_status is not None and getattr(colmap_status, "available", False):
             return True
     return False
