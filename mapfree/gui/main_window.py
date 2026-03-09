@@ -87,10 +87,7 @@ class _ViewerPlaceholder(QWidget):
         super().__init__(parent)
         self._on_enable_gl = on_enable_gl
         layout = QVBoxLayout(self)
-        default_msg = (
-            "3D Viewer (placeholder). Pipeline, Export, Open Project work.\n"
-            "Click the button below to open the 3D viewer in a new window."
-        )
+        default_msg = "3D Viewer Coming Soon"
         lab = QLabel(message if message else default_msg)
         lab.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lab.setStyleSheet("color: #8a8a8a; font-size: 12px;")
@@ -362,7 +359,7 @@ class MainWindow(QMainWindow):
         self._toolbar.addSeparator()
         self._toolbar.addWidget(QLabel("View:"))
         self._view_mode_combo = QComboBox()
-        self._view_mode_combo.addItems(["3D", "Map"])
+        self._view_mode_combo.addItems(["Map", "3D"])
         self._view_mode_combo.currentIndexChanged.connect(self._on_view_mode_changed)
         self._toolbar.addWidget(self._view_mode_combo)
 
@@ -423,9 +420,9 @@ class MainWindow(QMainWindow):
         self._map_container = self._create_map_container()
 
         self._workspace = QStackedWidget()
-        self._workspace.addWidget(self._viewer_panel)   # index 0 = 3D
-        self._workspace.addWidget(self._map_container)  # index 1 = Map
-        self._workspace.setCurrentIndex(0)  # default 3D until GPS available
+        self._workspace.addWidget(self._map_container)  # index 0 = Map
+        self._workspace.addWidget(self._viewer_panel)   # index 1 = 3D
+        self._workspace.setCurrentIndex(0)  # default Map
         tm = getattr(self._viewer_panel, "tool_manager", None)
         if tm is not None:
             tm.active_tool_changed.connect(self._on_measurement_tool_changed)
@@ -993,8 +990,8 @@ class MainWindow(QMainWindow):
 
     def _switch_to_map_if_gps(self):
         """Switch to Map view when GPS/cameras are available (default mode)."""
-        if self._view_mode_combo.currentIndex() == 0:
-            self._view_mode_combo.setCurrentIndex(1)
+        if self._view_mode_combo.currentIndex() != 0:
+            self._view_mode_combo.setCurrentIndex(0)
 
     def _on_open(self):
         """Buka folder proyek (penyimpanan). Jika ada subfolder 'images', dipakai sebagai folder foto. Auto-load 3D result di viewer."""

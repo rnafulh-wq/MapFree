@@ -45,6 +45,7 @@ viewer = [
 
 [project.scripts]
 mapfree = "mapfree.__main__:main"
+pytest = "pytest:main"
 
 [tool.setuptools.packages.find]
 include = ["mapfree*"]

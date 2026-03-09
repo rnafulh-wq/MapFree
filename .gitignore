@@ -54,3 +54,6 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
+colmap_notes.txt
+debug_georef.py
+debug_matrix.py

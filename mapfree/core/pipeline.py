@@ -442,6 +442,17 @@ class Pipeline:
         dtm_tif = geo_dir / DTM_TIF
         dsm_tif = geo_dir / DSM_TIF
         ortho_tif = geo_dir / ORTHOPHOTO_TIF
+        if not ortho_tif.exists():
+            skip_msg = "Skipped (requires georeferenced images)"
+            self._log.warning("Orthophoto not produced: %s", skip_msg)
+            self._bus(
+                "stage_skipped",
+                {
+                    "stage": "geospatial",
+                    "reason": "orthophoto_missing_georeferenced_images",
+                    "message": skip_msg,
+                },
+            )
         self._run_geospatial_crs_reproject(geo_dir, image_path, dtm_tif, dsm_tif, ortho_tif)
 
     def _run_geospatial_crs_reproject(self, geo_dir, image_path, dtm_tif, dsm_tif, ortho_tif):
