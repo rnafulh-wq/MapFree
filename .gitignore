@@ -32,6 +32,9 @@ workspace/
 *.swp
 *.swo
 
+# Generated ICO (built from PNG in CI)
+assets/*.ico
+
 # Test data / large assets (do not push to GitHub)
 test_images/
 images/
