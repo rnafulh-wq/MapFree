@@ -6,7 +6,11 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from mapfree.utils.colmap_io import read_points3d_bin, read_points3d_txt
+from mapfree.utils.colmap_io import (
+    read_images_binary,
+    read_points3d_bin,
+    read_points3d_txt,
+)
 
 
 # ─── helpers ─────────────────────────────────────────────────────────────────
@@ -172,3 +176,47 @@ class TestReadPoints3dTxt:
         f.write_text("# header\n1 x y z 255 0 0 0.5\n")
         result = read_points3d_txt(f)
         assert result is None
+
+
+# ─── read_images_binary ──────────────────────────────────────────────────────
+
+
+def _write_images_bin(path: Path, images: list[dict]) -> None:
+    """Write minimal COLMAP images.bin. Each image: name, qvec (4), tvec (3)."""
+    with open(path, "wb") as fh:
+        fh.write(struct.pack("<Q", len(images)))
+        for i, im in enumerate(images):
+            name = im.get("name", "img%d.jpg" % i).encode("utf-8") + b"\x00"
+            qvec = im.get("qvec", (1.0, 0.0, 0.0, 0.0))
+            tvec = im.get("tvec", (0.0, 0.0, 0.0))
+            fh.write(struct.pack("<I", im.get("image_id", i + 1)))
+            fh.write(struct.pack("<dddd", *qvec))
+            fh.write(struct.pack("<ddd", *tvec))
+            fh.write(struct.pack("<I", im.get("camera_id", 1)))
+            fh.write(name)
+            num_pts = im.get("num_points2D", 0)
+            fh.write(struct.pack("<Q", num_pts))
+            for _ in range(num_pts):
+                fh.write(struct.pack("<ddQ", 0.0, 0.0, 0))
+
+
+class TestReadImagesBinary:
+    def test_valid_single_image(self, tmp_path):
+        f = tmp_path / "images.bin"
+        _write_images_bin(f, [{"name": "P101.jpg", "qvec": (1, 0, 0, 0), "tvec": (1.0, 2.0, 3.0)}])
+        result = read_images_binary(f)
+        assert result is not None
+        assert len(result) == 1
+        assert result[0]["name"] == "P101.jpg"
+        assert result[0]["tvec"] == (1.0, 2.0, 3.0)
+        assert result[0]["qvec"] == (1.0, 0.0, 0.0, 0.0)
+
+    def test_missing_file_returns_none(self, tmp_path):
+        assert read_images_binary(tmp_path / "nonexistent.bin") is None
+
+    def test_zero_images_returns_empty_list(self, tmp_path):
+        f = tmp_path / "images.bin"
+        f.write_bytes(struct.pack("<Q", 0))
+        result = read_images_binary(f)
+        assert result is not None
+        assert result == []

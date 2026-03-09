@@ -29,7 +29,7 @@ Typical usage::
 import logging
 import struct
 from pathlib import Path
-from typing import Optional
+from typing import Any, List, Optional
 
 import numpy as np
 
@@ -143,3 +143,69 @@ def read_points3d_txt(path: str | Path) -> Optional[np.ndarray]:
     except Exception as exc:
         logger.warning("Failed to parse points3D.txt '%s': %s", path, exc)
         return None
+
+
+def read_images_binary(path: str | Path) -> Optional[List[dict[str, Any]]]:
+    """Parse a COLMAP ``images.bin`` file (extrinsics: qvec, tvec per image).
+
+    Binary format: num_images (uint64); per image: image_id (uint32),
+    qvec 4*float64, tvec 3*float64, camera_id (uint32), name (str\\0),
+    num_points2D (uint64), points2D (num_points2D x float64,float64,uint64).
+
+    Args:
+        path: Path to the ``images.bin`` file (e.g. sparse/0/images.bin).
+
+    Returns:
+        List of dicts with keys: image_id, qvec (4-tuple float), tvec (3-tuple
+        float), camera_id, name (str). Returns None if file missing or parse fails.
+    """
+    path = Path(path)
+    if not path.is_file():
+        logger.debug("images.bin not found: %s", path)
+        return None
+    try:
+        return _parse_images_bin(path)
+    except Exception as exc:
+        logger.warning("Failed to parse images.bin '%s': %s", path, exc)
+        return None
+
+
+def _parse_images_bin(path: Path) -> List[dict[str, Any]]:
+    """Internal parser for COLMAP images.bin (little-endian)."""
+    with open(path, "rb") as fh:
+        data = fh.read()
+    if len(data) < 8:
+        return []
+    offset = 0
+    (num_images,) = struct.unpack_from("<Q", data, offset)
+    offset += 8
+    out: List[dict[str, Any]] = []
+    for _ in range(num_images):
+        if offset + 4 + 8 * 4 + 8 * 3 + 4 > len(data):
+            break
+        (image_id,) = struct.unpack_from("<I", data, offset)
+        offset += 4
+        qvec = struct.unpack_from("<dddd", data, offset)
+        offset += 32
+        tvec = struct.unpack_from("<ddd", data, offset)
+        offset += 24
+        (camera_id,) = struct.unpack_from("<I", data, offset)
+        offset += 4
+        end = data.index(b"\x00", offset)
+        name = data[offset:end].decode("utf-8", errors="replace")
+        offset = end + 1
+        if offset + 8 > len(data):
+            break
+        (num_points2d,) = struct.unpack_from("<Q", data, offset)
+        offset += 8
+        offset += int(num_points2d) * (8 + 8 + 8)
+        if offset > len(data):
+            break
+        out.append({
+            "image_id": image_id,
+            "qvec": qvec,
+            "tvec": tvec,
+            "camera_id": camera_id,
+            "name": name,
+        })
+    return out
