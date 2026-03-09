@@ -11,17 +11,14 @@ from PySide6.QtWidgets import (
     QPushButton,
     QLineEdit,
     QComboBox,
-    QTreeWidget,
-    QTreeWidgetItem,
     QSizePolicy,
     QGroupBox,
     QListWidget,
     QListWidgetItem,
     QFileDialog,
-    QHeaderView,
 )
 from PySide6.QtCore import Qt, Signal, QTimer
-from PySide6.QtGui import QColor, QFont
+from PySide6.QtGui import QColor
 
 log = logging.getLogger(__name__)
 
@@ -64,6 +61,7 @@ class ProjectPanel(QWidget):
     outputFolderRequested = Signal()
     stepsChanged = Signal()
     imageListChanged = Signal(list)  # list of absolute path strings
+    crs_detected = Signal(str)  # epsg_string when photos with GPS are loaded
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -153,35 +151,24 @@ class ProjectPanel(QWidget):
 
         layout.addWidget(project_grp)
 
-        # --- Outputs (group) ---
+        # --- Outputs (group) — single line: only running stage with spinner ---
         pipeline_grp = QGroupBox("Outputs")
         pipeline_grp.setObjectName("outputsGroup")
-        pipeline_grp.setMinimumHeight(180)
+        pipeline_grp.setMinimumHeight(100)
         pl2 = QVBoxLayout(pipeline_grp)
         pl2.setContentsMargins(8, 10, 8, 8)
         pl2.setSpacing(4)
 
-        self._stage_tree = QTreeWidget()
-        self._stage_tree.setHeaderLabels(["Stage", "Status"])
-        self._stage_tree.setColumnCount(2)
-        self._stage_tree.setRootIsDecorated(False)
-        self._stage_tree.setAlternatingRowColors(False)
-        header = self._stage_tree.header()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
-        self._stage_tree.setColumnWidth(1, 80)
-        self._items = {}
-        for key, label in STAGE_ITEMS:
-            item = QTreeWidgetItem([label, "Pending"])
-            item.setData(0, Qt.ItemDataRole.UserRole, key)
-            self._stage_tree.addTopLevelItem(item)
-            self._items[key] = item
+        self._stage_display_names = {key: label for key, label in STAGE_ITEMS}
+        self._outputs_status_label = QLabel("Ready")
+        self._outputs_status_label.setProperty("class", "outputsStatus")
+        self._outputs_status_label.setStyleSheet("color: #9E9E9E; font-size: 11px;")
+        pl2.addWidget(self._outputs_status_label)
         self._running_stage_key = None
         self._running_dot_index = 0
         self._running_timer = QTimer(self)
         self._running_timer.setInterval(400)
         self._running_timer.timeout.connect(self._on_running_animation_tick)
-        pl2.addWidget(self._stage_tree)
 
         btn_layout = QHBoxLayout()
         self._start_btn = QPushButton("Run")
@@ -328,14 +315,9 @@ class ProjectPanel(QWidget):
         self._update_counters()
 
     def _on_gps_finished(self):
-        gps_status = self._gps_status
-        print(f"[GPS DEBUG] Results received: {len(gps_status)} entries")
-        print(f"[GPS DEBUG] Sample keys from result: {list(gps_status.keys())[:3]}")
-        print(f"[GPS DEBUG] Sample values: {list(gps_status.values())[:3]}")
-        print(f"[GPS DEBUG] _image_list_paths sample: {list(self._image_list_paths)[:3]}")
-        if self._image_list_paths:
-            first = list(self._image_list_paths)[0]
-            print(f"[GPS DEBUG] Key match test: {first!r} in gps_status -> {first in gps_status}")
+        with_gps = sum(1 for p in self._image_list_paths if self._gps_status.get(p))
+        if with_gps > 0:
+            self.crs_detected.emit("EPSG:4326")
         self._gps_worker = None
 
     def get_image_list(self) -> list:
@@ -385,67 +367,38 @@ class ProjectPanel(QWidget):
         self.set_output_folder(output_folder or "—")
 
     def set_stage_status(self, stage_key: str, status: str):
-        item = self._items.get(stage_key)
-        if not item:
-            return
-        font_normal = QFont()
-        font_bold = QFont("Arial", 9, QFont.Weight.Bold)
-        if status == STATUS_PENDING:
-            item.setText(1, "Pending")
-            item.setForeground(1, QColor("#9E9E9E"))
-            item.setFont(0, font_normal)
-        elif status == STATUS_RUNNING:
-            item.setText(1, "Running")
-            item.setForeground(1, QColor("#FFC107"))
-            item.setFont(0, font_bold)
+        if status == STATUS_RUNNING:
             self._running_stage_key = stage_key
             self._running_dot_index = 0
+            name = self._stage_display_names.get(stage_key, stage_key)
+            self._outputs_status_label.setText("%s ••• Running" % name)
+            self._outputs_status_label.setStyleSheet("color: #FFC107; font-size: 11px;")
             if not self._running_timer.isActive():
                 self._running_timer.start()
-        elif status == STATUS_DONE:
-            item.setText(1, "Done")
-            item.setForeground(1, QColor("#4CAF50"))
-            item.setFont(0, font_normal)
-        elif status == STATUS_ERROR:
-            item.setText(1, "Failed")
-            item.setForeground(1, QColor("#F44336"))
-            item.setFont(0, font_normal)
-        elif status == STATUS_SKIPPED:
-            item.setText(1, "Skipped")
-            item.setForeground(1, QColor("#9E9E9E"))
-            item.setFont(0, font_normal)
-        else:
-            item.setText(1, status)
-            item.setForeground(1, QColor("#E6E6E6"))
-            item.setFont(0, font_normal)
-        if status != STATUS_RUNNING and stage_key == getattr(self, "_running_stage_key", None):
+            return
+        if stage_key == getattr(self, "_running_stage_key", None):
             self._running_stage_key = None
             if self._running_timer.isActive():
                 self._running_timer.stop()
+            self._outputs_status_label.setText("Ready")
+            self._outputs_status_label.setStyleSheet("color: #9E9E9E; font-size: 11px;")
 
     def _on_running_animation_tick(self):
-        """Cycle 'Running' / 'Running.' / 'Running..' / 'Running...' and pulse color."""
+        """Cycle dots in '[Stage] ••• Running'."""
         if not self._running_stage_key:
             self._running_timer.stop()
             return
-        item = self._items.get(self._running_stage_key)
-        if not item:
-            self._running_stage_key = None
-            self._running_timer.stop()
-            return
+        name = self._stage_display_names.get(self._running_stage_key, self._running_stage_key)
         self._running_dot_index = (self._running_dot_index + 1) % 4
-        dots = "." * self._running_dot_index
-        item.setText(1, "Running" + dots)
-        # Pulse between #FFC107 and #FFD54F
-        color = QColor("#FFD54F" if self._running_dot_index % 2 else "#FFC107")
-        item.setForeground(1, color)
+        dots = "•" * (self._running_dot_index + 1) + " " * (3 - self._running_dot_index)
+        self._outputs_status_label.setText("%s %s Running" % (name, dots))
 
     def set_all_pending(self):
         self._running_stage_key = None
         if self._running_timer.isActive():
             self._running_timer.stop()
-        for key in self._items:
-            self.set_stage_status(key, STATUS_PENDING)
+        self._outputs_status_label.setText("Ready")
+        self._outputs_status_label.setStyleSheet("color: #9E9E9E; font-size: 11px;")
 
     def set_running(self, running: bool):
         if running:

@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QSplitter,
     QStackedWidget,
+    QTabWidget,
     QToolBar,
     QStatusBar,
     QMessageBox,
@@ -34,6 +35,8 @@ from mapfree.gui.panels import (
     STATUS_ERROR,
     STATUS_SKIPPED,
 )
+from mapfree.gui.panels.workspace_panel import WorkspacePanel
+from mapfree.gui.panels.settings_placeholder_panel import SettingsPlaceholderPanel
 from mapfree.gui.panels.viewer_panel import ViewerPanel
 from mapfree.gui.panels.project_history_panel import (
     ProjectHistoryPanel,
@@ -324,6 +327,9 @@ class MainWindow(QMainWindow):
         view_menu.actions()[-1].setChecked(True)
         view_menu.addAction("&Status Bar", self._toggle_statusbar).setCheckable(True)
         view_menu.actions()[-1].setChecked(True)
+        view_menu.addSeparator()
+        view_menu.addAction("Load Point &Cloud…", self._on_load_point_cloud)
+        view_menu.addAction("Load &Mesh…", self._on_load_mesh)
         self._toggle_console_action = view_menu.addAction("Toggle &Console", self._toggle_console)
         self._toggle_console_action.setCheckable(True)
         self._toggle_console_action.setChecked(False)
@@ -359,22 +365,6 @@ class MainWindow(QMainWindow):
         self._view_mode_combo.addItems(["3D", "Map"])
         self._view_mode_combo.currentIndexChanged.connect(self._on_view_mode_changed)
         self._toolbar.addWidget(self._view_mode_combo)
-        self._toolbar.addSeparator()
-        self._toolbar.addAction(
-            style.standardIcon(QStyle.StandardPixmap.SP_DialogOpenButton),
-            "Load Point Cloud",
-            self._on_load_point_cloud,
-        )
-        self._toolbar.addAction(
-            style.standardIcon(QStyle.StandardPixmap.SP_FileIcon),
-            "Load Mesh",
-            self._on_load_mesh,
-        )
-        self._toolbar.addSeparator()
-        self._toggle_console_action.setIcon(
-            style.standardIcon(QStyle.StandardPixmap.SP_ComputerIcon)
-        )
-        self._toolbar.addAction(self._toggle_console_action)
 
     def _setup_statusbar(self):
         self._statusbar = QStatusBar()
@@ -384,21 +374,14 @@ class MainWindow(QMainWindow):
         self._status_project.setStyleSheet("color: #A0A2A6; font-size: 11px;")
         self._statusbar.addPermanentWidget(self._status_project)
         self._status_crs = QLabel("CRS: —")
-        self._status_fps = QLabel("FPS: —")
         self._status_mem = QLabel("Mem: —")
         self._status_cpu = QLabel("CPU: —")
-        self._status_colmap = QLabel("COLMAP: —")
-        self._status_mode = QLabel("Mode: Navigation")
-        for w in (self._status_crs, self._status_fps, self._status_mem,
-                  self._status_cpu, self._status_colmap, self._status_mode):
+        for w in (self._status_crs, self._status_mem, self._status_cpu):
             w.setStyleSheet("color: #A0A2A6; font-size: 11px;")
             w.setMinimumWidth(72)
         self._statusbar.addPermanentWidget(self._status_crs)
-        self._statusbar.addPermanentWidget(self._status_fps)
         self._statusbar.addPermanentWidget(self._status_mem)
         self._statusbar.addPermanentWidget(self._status_cpu)
-        self._statusbar.addPermanentWidget(self._status_colmap)
-        self._statusbar.addPermanentWidget(self._status_mode)
         self._status_timer = QTimer(self)
         self._status_timer.timeout.connect(self._update_status_widgets)
         self._status_timer.start(2000)
@@ -425,24 +408,6 @@ class MainWindow(QMainWindow):
                 self._status_cpu.setText("CPU: %d%%" % int(pct))
             except Exception:
                 self._status_cpu.setText("CPU: —")
-        if hasattr(self, "_status_colmap") and self._status_colmap is not None:
-            cache = getattr(self, "_colmap_status_cache", None)
-            cache_time = getattr(self, "_colmap_status_time", 0)
-            now = time.monotonic()
-            if cache is None or (now - cache_time) > 30:
-                try:
-                    from mapfree.engines.colmap_engine import resolve_colmap_executable
-                    resolve_colmap_executable()
-                    self._colmap_status_cache = True
-                except Exception:
-                    self._colmap_status_cache = False
-                self._colmap_status_time = now
-            if self._colmap_status_cache:
-                self._status_colmap.setText("COLMAP: ✓ Ditemukan")
-                self._status_colmap.setStyleSheet("color: #4CAF50; font-size: 11px;")
-            else:
-                self._status_colmap.setText("COLMAP: ✗ Tidak ada")
-                self._status_colmap.setStyleSheet("color: #e74c3c; font-size: 11px;")
 
     def _setup_central_widget(self):
         central = QWidget()
@@ -483,8 +448,14 @@ class MainWindow(QMainWindow):
         left_layout = QVBoxLayout(left_widget)
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setSpacing(0)
+        left_tabs = QTabWidget()
+        left_tabs.addTab(self._project_panel, "Dataset")
+        self._workspace_panel = WorkspacePanel()
+        left_tabs.addTab(self._workspace_panel, "Workspace")
+        self._settings_placeholder_panel = SettingsPlaceholderPanel()
+        left_tabs.addTab(self._settings_placeholder_panel, "Settings")
         left_splitter = QSplitter(Qt.Orientation.Vertical)
-        left_splitter.addWidget(self._project_panel)
+        left_splitter.addWidget(left_tabs)
         self._history_panel = ProjectHistoryPanel(self)
         self._history_panel.resumeRequested.connect(self._on_history_resume)
         self._history_panel.openOutputRequested.connect(self._on_history_open_output)
@@ -495,12 +466,26 @@ class MainWindow(QMainWindow):
         left_layout.addWidget(left_splitter)
         horizontal.addWidget(left_widget)
         self._vertical_splitter = QSplitter(Qt.Orientation.Vertical)
-        self._vertical_splitter.addWidget(self._workspace)
+        viewer_with_handle = QWidget()
+        viewer_layout = QVBoxLayout(viewer_with_handle)
+        viewer_layout.setContentsMargins(0, 0, 0, 0)
+        viewer_layout.setSpacing(0)
+        viewer_layout.addWidget(self._workspace)
+        self._console_handle = QPushButton("▼ Console")
+        self._console_handle.setObjectName("consoleHandle")
+        self._console_handle.setFixedHeight(24)
+        self._console_handle.setStyleSheet(
+            "QPushButton#consoleHandle { text-align: left; padding-left: 8px; "
+            "background: #2d2d30; color: #cccccc; border: 1px solid #3c3c3c; "
+            "font-size: 11px; } QPushButton#consoleHandle:hover { background: #3e3e42; }"
+        )
+        self._console_handle.clicked.connect(self._toggle_console)
+        viewer_layout.addWidget(self._console_handle)
+        self._vertical_splitter.addWidget(viewer_with_handle)
         self._vertical_splitter.addWidget(self._console_panel)
         self._vertical_splitter.setStretchFactor(0, 1)
         self._vertical_splitter.setStretchFactor(1, 0)
         self._vertical_splitter.setHandleWidth(6)
-        # Default: console collapsed (height 0); toggle via toolbar/menu
         self._vertical_splitter.setSizes([1, 0])
         horizontal.addWidget(self._vertical_splitter)
         horizontal.setStretchFactor(0, 0)
@@ -601,6 +586,7 @@ class MainWindow(QMainWindow):
         if not project_path or not Path(project_path).is_dir():
             return
         self._project_path = Path(project_path)
+        self._update_workspace_panel()
         images_sub = self._project_path / "images"
         try:
             from mapfree.core.state import load_state
@@ -648,7 +634,13 @@ class MainWindow(QMainWindow):
         self._project_panel.outputFolderRequested.connect(self._on_set_output_folder)
         self._project_panel.stepsChanged.connect(self._update_run_enabled)
         self._project_panel.imageListChanged.connect(self._on_image_list_changed)
+        self._project_panel.crs_detected.connect(self._on_crs_detected)
         self._update_run_enabled()
+
+    def _on_crs_detected(self, epsg_string: str) -> None:
+        """Update status bar CRS when photos with GPS are loaded."""
+        if hasattr(self, "_status_crs") and self._status_crs is not None:
+            self._status_crs.setText("CRS: %s" % epsg_string)
 
     def _on_image_list_changed(self, paths: list):
         """Photo list changed in panel (Add/Remove/Clear). Update run eligibility."""
@@ -680,6 +672,13 @@ class MainWindow(QMainWindow):
         can_run = self._can_run() and (self._worker is None or not self._worker.isRunning())
         self._run_action.setEnabled(can_run)
 
+    def _update_workspace_panel(self) -> None:
+        """Refresh Workspace tab tree when project path changes."""
+        if hasattr(self, "_workspace_panel") and self._workspace_panel is not None:
+            self._workspace_panel.set_project_path(
+                str(self._project_path) if self._project_path else None
+            )
+
     def _refresh_project_panel(self):
         if self._image_path:
             try:
@@ -695,6 +694,7 @@ class MainWindow(QMainWindow):
         """Reset: kosongkan nama job, foto, penyimpanan. Run dinonaktifkan sampai 4 langkah terisi."""
         self._image_path = None
         self._project_path = None
+        self._update_workspace_panel()
         self._project_panel.set_job_name("")
         self._project_panel.set_image_list([])
         self._project_panel.set_output_folder("")
@@ -775,6 +775,7 @@ class MainWindow(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Output", "Gagal membuat project structure: %s" % e)
             return
+        self._update_workspace_panel()
         self._refresh_project_panel()
         self._update_run_enabled()
         self._statusbar.showMessage("Output: %s" % str(self._project_path))
@@ -979,16 +980,12 @@ class MainWindow(QMainWindow):
         from mapfree.gui.interaction.distance_tool import DistanceTool
         if isinstance(tool, DistanceTool):
             self._statusbar.showMessage("Distance Mode Active — Ctrl+click to add points, ESC to cancel")
-            if hasattr(self, "_status_mode") and self._status_mode is not None:
-                self._status_mode.setText("Mode: Distance")
             if hasattr(self._viewer_panel, "setCursor"):
                 self._viewer_panel.setCursor(Qt.CursorShape.CrossCursor)
             if hasattr(self._measure_distance_action, "setChecked"):
                 self._measure_distance_action.setChecked(True)
         else:
             self._statusbar.showMessage("Ready")
-            if hasattr(self, "_status_mode") and self._status_mode is not None:
-                self._status_mode.setText("Mode: Navigation")
             if hasattr(self._viewer_panel, "setCursor"):
                 self._viewer_panel.setCursor(Qt.CursorShape.ArrowCursor)
             if hasattr(self, "_measure_distance_action") and self._measure_distance_action is not None:
@@ -1010,6 +1007,7 @@ class MainWindow(QMainWindow):
         if not project_folder:
             return
         self._project_path = Path(project_folder)
+        self._update_workspace_panel()
         add_project_to_history(str(self._project_path), "completed")
         if hasattr(self, "_history_panel") and self._history_panel is not None:
             self._history_panel.refresh()
@@ -1339,15 +1337,17 @@ class MainWindow(QMainWindow):
         if h <= 0:
             h = 400
         if self._vertical_splitter.sizes()[1] > 0:
-            # Collapse: give all space to workspace
             self._vertical_splitter.setSizes([h, 0])
             self._toggle_console_action.setChecked(False)
+            if hasattr(self, "_console_handle") and self._console_handle:
+                self._console_handle.setText("▼ Console")
         else:
-            # Expand: console max 25% of splitter height
             console_h = min(int(0.25 * h), max(120, h // 4))
             self._vertical_splitter.setSizes([h - console_h, console_h])
             self._console_panel.setMaximumHeight(int(0.25 * h))
             self._toggle_console_action.setChecked(True)
+            if hasattr(self, "_console_handle") and self._console_handle:
+                self._console_handle.setText("▲ Console")
         self._vertical_splitter.updateGeometry()
 
     def resizeEvent(self, event):

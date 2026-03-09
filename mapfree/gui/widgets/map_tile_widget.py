@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Optional
 
 import requests
-from PySide6.QtCore import QThread, Signal, QRectF
+from PySide6.QtCore import QRectF, QThread, Signal
 from PySide6.QtGui import QPixmap, QPen, QBrush, QColor, QPainter
 from PySide6.QtWidgets import (
     QGraphicsView,
@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 TILE_SIZE = 256
 OSM_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+GOOGLE_SATELLITE_URL = "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
 CACHE_DIR = Path.home() / ".mapfree" / "tiles"
 
 # Zoom limits (OSM typical range)
@@ -69,16 +70,25 @@ def tile_to_pixel(
 
 
 class TileDownloader(QThread):
-    """Download a single OSM tile in background; emit pixmap when ready."""
+    """Download a single tile in background; emit pixmap when ready."""
 
     tile_ready = Signal(int, int, int, QPixmap)  # z, x, y, pixmap
 
-    def __init__(self, z: int, x: int, y: int) -> None:
+    def __init__(
+        self,
+        z: int,
+        x: int,
+        y: int,
+        url_template: str = OSM_URL,
+        cache_subdir: str = "osm",
+    ) -> None:
         super().__init__()
         self.z, self.x, self.y = z, x, y
+        self._url_template = url_template
+        self._cache_subdir = cache_subdir
 
     def run(self) -> None:
-        cache_path = CACHE_DIR / str(self.z) / str(self.x) / f"{self.y}.png"
+        cache_path = CACHE_DIR / self._cache_subdir / str(self.z) / str(self.x) / f"{self.y}.png"
         if cache_path.exists():
             pixmap = QPixmap(str(cache_path))
             if not pixmap.isNull():
@@ -86,8 +96,9 @@ class TileDownloader(QThread):
             return
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         try:
+            url = self._url_template.format(z=self.z, x=self.x, y=self.y)
             resp = requests.get(
-                OSM_URL.format(z=self.z, x=self.x, y=self.y),
+                url,
                 headers={"User-Agent": "MapFree/1.1"},
                 timeout=5,
             )
@@ -127,10 +138,13 @@ class MapTileWidget(QWidget):
 
         self.scene = QGraphicsScene(self)
         self.view = QGraphicsView(self.scene)
+        self.view.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.FullViewportUpdate)
         self.view.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
         self.view.setRenderHint(QPainter.RenderHint.Antialiasing)
         self.view.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.view.wheelEvent = self._on_wheel  # type: ignore[method-assign]
+        self._tile_url = OSM_URL
+        self._tile_cache_subdir = "osm"
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -192,8 +206,16 @@ class MapTileWidget(QWidget):
             self.set_camera_layer_visible(not self._camera_layer_visible)
 
     def set_basemap(self, name: str) -> None:
-        """Ignored for tile widget (OSM only). Kept for API compatibility."""
-        del name
+        """Set tile source: OpenStreetMap, Satellite (Google), or None (no tiles)."""
+        name_lower = (name or "").lower()
+        if "satellite" in name_lower or name == "Satellite":
+            self._tile_url = GOOGLE_SATELLITE_URL
+            self._tile_cache_subdir = "google_sat"
+        else:
+            self._tile_url = OSM_URL
+            self._tile_cache_subdir = "osm"
+        self._load_tiles()
+        self._draw_points()
 
     def clear_layers(self) -> None:
         """Clear photo points and optionally reset view."""
@@ -241,7 +263,9 @@ class MapTileWidget(QWidget):
                 tx, ty = cx + dx, cy + dy
                 px, py = tile_to_pixel(tx, ty, self.zoom, self.center_lat, self.center_lon)
                 self._pending_tiles += 1
-                d = TileDownloader(self.zoom, tx, ty)
+                d = TileDownloader(
+                    self.zoom, tx, ty, self._tile_url, self._tile_cache_subdir
+                )
                 d.tile_ready.connect(self._on_tile_ready)
                 self._downloaders.append(d)
                 d.start()
