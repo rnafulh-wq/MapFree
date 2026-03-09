@@ -146,6 +146,7 @@ def prepare_georeferenced_vrts(
     log.info("prepare_georeferenced_vrts: wrote %d VRTs to %s", count, output_dir)
     return output_dir
 
+
 _IMAGE_EXTENSIONS = {".tif", ".tiff", ".jpg", ".jpeg", ".png", ".vrt"}
 
 
