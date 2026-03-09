@@ -1,140 +1,281 @@
+<p align="center">
+  <img src="assets/MapFree_logo_desktop.png" width="600"/>
+</p>
+
+<p align="center">
+  <a href="https://www.gnu.org/licenses/agpl-3.0">
+    <img src="https://img.shields.io/badge/License-AGPL_v3-blue.svg" alt="License: AGPL v3"/>
+  </a>
+  <a href="https://www.python.org/downloads/">
+    <img src="https://img.shields.io/badge/python-3.11+-blue.svg" alt="Python 3.11+"/>
+  </a>
+  <a href="https://github.com/rnafulh-wq/MapFree/actions">
+    <img src="https://img.shields.io/badge/status-alpha-orange.svg" alt="Status: Alpha"/>
+  </a>
+</p>
+
 # MapFree Engine
 
-**Native Desktop Photogrammetry Engine**
+**Native Desktop Photogrammetry Engine for Drone Mapping**
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/status-alpha-orange.svg)](https://github.com/your-org/MapFree)
+MapFree is an open-source desktop application that transforms drone photos into
+georeferenced 3D models, point clouds, Digital Surface Models (DSM), Digital
+Terrain Models (DTM), and orthophotos — using COLMAP and OpenMVS under the hood,
+with a user-friendly GUI built on PySide6.
 
-## Overview
+---
 
-MapFree is a native desktop photogrammetry engine built with PySide6 and a modular event-driven architecture. It orchestrates COLMAP and OpenMVS pipelines to reconstruct 3D models from image datasets.
+## Features
 
-The application does not implement SfM or MVS algorithms itself; it drives external binaries (COLMAP for structure-from-motion and dense reconstruction, OpenMVS for meshing and texturing) and manages project state, hardware-adaptive profiles, chunking, and resume behaviour.
+- 🗺️ **GPS-aware pipeline** — automatically detects GPS from DJI/drone photos and
+  uses spatial matching for best reconstruction accuracy
+- 🏗️ **Full photogrammetry pipeline** — Sparse → Dense → DSM → DTM → Orthophoto
+- 🖥️ **Native desktop GUI** — project panel, live console, progress tracking,
+  OSM basemap with photo location overlay
+- ⚡ **GPU accelerated** — CUDA support via COLMAP; automatic CPU fallback
+- 📦 **Single-environment install** — all dependencies in one conda environment
+- 🔧 **Smart matcher selection** — auto-selects spatial/sequential/exhaustive
+  matcher based on GPS availability and dataset size
+- 📁 **Organized output** — Metashape-style folder structure
+  (`01_sparse/`, `02_dense/`, `03_mesh/`, `04_geospatial/`, `05_exports/`)
 
-## Key Features
+---
 
-- **Native desktop GUI** — PySide6-based interface with project panel, live console, progress tracking, and viewer placeholder.
-- **Event-driven pipeline architecture** — Pipeline stages emit events via an in-process EventBus; GUI and CLI subscribe for progress and logs without blocking.
-- **Modular engine system** — Sparse and dense backends are pluggable (COLMAP, OpenMVS); engine interface is abstracted for future extensions.
-- **Live progress tracking** — Stage and progress updates flow from pipeline to UI through Qt signals; no polling.
-- **Commercial-ready architecture** — Layered design (Core, Application, GUI), structured logging, and clear separation of orchestration from engines.
-- **Extensible for custom SfM/MVS engines** — New engines can be added by implementing the engine contract and registering in the pipeline.
+## System Requirements
 
-## Architecture
+| Component | Minimum | Recommended |
+|-----------|---------|-------------|
+| OS | Windows 10 64-bit | Windows 11 64-bit |
+| RAM | 8 GB | 16 GB |
+| GPU | CPU-only mode | NVIDIA CUDA (2GB+ VRAM) |
+| Storage | 10 GB (install) + project space | SSD, 50GB+ |
+| Python | 3.11 (via conda) | 3.11 |
 
-The codebase is organized in layers:
+> **Note:** MapFree has been tested with up to 335 drone photos (DJI, 4000×3000px)
+> on a machine with NVIDIA MX150 (2GB VRAM) and 12GB RAM.
 
-**Core → Application → GUI → Infrastructure**
+---
 
-- **Core** (`mapfree/core/`) — Pipeline orchestration, project context, EventBus, state persistence, validation, chunking, and hardware detection. No UI dependencies.
-- **Application** (`mapfree/application/`) — MapFreeController runs the pipeline in a worker thread and subscribes to the context EventBus; project manager, license manager, and state machine stubs live here.
-- **GUI** (`mapfree/gui/`) — PySide6 main window, QtController (adapts controller events to Qt signals), PipelineWorker (QThread), panels (project, console, progress, viewer), and dialogs. Connects to Application via signals only.
-- **Infrastructure** — Engines (`mapfree/engines/`), config (`mapfree/config/`), and utils (logging, file helpers, process helpers).
+## Installation (Windows)
 
-Important components:
+### Prerequisites
 
-- **EventBus** — In-process, thread-safe pub/sub. Pipeline and engines emit events (e.g. `pipeline_started`, `progress_updated`, `engine_log`); controller and QtController subscribe and update state or emit Qt signals.
-- **Controller** — Starts the pipeline in a background thread, attaches to the run’s EventBus, and exposes `run_project` / `stop_project` and optional callbacks. No direct engine calls from the controller.
-- **Pipeline** — Coordinates prepare → sparse (feature extraction, matching, mapper, optional chunking/merge) → dense → post-process. Uses engine abstraction and context; emits progress and stage events via EventBus.
-- **Engine abstraction** — Sparse/dense backends (e.g. COLMAP, OpenMVS) implement a common interface; pipeline invokes them via the wrapper and streams logs through the context EventBus.
+1. Install [Miniconda](https://docs.conda.io/en/latest/miniconda.html)
+2. Download [COLMAP 3.13+](https://github.com/colmap/colmap/releases) and add to PATH
 
-## Installation
+### Install MapFree
 
-### Requirements
-
-- Python 3.10+
-- COLMAP installed and on PATH (or set `MAPFREE_COLMAP_BIN`)
-- OpenMVS installed and on PATH if using dense mesh pipeline (optional; COLMAP dense is default)
-
-### Setup
-
-```bash
-git clone https://github.com/your-org/MapFree.git
+```powershell
+# 1. Clone repository
+git clone https://github.com/rnafulh-wq/MapFree.git
 cd MapFree
-python3 -m venv venv
-source venv/bin/activate   # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-```
 
-For editable install during development:
+# 2. Create conda environment (includes GDAL, PDAL, PySide6)
+conda env create -f environment.yml
 
-```bash
+# 3. Activate environment
+conda activate mapfree_engine
+
+# 4. Install MapFree
 pip install -e .
+
+# 5. Verify
+python -c "import mapfree; print('MapFree OK')"
+gdalinfo --version
+pdal --version
 ```
 
 ### Run
 
-**Desktop GUI:**
-
-```bash
-python -m mapfree.app
+```powershell
+conda activate mapfree_engine
+python -m mapfree
 ```
 
-**CLI (headless pipeline):**
+If you get `No module named 'mapfree'`, the package is not installed: from the project root with `mapfree_engine` activated, run `pip install -e .` (step 4 above).
 
-```bash
-mapfree run <image_folder> --output <project_path>
-# or
-python -m mapfree.cli run <image_folder> -o <project_path>
+---
+
+## Quick Start
+
+1. **Import photos** — click **Add Photos** or **Add Folder** to import drone photos
+2. **Set output folder** — click **Select folder...**
+3. **Choose quality** — Medium is recommended for most datasets
+4. **Matching Method** — leave as **Auto (Recommended)**; MapFree will use spatial
+   matching automatically if your photos have GPS
+5. **Click Run** — pipeline runs in background; progress shown per stage
+
+### Output
+
+```
+your_project/
+├── 01_sparse/          ← Sparse point cloud + camera positions
+├── 02_dense/           ← Dense point cloud (fused.ply)
+├── 03_mesh/            ← 3D mesh (if enabled)
+├── 04_geospatial/
+│   ├── dense.las       ← Point cloud in LAS format
+│   ├── classified.las  ← Ground-classified point cloud
+│   ├── dsm.tif         ← Digital Surface Model (GeoTIFF)
+│   ├── dtm.tif         ← Digital Terrain Model (GeoTIFF)
+│   └── orthophoto.tif  ← Orthophoto (GeoTIFF)
+├── 05_exports/         ← Exported formats
+└── logs/
+    └── mapfree.log     ← Full pipeline log
 ```
 
-## Project Structure
+All GeoTIFF outputs are georeferenced (EPSG based on GPS coordinates of photos,
+e.g. EPSG:32751 for UTM Zone 51S / Nusa Tenggara).
+
+---
+
+## Codebase Structure
 
 ```
 MapFree/
 ├── mapfree/
-│   ├── app.py              # GUI entry point (python -m mapfree.app)
-│   ├── core/               # Pipeline, EventBus, context, state, validation, chunking
-│   ├── engines/            # COLMAP and OpenMVS engine implementations
-│   ├── application/        # Controller, project/license/state stubs
-│   ├── gui/                # Main window, Qt controller, workers, panels, dialogs
-│   ├── utils/              # Logger, file_utils, process_utils
-│   ├── config/             # Default YAML and load_config
-│   ├── cli/                # CLI entry (mapfree run ...)
-│   └── api/                # Backward-compat re-export of controller
-├── docs/
-├── tests/
-├── requirements.txt
+│   ├── __main__.py         ← Entry point (python -m mapfree)
+│   ├── app.py              ← GUI application startup
+│   ├── core/               ← Pipeline, EventBus, context, chunking, validation
+│   ├── engines/            ← COLMAP and OpenMVS engine implementations
+│   ├── application/       ← Controller, project manager, state machine
+│   ├── gui/                ← PySide6 main window, panels, dialogs, workers
+│   ├── geospatial/         ← DSM/DTM/orthophoto generation (PDAL + GDAL)
+│   ├── utils/              ← Logger, file_utils, process_utils, dependency_check
+│   └── config/             ← Default YAML configs and load_config
+├── tests/                  ← Unit and integration tests
+├── scripts/                ← Windows installer and launcher scripts
+├── docs/                   ← Documentation
+├── environment.yml         ← Conda environment (mapfree_engine)
 ├── pyproject.toml
-├── setup.cfg
-├── LICENSE
+├── requirements.txt
+├── LICENSE                 ← GNU AGPL v3
 ├── CONTRIBUTING.md
-└── CHANGELOG.md
+├── CHANGELOG.md
+└── README.md
 ```
 
-## Development
+---
 
-**Run in dev mode**
+## Pipeline Overview
 
-- Install in editable mode: `pip install -e .`
-- GUI: `python -m mapfree.app`
-- CLI: `python -m mapfree.cli run <images> -o <project>`
-- Optional: set `MAPFREE_LOG_LEVEL=DEBUG` and `MAPFREE_LOG_DIR` for file logging.
+```
+Photos (drone/UAV with GPS)
+        │
+        ▼
+Feature Extraction     ← COLMAP: detect keypoints in each photo
+        │
+        ▼
+Feature Matching       ← COLMAP: spatial matcher (GPS-based) by default
+        │
+        ▼
+Sparse Reconstruction  ← COLMAP: Structure-from-Motion → cameras + sparse points
+        │
+        ▼
+Dense Reconstruction   ← COLMAP/OpenMVS: Multi-View Stereo → dense point cloud
+        │
+        ▼
+Geospatial Processing  ← PDAL + GDAL: LAS → DSM → DTM → Orthophoto (GeoTIFF)
+        │
+        ▼
+Post-Processing        ← Merge, export, organize outputs
+```
 
-**Where the GUI lives**
+---
 
-- Entry: `mapfree/app.py` (creates QApplication and MainWindow).
-- Window and layout: `mapfree/gui/main_window.py`.
-- Panels: `mapfree/gui/panels/` (project, console, progress, viewer).
-- Controller adapter and worker: `mapfree/gui/qt_controller.py`, `mapfree/gui/workers.py`.
-- Dialogs and resources: `mapfree/gui/dialogs/`, `mapfree/gui/resources/` (QSS, icons).
+## Dependency Licenses
 
-**Where engines live**
+MapFree is licensed under **GNU AGPL v3** (required by OpenMVS dependency).
 
-- Engine interface and factory: `mapfree/core/engine.py` (BaseEngine, create_engine).
-- Implementations: `mapfree/engines/colmap_engine.py`, `mapfree/engines/openmvs_engine.py`.
-- Helpers: `mapfree/engines/base.py`, `mapfree/engines/base_engine.py` (re-exports).
+| Dependency | License | Role |
+|------------|---------|------|
+| [COLMAP](https://colmap.github.io/) | BSD 3-Clause | Sparse & dense reconstruction |
+| [OpenMVS](https://github.com/cdcseacave/openMVS) | **AGPL v3** | Dense mesh & texturing |
+| [GDAL](https://gdal.org/) | MIT/X | Raster geospatial processing |
+| [PDAL](https://pdal.io/) | BSD | Point cloud processing |
+| [PySide6](https://doc.qt.io/qtforpython/) | LGPL v3 | GUI framework |
 
-Code style: PEP 8 and flake8 (see `setup.cfg` and `.flake8`). Use the `logging` module instead of `print`; see `CONTRIBUTING.md` for PR workflow.
+---
+
+## Troubleshooting
+
+**COLMAP not found**
+```powershell
+# Verify COLMAP is on PATH
+where.exe colmap
+# If not found, add COLMAP to PATH or set MAPFREE_COLMAP_BIN env variable
+```
+
+**GPS not detected (0 dengan GPS)**
+```powershell
+# Ensure running from mapfree_engine, not base
+conda activate mapfree_engine
+python -m mapfree
+```
+
+**Geospatial stage skipped**
+```powershell
+# Install GDAL and PDAL in mapfree_engine
+conda activate mapfree_engine
+conda install -c conda-forge gdal pdal -y
+gdalinfo --version  # verify
+pdal --version      # verify
+```
+
+**Pipeline error — check log**
+```powershell
+Get-Content "your_project\logs\mapfree.log" | Select-Object -Last 50
+```
+
+---
 
 ## Roadmap
 
-- **3D Viewer integration** — Replace viewer placeholder with OpenGL or PyQtGraph-based point cloud/mesh display.
-- **Plugin system** — Load custom engines or pipeline steps via a plugin API.
-- **Licensing system** — Wire license_manager and license_dialog for activation and feature gating.
-- **Packaging for Windows/macOS** — PyInstaller or similar to produce standalone executables.
+| Version | Target | Focus |
+|---------|--------|-------|
+| **v1.1.0** | Q1 2026 | Stable pipeline, Windows installer, GPS georeferencing |
+| v1.2 | Q2 2026 | Core architecture refactor, project system, job system |
+| v1.3 | Q3 2026 | Pipeline stage system, YAML config, resume from any stage |
+| v1.4 | Q3 2026 | Structured logging, crash reports |
+| v1.5 | Q4 2026 | GUI API Bridge, full responsive layout |
+| v1.6 | Q1 2027 | Plugin system (custom engines, stages) |
+| v1.7 | Q2 2027 | Performance for 500–5000 photos |
+
+---
+
+## Contributing
+
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
+- Development setup with conda
+- Branch and commit conventions
+- Testing guidelines (including real-world drone photo tests)
+- Pull request process
+
+---
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for the full text.
+MapFree Engine is licensed under the
+**GNU Affero General Public License v3.0 (AGPL v3)**.
+
+This is required for compatibility with OpenMVS (AGPL v3).
+See [LICENSE](LICENSE) for the full text.
+
+---
+
+## Acknowledgments
+
+- [COLMAP](https://colmap.github.io/) — J.L. Schönberger, J.-M. Frahm (ETH Zurich)
+- [OpenMVS](https://github.com/cdcseacave/openMVS) — cDc
+- [GDAL](https://gdal.org/) — OSGeo
+- [PDAL](https://pdal.io/) — PDAL Contributors
+
+---
+
+## Support
+
+- **Bug reports**: [GitHub Issues](https://github.com/rnafulh-wq/MapFree/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/rnafulh-wq/MapFree/discussions)
+
+---
+
+*MapFree Engine — Free tools for everyone to map the world.*

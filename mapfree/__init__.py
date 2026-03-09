@@ -1,6 +1,6 @@
 """MapFree — modular photogrammetry pipeline engine."""
 
-__version__ = "0.1.0"
+__version__ = "1.1.0"
 
 from mapfree.application.controller import MapFreeController
 from mapfree.core.events import Event, EventEmitter

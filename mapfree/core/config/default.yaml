@@ -1,0 +1,88 @@
+# MapFree default configuration
+# Override with --config <file> or MAPFREE_CONFIG=<path>
+# All values are optional; defaults below keep current behavior.
+
+# ---------------------------------------------------------------------------
+# Chunking
+# ---------------------------------------------------------------------------
+chunk_size: null
+max_images_per_chunk: 250
+
+chunk_sizes:
+  HIGH: 400
+  MEDIUM: 250
+  LOW: 150
+  CPU_SAFE: 100
+
+memory_multiplier: 1.0
+
+# ---------------------------------------------------------------------------
+# Profile
+# ---------------------------------------------------------------------------
+profile_override: null
+
+profiles:
+  HIGH:
+    profile: HIGH
+    max_image_size: 3200
+    max_features: 16384
+    matcher: sequential
+    use_gpu: 1
+  MEDIUM:
+    profile: MEDIUM
+    max_image_size: 2400
+    max_features: 8192
+    matcher: sequential
+    use_gpu: 1
+  LOW:
+    profile: LOW
+    max_image_size: 1600
+    max_features: 8000
+    matcher: exhaustive
+    use_gpu: 1
+  CPU_SAFE:
+    profile: CPU_SAFE
+    max_image_size: 1600
+    max_features: 8000
+    matcher: exhaustive
+    use_gpu: 0
+
+# ---------------------------------------------------------------------------
+# Dense engine
+# ---------------------------------------------------------------------------
+dense_engine: colmap
+
+# ---------------------------------------------------------------------------
+# Retries & VRAM watchdog
+# ---------------------------------------------------------------------------
+retry_count: 2
+
+vram_watchdog:
+  threshold: 0.9
+  poll_interval: 5
+  downscale_factor: 0.75
+
+# ---------------------------------------------------------------------------
+# Geospatial
+# ---------------------------------------------------------------------------
+geospatial:
+  enable: true
+  resolution: 0.05   # meter per pixel (5 cm); use 0.5 for faster/smaller DTM
+  target_epsg: null   # If null, auto-detect EPSG from image EXIF (GPS)
+
+enable_geospatial: true
+dtm_resolution: 0.05
+auto_detect_epsg: true
+target_epsg: null
+
+# ---------------------------------------------------------------------------
+# COLMAP
+# ---------------------------------------------------------------------------
+# Path to COLMAP executable (empty = use resolver: env, then default Windows/Linux path, then PATH)
+colmap_path: ""
+
+colmap:
+  colmap_bin: null
+  num_threads: -1
+  mapper_ba_global_max_iter: 50
+  mapper_ba_local_max_iter: 25

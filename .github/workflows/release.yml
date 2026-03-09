@@ -1,0 +1,204 @@
+# Automated release build on version tag push (v*.*.*).
+# Builds Windows (zip) and Linux (AppImage), then creates a GitHub Release
+# with artifacts and SHA256 checksums.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install project and PyInstaller
+        run: |
+          pip install -e .
+          pip install pyinstaller
+
+      - name: Build Windows bundle
+        run: pyinstaller scripts/build_windows.spec --clean --noconfirm
+
+      - name: Zip Windows artifact
+        run: Compress-Archive -Path dist\MapFree -DestinationPath MapFree-windows.zip
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: MapFree-windows.zip
+
+  build-windows-installer:
+    name: Build Windows Installer (Inno Setup)
+    needs: build-windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows
+
+      - name: Restore dist\MapFree for Inno Setup
+        run: |
+          Expand-Archive -Path MapFree-windows.zip -DestinationPath .
+          if (-not (Test-Path dist\MapFree)) { New-Item -ItemType Directory -Path dist -Force; Move-Item MapFree dist\ }
+          dir dist\MapFree
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y
+
+      - name: Build installer
+        run: iscc scripts/installer/mapfree_setup.iss
+
+      - name: Upload Windows installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: scripts/installer/Output/MapFree-Setup-1.1.0.exe
+
+  build-linux:
+    name: Build Linux AppImage
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install fuse (for AppImage)
+        run: sudo apt-get update && sudo apt-get install -y fuse
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install project and PyInstaller
+        run: |
+          pip install -e .
+          pip install pyinstaller
+
+      - name: Build Linux AppImage
+        run: chmod +x scripts/build_linux.sh && ./scripts/build_linux.sh
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: dist/MapFree-x86_64.AppImage
+
+  create-release:
+    name: Create GitHub Release
+    needs: [build-windows, build-linux, build-windows-installer]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: linux
+
+      - name: Download Windows installer artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+
+      - name: Prepare release assets
+        run: |
+          echo "=== workspace root ==="
+          ls -la
+          echo "=== windows/ ==="
+          ls -la windows/ 2>/dev/null || true
+          echo "=== linux/ ==="
+          ls -la linux/ 2>/dev/null || true
+          echo "=== windows-installer/ ==="
+          ls -la windows-installer/ 2>/dev/null || true
+          if [ -f MapFree-windows.zip ]; then
+            : # already at root
+          elif [ -f windows/MapFree-windows.zip ]; then
+            mv windows/MapFree-windows.zip .
+          elif [ -d windows ] && [ -n "$(ls -A windows/*.zip 2>/dev/null)" ]; then
+            mv windows/*.zip ./MapFree-windows.zip
+          else
+            cp "$(find windows . -maxdepth 1 -name '*.zip' -type f 2>/dev/null | head -1)" ./MapFree-windows.zip
+          fi
+          if [ -f MapFree-x86_64.AppImage ]; then
+            : # already at root
+          elif [ -f linux/MapFree-x86_64.AppImage ]; then
+            mv linux/MapFree-x86_64.AppImage .
+          elif [ -d linux ] && [ -n "$(ls -A linux/*.AppImage 2>/dev/null)" ]; then
+            mv linux/*.AppImage ./MapFree-x86_64.AppImage
+          else
+            cp "$(find linux . -maxdepth 1 -name '*.AppImage' -type f 2>/dev/null | head -1)" ./MapFree-x86_64.AppImage
+          fi
+          if [ -f windows-installer/MapFree-Setup-1.1.0.exe ]; then
+            cp windows-installer/MapFree-Setup-1.1.0.exe .
+          elif [ -n "$(ls -A windows-installer/*.exe 2>/dev/null)" ]; then
+            cp windows-installer/*.exe ./MapFree-Setup-1.1.0.exe
+          fi
+          cp MapFree-windows.zip MapFree-windows-portable.zip
+          touch checksums.txt
+          sha256sum MapFree-windows.zip MapFree-windows-portable.zip MapFree-x86_64.AppImage >> checksums.txt
+          [ -f MapFree-Setup-1.1.0.exe ] && sha256sum MapFree-Setup-1.1.0.exe >> checksums.txt
+          cat checksums.txt
+
+      - name: Extract release notes from CHANGELOG
+        id: notes
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [ -f CHANGELOG.md ]; then
+            BODY=$(python3 << 'PY'
+          import os, re
+          tag = os.environ.get('TAG', '')
+          v = tag.lstrip('v')
+          with open('CHANGELOG.md') as f:
+              text = f.read()
+          # Match ## [version] or ## [version] - ... and text until next ##
+          m = re.search(r'^## \s*\[\s*' + re.escape(v) + r'\s*\][^\n]*(?:\n(?![#]{2}\s).*)*', text, re.MULTILINE | re.DOTALL)
+          body = m.group(0).strip() if m else 'Release **' + tag + '**. See CHANGELOG.md for details.'
+          body = body[:6000] if len(body) > 6000 else body
+          print(body)
+          PY
+            )
+          else
+            BODY="Release **$TAG**."
+          fi
+          echo "body<<RELEASE_BODY_END" >> "$GITHUB_OUTPUT"
+          echo "$BODY" >> "$GITHUB_OUTPUT"
+          echo "RELEASE_BODY_END" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body: ${{ steps.notes.outputs.body }}
+          files: |
+            MapFree-Setup-1.1.0.exe
+            MapFree-windows-portable.zip
+            MapFree-x86_64.AppImage
+            checksums.txt
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

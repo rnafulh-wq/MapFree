@@ -7,20 +7,21 @@ All subprocess calls use an env with LD_LIBRARY_PATH including venv/lib so COLMA
 import logging
 import os
 import subprocess
+import sys
 import threading
 import time
 import traceback
 from pathlib import Path
 from typing import Callable
 
-# Prepend to LD_LIBRARY_PATH so COLMAP/model_merger etc. find venv libs (e.g. libonnxruntime.so.1).
-VENV_LIB = "/media/pop_mangto/E/dev/MapFree/venv/lib"
-
 
 def get_process_env(env: dict | None = None) -> dict:
-    """Return env dict with VENV_LIB prepended to LD_LIBRARY_PATH. Use for any COLMAP subprocess."""
+    """Return env dict. On non-Windows, optionally prepend LD_LIBRARY_PATH from MAPFREE_VENV_LIB if set."""
     base = dict(env if env is not None else os.environ)
-    base["LD_LIBRARY_PATH"] = VENV_LIB + ":" + base.get("LD_LIBRARY_PATH", "")
+    if sys.platform != "win32":
+        venv_lib = os.environ.get("MAPFREE_VENV_LIB", "").strip()
+        if venv_lib and Path(venv_lib).is_dir():
+            base["LD_LIBRARY_PATH"] = venv_lib + os.pathsep + base.get("LD_LIBRARY_PATH", "")
     return base
 
 
@@ -28,6 +29,9 @@ class EngineExecutionError(Exception):
     """Raised when a subprocess stage fails after retries or times out."""
 
     pass
+
+
+HEARTBEAT_INTERVAL = 30  # seconds; emit heartbeat so GUI stays responsive during long runs
 
 
 def run_process_streaming(
@@ -40,26 +44,78 @@ def run_process_streaming(
     log_file: Path | None = None,
     line_callback: Callable[[str], None] | None = None,
     stop_event: threading.Event | None = None,
+    heartbeat_callback: Callable[[], None] | None = None,
+    heartbeat_interval: int = HEARTBEAT_INTERVAL,
 ) -> int:
     """
-    Run command with Popen; stream stdout/stderr (combined) line-by-line to logger, log_file, and/or line_callback.
-    If stop_event is set, a watcher thread will terminate the process; no zombie left.
-    Returns exit code. Raises subprocess.TimeoutExpired on timeout.
+    Run command with Popen (shell=False, list args). Stream stdout/stderr to logger/log_file/line_callback.
+    If stop_event is set, a watcher thread will terminate the process.
+    If heartbeat_callback is set, it is called every heartbeat_interval seconds while the process runs.
+    Returns exit code. Raises EngineExecutionError on spawn failure (e.g. executable not found).
     """
+    # Ensure list of str (paths with spaces safe; no Path objects)
+    command = [str(c) for c in command]
+    if logger:
+        logger.info("Running: %s", " ".join(command))
+    if log_file:
+        try:
+            Path(log_file).parent.mkdir(parents=True, exist_ok=True)
+            with open(log_file, "a") as f:
+                f.write("\n--- CMD ---\n%s\n" % " ".join(command))
+        except Exception:
+            pass
+
     run_env = get_process_env(env)
-    proc = subprocess.Popen(
-        command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        cwd=cwd,
-        env=run_env,
-    )
-    log_fp = open(log_file, "a") if log_file else None
+    run_cwd = str(Path(cwd).resolve()) if cwd else None
+    log_fp = None
+    try:
+        proc = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            cwd=run_cwd,
+            env=run_env,
+            shell=False,
+        )
+    except FileNotFoundError as e:
+        msg = (
+            "COLMAP executable not found. Please configure path in Settings or set MAPFREE_COLMAP. "
+            "Details: %s" % (e,)
+        )
+        if logger:
+            logger.error(msg)
+        if log_file:
+            try:
+                Path(log_file).parent.mkdir(parents=True, exist_ok=True)
+                with open(log_file, "a") as f:
+                    f.write("\n--- SPAWN FAILED ---\n%s\n" % msg)
+            except Exception:
+                pass
+        raise EngineExecutionError(msg) from e
+    except OSError as e:
+        msg = "Subprocess failed to start: %s" % (e,)
+        if logger:
+            logger.error(msg)
+        if log_file:
+            try:
+                Path(log_file).parent.mkdir(parents=True, exist_ok=True)
+                with open(log_file, "a") as f:
+                    f.write("\n--- SPAWN FAILED ---\n%s\n" % msg)
+            except Exception:
+                pass
+        raise EngineExecutionError(msg) from e
+    if log_file:
+        try:
+            log_fp = open(log_file, "a")
+        except Exception:
+            log_fp = None
     read_done = threading.Event()
 
     def read_output():
         try:
+            if proc.stdout is None:
+                return
             for line in proc.stdout:
                 line = line.rstrip()
                 if logger is not None:
@@ -92,7 +148,28 @@ def run_process_streaming(
         w = threading.Thread(target=watcher, daemon=True)
         w.start()
     try:
-        proc.wait(timeout=timeout)
+        if heartbeat_callback is not None and heartbeat_interval > 0:
+            remaining = float(timeout) if timeout is not None else None
+            while True:
+                wait_s = (
+                    min(heartbeat_interval, remaining)
+                    if remaining is not None
+                    else heartbeat_interval
+                )
+                if remaining is not None and wait_s <= 0:
+                    raise subprocess.TimeoutExpired(command[0] if command else "", timeout)
+                try:
+                    proc.wait(timeout=wait_s)
+                    break
+                except subprocess.TimeoutExpired:
+                    if remaining is not None:
+                        remaining -= heartbeat_interval
+                    try:
+                        heartbeat_callback()
+                    except Exception:
+                        pass
+        else:
+            proc.wait(timeout=timeout)
     except subprocess.TimeoutExpired:
         proc.kill()
         proc.wait()
@@ -113,6 +190,7 @@ def run_command(
     logger: logging.Logger | None = None,
     line_callback: Callable[[str], None] | None = None,
     stop_event: threading.Event | None = None,
+    heartbeat_callback: Callable[[], None] | None = None,
 ) -> bool:
     """
     Run command with timeout, retries, and per-stage log. Streams output to log file and optional logger.
@@ -141,6 +219,7 @@ def run_command(
                 log_file=log_file,
                 line_callback=line_callback,
                 stop_event=stop_event,
+                heartbeat_callback=heartbeat_callback,
             )
             duration = time.time() - start
 

@@ -1,4 +1,4 @@
-"""Entry point for python -m mapfree.cli (avoids runpy warning when using mapfree.cli.main)."""
+"""Entry point for python -m mapfree.cli (delegates to mapfree.application.cli)."""
 if __name__ == "__main__":
-    from mapfree.cli.main import main
+    from mapfree.application.cli.main import main
     main()

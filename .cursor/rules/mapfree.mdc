@@ -1,0 +1,72 @@
+---
+description: Aturan utama pengembangan MapFree Engine — selalu aktif
+globs: ["**/*.py", "**/*.sh", "**/*.yml", "**/*.yaml", "**/*.toml", "**/*.cfg"]
+alwaysApply: true
+---
+
+# MapFree Engine — Cursor Development Rules
+
+## Konteks Proyek
+MapFree adalah desktop photogrammetry engine (Python + PySide6) yang mengorkestrasikan
+COLMAP dan OpenMVS. Arsitektur berlapis: Core → Application → GUI → Infrastructure.
+
+## Aturan Arsitektur (WAJIB)
+- **Core** (`mapfree/core/`) TIDAK BOLEH import dari `gui/` atau `application/`
+- **Application** (`mapfree/application/`) TIDAK BOLEH import dari `gui/`
+- **GUI** (`mapfree/gui/`) hanya boleh berkomunikasi dengan Application via Qt signals
+- Semua komunikasi lintas layer wajib melalui **EventBus** atau Qt signals — tidak boleh direct call
+- Engine baru wajib implement interface di `mapfree/core/engine.py` (BaseEngine)
+
+## Code Style
+- Python 3.10+, PEP 8, flake8 clean (lihat `.flake8` dan `setup.cfg`)
+- Gunakan `logging` module — DILARANG menggunakan `print()` di production code
+- Type hints wajib untuk semua public function dan method
+- Docstring wajib untuk semua public class dan method (format Google style)
+- Max line length: 99 karakter (sesuai `.flake8`)
+
+## Testing
+- Setiap file baru di `core/` dan `application/` WAJIB punya unit test di `tests/`
+- Nama test file: `test_<nama_modul>.py`
+- Gunakan `pytest` dan `pytest-mock`
+- Coverage target: Fase 1 ≥ 50%, Fase 3 ≥ 70%
+- Mock semua external binary calls (COLMAP, OpenMVS) — jangan panggil binary nyata di test
+
+## Git & PR
+- Commit message format: `<type>(<scope>): <pesan>` — contoh: `fix(core): handle missing COLMAP binary`
+- Type: `feat`, `fix`, `test`, `docs`, `refactor`, `chore`
+- Setiap PR harus lolos CI (flake8 + pytest) sebelum merge
+- File runtime DILARANG di-commit: `.mapfree_state.json`, `*.log`, output project folders
+
+## Error Handling
+- Setiap exception harus punya pesan yang actionable untuk user (bukan hanya stack trace)
+- Pipeline error harus di-emit via EventBus, bukan raise langsung ke GUI
+- Gunakan custom exception classes di `mapfree/core/exceptions.py`
+
+## Dependency External
+- COLMAP, OpenMVS, PDAL, GDAL tidak di-bundle — selalu cek ketersediaan di startup
+- Gunakan `mapfree/utils/dependency_check.py` untuk semua pengecekan binary
+- Jika dependency tidak ada, emit event `dependency_missing` — jangan crash
+
+---
+description: Aturan untuk file GUI (PySide6)
+globs: ["mapfree/gui/**/*.py"]
+---
+
+## GUI Rules
+- Semua operasi berat (pipeline, file I/O) wajib di thread terpisah (QThread / PipelineWorker)
+- GUI thread DILARANG melakukan blocking call apapun
+- Gunakan Qt signals untuk update UI dari worker thread — DILARANG direct widget update dari thread
+- OpenGL widget: selalu sediakan fallback jika OpenGL tidak tersedia
+- Environment variable `MAPFREE_NO_OPENGL=1` harus selalu di-respect
+
+---
+description: Aturan untuk engine implementations
+globs: ["mapfree/engines/**/*.py"]
+---
+
+## Engine Rules
+- Semua subprocess call wajib melalui `mapfree/utils/process_utils.py`
+- Stream stdout/stderr dari binary ke EventBus sebagai `engine_log` events
+- Setiap engine harus support `stop()` yang graceful (terminate subprocess)
+- Timeout wajib pada semua subprocess call
+- Jangan hardcode path binary — selalu resolve dari config atau PATH

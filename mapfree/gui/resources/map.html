@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>MapFree Map</title>
+<link rel="stylesheet" href="leaflet/leaflet.css"/>
+<style>
+html, body, #map { height: 100%; margin: 0; }
+#map { background: #fff; }
+#offline-msg {
+  position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+  background: rgba(255,255,255,0.95); padding: 6px 12px; border-radius: 4px;
+  font-size: 12px; color: #666; z-index: 1000; display: none;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="offline-msg">Basemap tidak tersedia (offline mode)</div>
+
+<script src="leaflet/leaflet.js"></script>
+<script>
+
+var map = L.map('map', {
+  zoomControl: true,
+  attributionControl: true
+}).setView([0, 0], 2);
+
+// Basemap: OSM, Satellite, None
+var osmLayer = null;
+var satelliteLayer = null;
+var basemapLoaded = false;
+var currentBasemap = 'OpenStreetMap';
+
+function initBasemap() {
+  osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19
+  });
+  osmLayer.on('load', function() {
+    basemapLoaded = true;
+    document.getElementById('offline-msg').style.display = 'none';
+  });
+  osmLayer.on('tileerror', function() {
+    if (!basemapLoaded) document.getElementById('offline-msg').style.display = 'block';
+  });
+  satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: '&copy; Esri',
+    maxZoom: 19
+  });
+  osmLayer.addTo(map);
+  currentBasemap = 'OpenStreetMap';
+  setTimeout(function() {
+    if (!basemapLoaded) document.getElementById('offline-msg').style.display = 'block';
+  }, 2500);
+}
+initBasemap();
+
+function setBaseLayer(name) {
+  if (osmLayer && map.hasLayer(osmLayer)) map.removeLayer(osmLayer);
+  if (satelliteLayer && map.hasLayer(satelliteLayer)) map.removeLayer(satelliteLayer);
+  currentBasemap = name || 'None';
+  if (name === 'OpenStreetMap' && osmLayer) {
+    osmLayer.addTo(map);
+  } else if (name === 'Satellite' && satelliteLayer) {
+    satelliteLayer.addTo(map);
+  }
+}
+
+function fitToPhotos() {
+  var hasBounds = false;
+  var b = L.latLngBounds([]);
+  for (var k in layers) {
+    if (layers[k] && layers[k].getBounds) {
+      var lb = layers[k].getBounds();
+      if (lb && lb.isValid && lb.isValid()) {
+        b.extend(lb);
+        hasBounds = true;
+      }
+    }
+  }
+  if (hasBounds && b.isValid && b.isValid()) {
+    map.fitBounds(b, { padding: [40, 40], maxZoom: 17 });
+  }
+}
+
+var layers = {};
+
+function addGeoJSONLayer(name, geojson) {
+  if (!geojson || typeof geojson !== 'object') {
+    return;
+  }
+  if (geojson.type === 'FeatureCollection' && !geojson.features) {
+    geojson.features = [];
+  }
+  if (geojson.type !== 'FeatureCollection' && geojson.type !== 'Feature' && geojson.type !== 'GeometryCollection') {
+    geojson = { type: 'FeatureCollection', features: [] };
+  }
+
+  if (layers[name]) {
+    map.removeLayer(layers[name]);
+    layers[name] = null;
+  }
+
+  layers[name] = L.geoJSON(geojson, {
+    pointToLayer: function (feature, latlng) {
+      return L.circleMarker(latlng, {
+        radius: 5,
+        color: 'blue',
+        fillColor: 'blue',
+        fillOpacity: 0.7
+      });
+    }
+  }).addTo(map);
+
+  try {
+    var b = layers[name].getBounds();
+    if (b && b.isValid && b.isValid()) {
+      map.fitBounds(b, { padding: [40, 40], maxZoom: 17 });
+    }
+  } catch (e) {}
+}
+
+function setLayerVisibility(name, visible) {
+  var layer = layers[name];
+  if (layer) {
+    if (visible) {
+      map.addLayer(layer);
+    } else {
+      map.removeLayer(layer);
+    }
+  }
+}
+
+
+function clearAllLayers() {
+  var names = Object.keys(layers);
+  for (var i = 0; i < names.length; i++) {
+    var layer = layers[names[i]];
+    if (layer) {
+      map.removeLayer(layer);
+    }
+    layers[names[i]] = null;
+  }
+  layers = {};
+}
+
+window.mapReady = true;
+
+</script>
+</body>
+</html>

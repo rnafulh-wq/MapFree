@@ -10,7 +10,7 @@ from unittest.mock import MagicMock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from mapfree.config import load_config, reset_config
+from mapfree.core.config import load_config, reset_config
 reset_config()
 load_config()
 

@@ -8,6 +8,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from .exceptions import EngineError, ProjectValidationError
 from .logger import get_logger
 from .validation import sparse_valid
 from .wrapper import get_process_env
@@ -36,7 +37,7 @@ def export_sparse_to_ply(sparse_dir: Path, output_ply_path: Path, timeout: int =
     sparse_dir = Path(sparse_dir)
     output_ply_path = Path(output_ply_path)
     if not sparse_valid(sparse_dir):
-        raise ValueError(f"Invalid sparse model dir: {sparse_dir}")
+        raise ProjectValidationError(f"Invalid sparse model dir: {sparse_dir}")
     output_ply_path.parent.mkdir(parents=True, exist_ok=True)
     cmd = [
         _get_colmap_bin(),
@@ -48,8 +49,10 @@ def export_sparse_to_ply(sparse_dir: Path, output_ply_path: Path, timeout: int =
     env = get_process_env()
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=env, cwd=sparse_dir.parent)
     if r.returncode != 0:
-        raise RuntimeError(
-            f"COLMAP model_converter failed: {r.stderr or r.stdout or 'unknown'}"
+        raise EngineError(
+            "COLMAP",
+            f"model_converter failed: {r.stderr or r.stdout or 'unknown'}",
+            returncode=r.returncode,
         )
 
 
@@ -62,7 +65,7 @@ def export_final_results(project_path: Path, sparse_source_dir: Path) -> Path:
     project_path = Path(project_path)
     sparse_source_dir = Path(sparse_source_dir)
     if not sparse_valid(sparse_source_dir):
-        raise ValueError(f"Invalid sparse model: {sparse_source_dir}")
+        raise ProjectValidationError(f"Invalid sparse model: {sparse_source_dir}")
 
     final_dir = project_path / FINAL_RESULTS_DIR
     final_dir.mkdir(parents=True, exist_ok=True)
@@ -78,7 +81,11 @@ def export_final_results(project_path: Path, sparse_source_dir: Path) -> Path:
     export_sparse_to_ply(sparse_source_dir, ply_path)
 
     # Copy dense fused.ply to final_results/dense.ply if present
-    dense_dir = project_path / "dense"
+    try:
+        from mapfree.core.project_structure import resolve_project_paths
+        dense_dir = Path(resolve_project_paths(project_path).dense)
+    except Exception:
+        dense_dir = project_path / "dense"
     fused_src = dense_dir / "fused.ply"
     if fused_src.exists():
         size = fused_src.stat().st_size

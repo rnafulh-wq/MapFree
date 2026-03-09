@@ -8,7 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from mapfree.config import load_config, reset_config
+from mapfree.core.config import load_config, reset_config
 reset_config()
 load_config()
 
@@ -120,7 +120,7 @@ report("config value used when no override", got > 0, f"got {got}")
 # 7. Retry count bounded (not infinite)
 # ---------------------------------------------------------------
 print("\n7. Retry count from config")
-from mapfree.config import get_config
+from mapfree.core.config import get_config
 cfg = get_config()
 retry = cfg.get("retry_count", 0)
 report("retry_count > 0", retry > 0, f"got {retry}")

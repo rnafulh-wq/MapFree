@@ -7,17 +7,20 @@ __pycache__/
 .Python
 venv/
 .venv/
+.venv_qa/
 env/
 
 # Build / PySide6 / PyInstaller
 build/
 dist/
-*.spec
+*.spec.bak
+scripts/appimagetool-*.AppImage
 *.egg-info/
 *.egg
 
 # Generated / binary / data
 *.log
+logs/
 *.db
 projects/
 workspace/
@@ -35,6 +38,22 @@ images/
 *.zip
 *.tar.gz
 
+# Runtime state
+.mapfree_state.json
+
+# Test / coverage artifacts
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Linux symlinks yang tidak valid di Windows
+colmap
+venv/
+
 # OS
 .DS_Store
 Thumbs.db
+colmap_notes.txt
+debug_georef.py
+debug_matrix.py

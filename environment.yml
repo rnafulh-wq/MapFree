@@ -1,0 +1,33 @@
+# MapFree Engine — single conda environment (Windows/Linux/macOS)
+# Install: conda env create -f environment.yml && conda activate mapfree_engine && pip install -e .
+name: mapfree_engine
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - conda-forge::pyside6
+  - gdal
+  - pdal
+  - colmap
+  - numpy
+  - pillow
+  - psutil
+  - pyyaml
+  - tqdm
+  - scipy
+  - matplotlib
+  - flake8
+  - pytest
+  - pytest-cov
+  - pytest-mock
+  - coverage
+  - pip:
+    - exifread>=3.0.0
+    - opencv-python
+    - pyqtgraph>=0.13.0
+    - requests>=2.28.0
+    - pytest>=7.0.0
+    - pytest-cov
+    - pytest-mock

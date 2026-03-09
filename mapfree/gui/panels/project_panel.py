@@ -1,4 +1,7 @@
-"""Project panel — project info, pipeline stages tree, Start/Stop."""
+"""Project panel — urutan: 1 Nama job, 2 Import foto, 3 Penyimpanan, 4 Kualitas, lalu Run."""
+
+import logging
+from pathlib import Path
 
 from PySide6.QtWidgets import (
     QWidget,
@@ -6,19 +9,26 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
-    QTreeWidget,
-    QTreeWidgetItem,
+    QLineEdit,
+    QComboBox,
     QSizePolicy,
+    QGroupBox,
+    QListWidget,
+    QListWidgetItem,
+    QFileDialog,
 )
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtGui import QColor
 
-# Display names and order for pipeline stages
+log = logging.getLogger(__name__)
+
+# Display names and order for pipeline stages (sparse → dense → geospatial → post_process)
 STAGE_ITEMS = [
     ("feature_extraction", "Feature Extraction"),
     ("matching", "Matching"),
     ("sparse", "Sparse Reconstruction"),
     ("dense", "Dense Reconstruction"),
+    ("geospatial", "Geospatial (DTM / Orthophoto)"),
     ("post_process", "Post-Process"),
 ]
 
@@ -26,104 +36,391 @@ STATUS_PENDING = "pending"
 STATUS_RUNNING = "running"
 STATUS_DONE = "done"
 STATUS_ERROR = "error"
+STATUS_SKIPPED = "skipped"
+
+QUALITY_OPTIONS = ["High", "Medium", "Low"]
+
+MATCHER_OPTIONS = [
+    ("Auto (Recommended)", "auto"),
+    ("Spatial (GPS-based)", "spatial"),
+    ("Sequential", "sequential"),
+    ("Exhaustive", "exhaustive"),
+    ("Vocab Tree", "vocab_tree"),
+]
 
 
 class ProjectPanel(QWidget):
-    """Left panel: project name, image count, output folder, pipeline stage tree, Start/Stop."""
+    """
+    Panel dengan urutan: 1 Nama job, 2 Import foto, 3 Penyimpanan, 4 Kualitas.
+    Tombol Run hanya aktif jika keempat langkah sudah diisi.
+    """
 
     startRequested = Signal()
     stopRequested = Signal()
+    importPhotosRequested = Signal()
+    outputFolderRequested = Signal()
+    stepsChanged = Signal()
+    imageListChanged = Signal(list)  # list of absolute path strings
+    crs_detected = Signal(str)  # epsg_string when photos with GPS are loaded
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedWidth(320)
+        self.setMinimumWidth(200)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(10)
+        layout.setContentsMargins(6, 6, 6, 6)
+        layout.setSpacing(6)
 
-        header = QLabel("Project")
-        header.setProperty("class", "header")
-        layout.addWidget(header)
+        # --- Dataset (group) ---
+        project_grp = QGroupBox("Dataset")
+        project_grp.setObjectName("datasetGroup")
+        pl = QVBoxLayout(project_grp)
+        pl.setContentsMargins(8, 10, 8, 8)
+        pl.setSpacing(4)
 
-        self._project_name = QLabel("—")
-        self._project_name.setWordWrap(True)
-        self._project_name.setProperty("class", "muted")
-        layout.addWidget(self._project_name)
+        def field_label(text: str) -> QLabel:
+            lb = QLabel(text)
+            lb.setProperty("class", "field")
+            lb.setMinimumWidth(100)
+            return lb
 
-        self._image_count = QLabel("Images: 0")
-        self._image_count.setProperty("class", "muted")
-        layout.addWidget(self._image_count)
+        pl.addWidget(field_label("Job name"))
+        self._job_edit = QLineEdit()
+        self._job_edit.setPlaceholderText("Project name")
+        self._job_edit.textChanged.connect(self._on_steps_changed)
+        pl.addWidget(self._job_edit)
 
-        self._output_folder = QLabel("Output: —")
-        self._output_folder.setWordWrap(True)
-        self._output_folder.setProperty("class", "muted")
-        layout.addWidget(self._output_folder)
+        pl.addWidget(field_label("Images"))
+        btn_row1 = QHBoxLayout()
+        btn_add_photos = QPushButton("Add Photos")
+        btn_add_photos.setMinimumHeight(24)
+        btn_add_photos.clicked.connect(self._on_add_photos)
+        btn_add_folder = QPushButton("Add Folder")
+        btn_add_folder.setMinimumHeight(24)
+        btn_add_folder.clicked.connect(self._on_add_folder)
+        btn_row1.addWidget(btn_add_photos)
+        btn_row1.addWidget(btn_add_folder)
+        pl.addLayout(btn_row1)
+        self._image_count_label = QLabel("0 foto | 0 dengan GPS | 0 tanpa GPS")
+        self._image_count_label.setProperty("class", "muted")
+        self._image_count_label.setWordWrap(True)
+        pl.addWidget(self._image_count_label)
+        self._photo_list = QListWidget()
+        self._photo_list.setMaximumHeight(120)
+        self._photo_list.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
+        pl.addWidget(self._photo_list)
+        btn_row2 = QHBoxLayout()
+        btn_remove = QPushButton("Remove Selected")
+        btn_remove.clicked.connect(self._on_remove_selected)
+        btn_clear = QPushButton("Clear All")
+        btn_clear.clicked.connect(self._on_clear_all)
+        btn_row2.addWidget(btn_remove)
+        btn_row2.addWidget(btn_clear)
+        pl.addLayout(btn_row2)
+        self._image_list_paths: list[str] = []
+        self._gps_status: dict[str, bool] = {}
+        self._gps_worker = None
+        self._last_image_dir = ""
 
-        stage_header = QLabel("Pipeline Stages")
-        stage_header.setProperty("class", "header")
-        layout.addWidget(stage_header)
+        pl.addWidget(field_label("Output"))
+        btn_output = QPushButton("Select folder...")
+        btn_output.setMinimumHeight(24)
+        btn_output.clicked.connect(self.outputFolderRequested.emit)
+        pl.addWidget(btn_output)
+        self._output_label = QLabel("—")
+        self._output_label.setWordWrap(True)
+        self._output_label.setProperty("class", "muted")
+        pl.addWidget(self._output_label)
 
-        self._stage_tree = QTreeWidget()
-        self._stage_tree.setHeaderLabels(["Stage", "Status"])
-        self._stage_tree.setColumnCount(2)
-        self._stage_tree.setColumnWidth(0, 180)
-        self._stage_tree.setRootIsDecorated(False)
-        self._stage_tree.setAlternatingRowColors(False)
-        self._items = {}
-        for key, label in STAGE_ITEMS:
-            item = QTreeWidgetItem([label, "Pending"])
-            item.setData(0, Qt.ItemDataRole.UserRole, key)
-            self._stage_tree.addTopLevelItem(item)
-            self._items[key] = item
-        layout.addWidget(self._stage_tree)
+        pl.addWidget(field_label("Quality"))
+        self._quality_combo = QComboBox()
+        self._quality_combo.addItems(QUALITY_OPTIONS)
+        self._quality_combo.setCurrentText("Medium")
+        self._quality_combo.currentTextChanged.connect(self._on_steps_changed)
+        pl.addWidget(self._quality_combo)
+
+        pl.addWidget(field_label("Matching Method"))
+        self._matcher_combo = QComboBox()
+        for label, _ in MATCHER_OPTIONS:
+            self._matcher_combo.addItem(label)
+        self._matcher_combo.setCurrentIndex(0)
+        self._matcher_combo.setToolTip(
+            "Auto: spatial if ≥80% GPS, exhaustive if <100 photos, vocab tree if >1000, else sequential."
+        )
+        pl.addWidget(self._matcher_combo)
+
+        layout.addWidget(project_grp)
+
+        # --- Outputs (group) — single line: only running stage with spinner ---
+        pipeline_grp = QGroupBox("Outputs")
+        pipeline_grp.setObjectName("outputsGroup")
+        pipeline_grp.setMinimumHeight(100)
+        pl2 = QVBoxLayout(pipeline_grp)
+        pl2.setContentsMargins(8, 10, 8, 8)
+        pl2.setSpacing(4)
+
+        self._stage_display_names = {key: label for key, label in STAGE_ITEMS}
+        self._outputs_status_label = QLabel("Ready")
+        self._outputs_status_label.setProperty("class", "outputsStatus")
+        self._outputs_status_label.setStyleSheet("color: #9E9E9E; font-size: 11px;")
+        pl2.addWidget(self._outputs_status_label)
+        self._running_stage_key = None
+        self._running_dot_index = 0
+        self._running_timer = QTimer(self)
+        self._running_timer.setInterval(400)
+        self._running_timer.timeout.connect(self._on_running_animation_tick)
 
         btn_layout = QHBoxLayout()
-        self._start_btn = QPushButton("Start")
+        self._start_btn = QPushButton("Run")
         self._start_btn.setObjectName("startButton")
+        self._start_btn.setMinimumHeight(28)
         self._stop_btn = QPushButton("Stop")
         self._stop_btn.setObjectName("stopButton")
+        self._stop_btn.setMinimumHeight(28)
         self._stop_btn.setEnabled(False)
         self._start_btn.clicked.connect(self.startRequested.emit)
         self._stop_btn.clicked.connect(self.stopRequested.emit)
         btn_layout.addWidget(self._start_btn)
         btn_layout.addWidget(self._stop_btn)
-        layout.addLayout(btn_layout)
+        pl2.addLayout(btn_layout)
+
+        layout.addWidget(pipeline_grp)
+
+        # --- Measurements (group) ---
+        meas_grp = QGroupBox("Measurements")
+        meas_grp.setObjectName("measurementsGroup")
+        ml = QVBoxLayout(meas_grp)
+        ml.setContentsMargins(8, 10, 8, 8)
+        ml.setSpacing(4)
+        self._measurements_label = QLabel("—")
+        self._measurements_label.setProperty("class", "muted")
+        self._measurements_label.setWordWrap(True)
+        self._measurements_label.setToolTip("Measurement count (updated when distance/area is added)")
+        ml.addWidget(self._measurements_label)
+        layout.addWidget(meas_grp)
 
         layout.addStretch()
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
 
+    IMAGE_FILTER = (
+        "Images (*.jpg *.jpeg *.JPG *.JPEG *.png *.PNG *.tif *.tiff *.TIF *.TIFF)"
+    )
+
+    def _on_steps_changed(self):
+        self.stepsChanged.emit()
+
+    def _on_add_photos(self):
+        files, _ = QFileDialog.getOpenFileNames(
+            self,
+            "Pilih Foto",
+            self._last_image_dir or "",
+            self.IMAGE_FILTER,
+        )
+        if not files:
+            return
+        self._last_image_dir = str(Path(files[0]).parent)
+        added = [str(Path(f).resolve()) for f in files if Path(f).is_file()]
+        for p in added:
+            if p not in self._image_list_paths:
+                self._image_list_paths.append(p)
+        log.debug("Add Photos: %d files selected, total list %d", len(added), len(self._image_list_paths))
+        self._refresh_photo_list_and_emit()
+
+    def _on_add_folder(self):
+        folder = QFileDialog.getExistingDirectory(
+            self, "Pilih folder berisi foto", self._last_image_dir or ""
+        )
+        if not folder:
+            return
+        self._last_image_dir = folder
+        from mapfree.utils.file_utils import list_images
+        try:
+            paths = list_images(Path(folder))
+            for p in paths:
+                s = str(p.resolve())
+                if s not in self._image_list_paths:
+                    self._image_list_paths.append(s)
+        except (OSError, TypeError):
+            pass
+        self._refresh_photo_list_and_emit()
+
+    def _on_remove_selected(self):
+        rows = set(i.row() for i in self._photo_list.selectedIndexes())
+        for r in sorted(rows, reverse=True):
+            if 0 <= r < len(self._image_list_paths):
+                self._image_list_paths.pop(r)
+        self._refresh_photo_list_and_emit()
+
+    def _on_clear_all(self):
+        self._image_list_paths.clear()
+        self._gps_status.clear()
+        self._refresh_photo_list_and_emit()
+
+    def _refresh_photo_list_and_emit(self):
+        self._update_photo_list_ui()
+        self._update_counters()
+        self.imageListChanged.emit(list(self._image_list_paths))
+        self.stepsChanged.emit()
+        if self._image_list_paths:
+            self._start_gps_worker()
+
+    def _update_photo_list_ui(self):
+        self._photo_list.clear()
+        for path in self._image_list_paths:
+            p = Path(path)
+            name = p.name
+            size_mb = p.stat().st_size / (1024 * 1024) if p.is_file() else 0
+            size_str = "%.1f MB" % size_mb if size_mb >= 1 else "%.0f KB" % (p.stat().st_size / 1024) if p.is_file() else "—"
+            has_gps = self._gps_status.get(path)
+            gps_str = "✓" if has_gps else "✗"
+            item = QListWidgetItem("%s  %s  %s" % (name, gps_str, size_str))
+            item.setData(Qt.ItemDataRole.UserRole, path)
+            if has_gps is True:
+                item.setForeground(QColor("#4CAF50"))
+            elif has_gps is False:
+                item.setForeground(QColor("#D94F4F"))
+            self._photo_list.addItem(item)
+
+    def _update_counters(self):
+        n = len(self._image_list_paths)
+        with_gps = sum(1 for p in self._image_list_paths if self._gps_status.get(p))
+        without = n - with_gps
+        self._image_count_label.setText(
+            "%d foto | %d dengan GPS | %d tanpa GPS" % (n, with_gps, without)
+        )
+
+    def _start_gps_worker(self):
+        if self._gps_worker is not None and self._gps_worker.isRunning():
+            return
+        from mapfree.gui.workers import GpsExtractWorker
+        files = list(self._image_list_paths)
+        log.debug("Extracting GPS for %d files (file list)", len(files))
+        self._gps_worker = GpsExtractWorker(files)
+        self._gps_worker.result.connect(self._on_gps_result)
+        self._gps_worker.finished.connect(self._on_gps_finished)
+        self._gps_worker.start()
+
+    def _on_gps_result(self, path: str, has_gps: bool):
+        key = str(Path(path).resolve())
+        self._gps_status[key] = has_gps
+        for i in range(self._photo_list.count()):
+            item = self._photo_list.item(i)
+            if item.data(Qt.ItemDataRole.UserRole) == key:
+                gps_str = "✓" if has_gps else "✗"
+                text = item.text().rsplit("  ", 2)
+                if len(text) >= 2:
+                    item.setText("%s  %s  %s" % (text[0], gps_str, text[-1]))
+                item.setForeground(QColor("#4CAF50") if has_gps else QColor("#D94F4F"))
+                break
+        self._update_counters()
+
+    def _on_gps_finished(self):
+        with_gps = sum(1 for p in self._image_list_paths if self._gps_status.get(p))
+        if with_gps > 0:
+            self.crs_detected.emit("EPSG:4326")
+        self._gps_worker = None
+
+    def get_image_list(self) -> list:
+        return list(self._image_list_paths)
+
+    def set_image_list(self, paths: list):
+        self._image_list_paths = [str(Path(p).resolve()) for p in paths if Path(p).is_file()]
+        self._gps_status.clear()
+        self._refresh_photo_list_and_emit()
+
+    def get_job_name(self):
+        return self._job_edit.text().strip() if self._job_edit else ""
+
+    def set_job_name(self, name: str):
+        if self._job_edit:
+            self._job_edit.setText(name or "")
+
+    def set_image_count(self, count: int):
+        """Backward compat: set total count when no list (e.g. folder mode or restore)."""
+        if not self._image_list_paths:
+            self._image_count_label.setText("%d foto | — dengan GPS | — tanpa GPS" % max(0, count))
+        self.stepsChanged.emit()
+
+    def set_output_folder(self, path: str):
+        self._output_label.setText(path or "—")
+        self._output_label.setToolTip(path or "")
+        self.stepsChanged.emit()
+
+    def get_quality(self):
+        return (self._quality_combo.currentText() or "Medium").lower()
+
+    def get_matcher(self) -> str:
+        idx = self._matcher_combo.currentIndex() if self._matcher_combo else 0
+        if 0 <= idx < len(MATCHER_OPTIONS):
+            return MATCHER_OPTIONS[idx][1]
+        return "auto"
+
+    def set_quality(self, quality: str):
+        q = quality.capitalize() if quality else "Medium"
+        if q in QUALITY_OPTIONS and self._quality_combo:
+            self._quality_combo.setCurrentText(q)
+
     def set_project_info(self, name: str, image_count: int, output_folder: str):
-        self._project_name.setText(name or "—")
-        self._image_count.setText("Images: %d" % image_count)
-        self._output_folder.setText("Output: %s" % (output_folder or "—"))
+        """Compatibility: set job name, image count, output path in one call."""
+        self.set_job_name(name)
+        self.set_image_count(image_count)
+        self.set_output_folder(output_folder or "—")
 
     def set_stage_status(self, stage_key: str, status: str):
-        item = self._items.get(stage_key)
-        if not item:
+        if status == STATUS_RUNNING:
+            self._running_stage_key = stage_key
+            self._running_dot_index = 0
+            name = self._stage_display_names.get(stage_key, stage_key)
+            self._outputs_status_label.setText("%s ••• Running" % name)
+            self._outputs_status_label.setStyleSheet("color: #FFC107; font-size: 11px;")
+            if not self._running_timer.isActive():
+                self._running_timer.start()
             return
-        if status == STATUS_PENDING:
-            item.setText(1, "Pending")
-            item.setForeground(1, QColor("#8a8a8a"))
-        elif status == STATUS_RUNNING:
-            item.setText(1, "Running")
-            item.setForeground(1, QColor("#5b9bd5"))
-        elif status == STATUS_DONE:
-            item.setText(1, "Done")
-            item.setForeground(1, QColor("#70ad47"))
-        elif status == STATUS_ERROR:
-            item.setText(1, "Error")
-            item.setForeground(1, QColor("#e74c3c"))
-        else:
-            item.setText(1, status)
-            item.setForeground(1, QColor("#e0e0e0"))
+        if stage_key == getattr(self, "_running_stage_key", None):
+            self._running_stage_key = None
+            if self._running_timer.isActive():
+                self._running_timer.stop()
+            self._outputs_status_label.setText("Ready")
+            self._outputs_status_label.setStyleSheet("color: #9E9E9E; font-size: 11px;")
+
+    def _on_running_animation_tick(self):
+        """Cycle dots in '[Stage] ••• Running'."""
+        if not self._running_stage_key:
+            self._running_timer.stop()
+            return
+        name = self._stage_display_names.get(self._running_stage_key, self._running_stage_key)
+        self._running_dot_index = (self._running_dot_index + 1) % 4
+        dots = "•" * (self._running_dot_index + 1) + " " * (3 - self._running_dot_index)
+        self._outputs_status_label.setText("%s %s Running" % (name, dots))
 
     def set_all_pending(self):
-        for key in self._items:
-            self.set_stage_status(key, STATUS_PENDING)
+        self._running_stage_key = None
+        if self._running_timer.isActive():
+            self._running_timer.stop()
+        self._outputs_status_label.setText("Ready")
+        self._outputs_status_label.setStyleSheet("color: #9E9E9E; font-size: 11px;")
 
     def set_running(self, running: bool):
-        self._start_btn.setEnabled(not running)
-        self._stop_btn.setEnabled(running)
+        if running:
+            self._start_btn.setEnabled(False)
+            self._stop_btn.setEnabled(True)
+        else:
+            self._stop_btn.setEnabled(False)
+            # Start enabled state diatur oleh set_run_enabled (dipanggil MainWindow)
+
+    def set_run_enabled(self, enabled: bool):
+        """Enable Run only when all 4 steps are done and not running."""
+        if not self._stop_btn.isEnabled():
+            self._start_btn.setEnabled(enabled)
+
+    def set_measurements_count(self, count: int) -> None:
+        """Update Measurements section (e.g. '3 measurements' or '—')."""
+        if getattr(self, "_measurements_label", None) is None:
+            return
+        if count <= 0:
+            self._measurements_label.setText("—")
+        else:
+            self._measurements_label.setText("%d measurement%s" % (count, "s" if count != 1 else ""))
 
     @property
     def start_button(self):

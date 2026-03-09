@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  lint:
+    name: Lint (flake8)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - run: pip install flake8
+      - run: flake8 mapfree/ tests/ --config=.flake8
+
+  test:
+    name: Test (pytest)
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - run: pip install -e ".[dev]"
+      - run: |
+          pytest tests/ -v \
+            --ignore=tests/gui \
+            --ignore=tests/integration \
+            --cov=mapfree \
+            --cov-report=term-missing \
+            --cov-fail-under=58
+        env:
+          MAPFREE_NO_OPENGL: "1"
+          MAPFREE_LOG_LEVEL: "WARNING"
+          QT_QPA_PLATFORM: offscreen
