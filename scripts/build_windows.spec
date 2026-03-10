@@ -26,6 +26,7 @@ hidden_imports = [
     "PySide6.QtCore",
     "PySide6.QtGui",
     "PySide6.QtWidgets",
+    "PySide6.QtNetwork",
     "PySide6.QtOpenGL",
     "PySide6.QtOpenGLWidgets",
     "numpy",
