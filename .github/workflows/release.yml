@@ -26,8 +26,8 @@ jobs:
 
       - name: Install project and PyInstaller
         run: |
-          pip install -e .
-          pip install pyinstaller
+          pip install -e ".[gui]"
+          pip install pyinstaller PySide6
 
       - name: Build Windows bundle
         run: pyinstaller scripts/build_windows.spec --clean --noconfirm
@@ -95,8 +95,8 @@ jobs:
 
       - name: Install project and PyInstaller
         run: |
-          pip install -e .
-          pip install pyinstaller
+          pip install -e ".[gui]"
+          pip install pyinstaller PySide6
 
       - name: Build Linux AppImage
         run: chmod +x scripts/build_linux.sh && ./scripts/build_linux.sh
