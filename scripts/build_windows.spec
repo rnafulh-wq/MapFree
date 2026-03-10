@@ -32,6 +32,7 @@ hidden_imports = [
     "numpy",
     "yaml",
     "psutil",
+    "requests",
 ]
 try:
     import pyqtgraph

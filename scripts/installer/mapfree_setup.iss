@@ -40,7 +40,7 @@ Name: "{group}\MapFree Engine"; Filename: "{app}\MapFree.exe"
 Name: "{userdesktop}\MapFree Engine"; Filename: "{app}\MapFree.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\MapFree.exe"; Description: "Jalankan MapFree Engine"; Flags: postinstall nowait skipifsilent
+Filename: "{app}\MapFree.exe"; Description: "Jalankan MapFree Engine (setup otomatis unduh COLMAP dll)"; Flags: postinstall nowait skipifsilent
 
 [Code]
 var

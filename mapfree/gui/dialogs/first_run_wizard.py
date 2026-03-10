@@ -2,6 +2,7 @@
 
 import json
 import logging
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -60,8 +61,27 @@ def _register_installed_binaries(pkg: DependencyPackage, dest_dir: Path) -> None
 MAPFREE_VERSION = "1.1"
 
 
+def _ensure_installer_components_copied() -> None:
+    """When running from bundle, copy installer's components.json to ~/.mapfree so wizard uses it."""
+    if not getattr(sys, "frozen", False):
+        return
+    exe_dir = Path(sys.executable).resolve().parent
+    source = exe_dir / "components.json"
+    if not source.is_file():
+        return
+    dest_dir = Path.home() / ".mapfree"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest = dest_dir / "components.json"
+    try:
+        dest.write_bytes(source.read_bytes())
+        logger.debug("Copied installer components.json to %s", dest)
+    except OSError as e:
+        logger.debug("Could not copy components.json: %s", e)
+
+
 def _load_components_preference() -> dict[str, bool]:
     """Load optional component choices from installer-written components.json if present."""
+    _ensure_installer_components_copied()
     components_file = Path.home() / ".mapfree" / "components.json"
     if not components_file.is_file():
         return {}
