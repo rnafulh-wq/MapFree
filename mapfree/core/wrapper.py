@@ -68,6 +68,9 @@ def run_process_streaming(
     run_env = get_process_env(env)
     run_cwd = str(Path(cwd).resolve()) if cwd else None
     log_fp = None
+    creationflags = 0
+    if sys.platform == "win32":
+        creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
     try:
         proc = subprocess.Popen(
             command,
@@ -77,6 +80,7 @@ def run_process_streaming(
             cwd=run_cwd,
             env=run_env,
             shell=False,
+            creationflags=creationflags,
         )
     except FileNotFoundError as e:
         msg = (
