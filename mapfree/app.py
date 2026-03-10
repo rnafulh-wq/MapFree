@@ -94,8 +94,12 @@ def main() -> int:
     # Run dependency check before main window so PATH is already set and
     # setup_complete.json is respected (skip dialog when completed + colmap.found).
     if not should_skip_dependency_dialog():
-        from mapfree.utils.dependency_check import check_all_dependencies
+        from mapfree.utils.dependency_check import (
+            check_all_dependencies,
+            invalidate_cache,
+        )
         from mapfree.gui.dialogs.dependency_dialog import DependencyDialog
+        invalidate_cache()
         results = check_all_dependencies()
         if should_skip_dependency_dialog(recheck_results=results):
             save_setup_state(results)

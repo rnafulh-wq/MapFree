@@ -244,16 +244,19 @@ def _check_binary(
 def _run_version(cmd: str, args: List[str]) -> tuple[bool, str]:
     """Run ``cmd + args`` and return ``(success, first_line_of_output)``.
     On Windows, .bat/.cmd are run via cmd /c so subprocess finds them.
+    Uses CREATE_NO_WINDOW on Windows to avoid flashing console.
     """
     run_args = [cmd] + args
     if sys.platform == "win32" and (cmd.lower().endswith(".bat") or cmd.lower().endswith(".cmd")):
         run_args = ["cmd", "/c", cmd] + args
+    creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if sys.platform == "win32" else 0
     try:
         result = subprocess.run(
             run_args,
             capture_output=True,
             text=True,
             timeout=10,
+            creationflags=creationflags,
         )
         # Many tools write version to stderr (e.g. colmap)
         if result.returncode != 0:

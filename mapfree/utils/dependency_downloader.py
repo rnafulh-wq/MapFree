@@ -8,7 +8,7 @@ import time
 import zipfile
 from pathlib import Path
 from typing import Callable
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from mapfree.utils.dependency_resolver import DependencyPackage
@@ -69,12 +69,20 @@ class DependencyDownloader:
                     progress_callback,
                     existing_size,
                 )
+            except HTTPError as e:
+                last_error = e
+                if e.code == 404:
+                    raise URLError(
+                        "URL tidak ditemukan (404). Asset release mungkin berubah. "
+                        "Cek: %s" % package.download_url
+                    ) from e
+                logger.warning("Download attempt %s failed: %s", attempt + 1, e)
             except (URLError, OSError, TimeoutError) as e:
                 last_error = e
                 logger.warning("Download attempt %s failed: %s", attempt + 1, e)
-                if attempt < RETRY_ATTEMPTS - 1:
-                    delay = 2 ** attempt
-                    time.sleep(delay)
+            if last_error and attempt < RETRY_ATTEMPTS - 1:
+                delay = 2 ** attempt
+                time.sleep(delay)
         if last_error:
             raise last_error
         raise URLError("Download failed after retries")
